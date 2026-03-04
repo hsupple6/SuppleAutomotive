@@ -98,7 +98,8 @@ function sendControlsPanel(res) {
   });
 }
 
-app.use(express.static(path.join(__dirname)));
+// Static files: public/ for Vercel compatibility (Vercel serves public/ via CDN; locally we serve it here)
+app.use(express.static(path.join(__dirname, 'public')));
 
 var supabase = null;
 if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -844,7 +845,11 @@ app.delete('/supplecontrols/api/customer-contacts/:id', controlsApiAuth, functio
   });
 });
 
+module.exports = app;
+
 var port = process.env.PORT || 3000;
-app.listen(port, function () {
-  console.log('Supple Automotive server on http://localhost:' + port);
-});
+if (!process.env.VERCEL) {
+  app.listen(port, function () {
+    console.log('Supple Automotive server on http://localhost:' + port);
+  });
+}
