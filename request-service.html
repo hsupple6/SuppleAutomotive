@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Request service — Supple Automotive</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="top-bar">
+    <a href="index.html" class="logo"><span class="logo-main" id="logoMain">Supple</span><span class="logo-accent" id="logoAccent">Automotive</span></a>
+    <nav class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="index.html#services">Services</a>
+      <a href="index.html#about">About</a>
+      <a href="request-service.html" class="nav-current">Request service</a>
+      <a href="index.html#contact">Contact</a>
+      <a href="index.html#location">Location</a>
+    </nav>
+    <div class="header-actions">
+      <a href="payment.html" class="link-payment js-payment-portal-link" id="headerPaymentPortal">Payment Portal</a>
+      <a href="index.html" class="link-cta">Home</a>
+    </div>
+  </header>
+
+  <main class="page-request">
+    <section class="block block-form">
+      <div class="form-inner">
+        <div class="reveal-on-scroll">
+          <h1 class="form-title" data-split-lines>Request service</h1>
+          <p class="form-intro" data-split-lines>Tell us what you need. We’ll get back to you as soon as we can.</p>
+        </div>
+        <form class="service-form" id="serviceForm" action="#" method="post" novalidate>
+          <label class="form-field">
+            <span class="form-label">Name <em>required</em></span>
+            <input type="text" name="name" required placeholder="Your full name" autocomplete="name" class="form-input">
+          </label>
+
+          <div class="form-field form-field-contact">
+            <span class="form-label">Contact</span>
+            <div class="contact-switch" role="group" aria-label="Contact by email or phone">
+              <button type="button" class="contact-switch-option contact-switch-email active" data-mode="email" aria-pressed="true">
+                <span class="contact-switch-text">Email</span>
+              </button>
+              <button type="button" class="contact-switch-option contact-switch-phone" data-mode="phone" aria-pressed="false">
+                <span class="contact-switch-text">Phone</span>
+              </button>
+            </div>
+            <div class="contact-detail-wrap">
+              <label class="form-field contact-detail contact-detail-email">
+                <span class="form-label visually-hidden">Email</span>
+                <input type="email" name="email" placeholder="you@example.com" autocomplete="email" class="form-input" id="formEmail">
+              </label>
+              <label class="form-field contact-detail contact-detail-phone is-hidden">
+                <span class="form-label visually-hidden">Phone</span>
+                <input type="tel" name="phone" placeholder="(805) 555-0000" autocomplete="tel" class="form-input" id="formPhone">
+              </label>
+            </div>
+          </div>
+
+          <div class="form-row form-row-3">
+            <label class="form-field">
+              <span class="form-label">Vehicle year</span>
+              <input type="text" name="vehicle_year" placeholder="e.g. 2020" autocomplete="off" class="form-input" inputmode="numeric" pattern="[0-9]*">
+            </label>
+            <label class="form-field">
+              <span class="form-label">Make</span>
+              <input type="text" name="vehicle_make" placeholder="e.g. Honda" autocomplete="off" class="form-input">
+            </label>
+            <label class="form-field">
+              <span class="form-label">Model</span>
+              <input type="text" name="vehicle_model" placeholder="e.g. Civic" autocomplete="off" class="form-input">
+            </label>
+          </div>
+
+          <label class="form-field">
+            <span class="form-label">Service needed</span>
+            <select name="service_type" class="form-input form-select">
+              <option value="">Select…</option>
+              <option value="maintenance">Maintenance &amp; repairs</option>
+              <option value="diagnostics">Diagnostics</option>
+              <option value="inspection">Inspection</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+
+          <label class="form-field">
+            <span class="form-label">Details</span>
+            <textarea name="details" rows="4" placeholder="Describe the issue or what you need…" class="form-input form-textarea"></textarea>
+          </label>
+
+          <div class="form-row form-row-2">
+            <label class="form-field">
+              <span class="form-label">Preferred date</span>
+              <input type="date" name="preferred_date" class="form-input">
+            </label>
+            <label class="form-field">
+              <span class="form-label">Preferred time</span>
+              <select name="preferred_time" class="form-input form-select">
+                <option value="">Any</option>
+                <option value="morning">Morning</option>
+                <option value="afternoon">Afternoon</option>
+                <option value="evening">Evening</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="form-field">
+            <span class="form-label">Additional notes</span>
+            <textarea name="notes" rows="2" placeholder="Anything else we should know?" class="form-input form-textarea"></textarea>
+          </label>
+
+          <div class="form-actions">
+            <button type="submit" class="form-submit">Submit request</button>
+            <p id="serviceFormMessage" class="form-message" role="alert" aria-live="polite" hidden></p>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <nav class="footer-nav">
+      <a href="index.html">Home</a>
+      <a href="index.html#services">Services</a>
+      <a href="index.html#about">About</a>
+      <a href="request-service.html">Request service</a>
+      <a href="index.html#contact">Contact</a>
+      <a href="index.html#location">Location</a>
+    </nav>
+    <p class="footer-copy">Copyright &copy; since <span id="footerYear"></span> &ndash; <span id="footerName">Supple Automotive</span></p>
+    <div class="footer-legal">
+      <a href="#">Sitemap</a>
+      <a href="#">Privacy</a>
+    </div>
+  </footer>
+
+  <div class="slash-overlay" id="slashOverlay" aria-hidden="true">
+    <div class="slash-overlay-line slash-overlay-line-bg" id="slashOverlayLineBg"></div>
+    <div class="slash-overlay-line" id="slashOverlayLine"></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

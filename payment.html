@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Portal — Supple Automotive</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="top-bar">
+    <a href="index.html" class="logo"><span class="logo-main" id="logoMain">Supple</span><span class="logo-accent" id="logoAccent">Automotive</span></a>
+    <nav class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="index.html#services">Services</a>
+      <a href="index.html#about">About</a>
+      <a href="request-service.html">Request service</a>
+      <a href="index.html#contact">Contact</a>
+      <a href="index.html#location">Location</a>
+    </nav>
+    <div class="header-actions">
+      <a href="payment.html" class="link-payment nav-current js-payment-portal-link" id="headerPaymentPortal">Payment Portal</a>
+      <a href="request-service.html" class="link-cta js-request-service-link">Request service</a>
+    </div>
+  </header>
+
+  <main class="page-payment">
+    <!-- Lookup form -->
+    <section class="payment-form-section" id="paymentFormSection">
+      <section class="block block-form">
+        <div class="form-inner">
+          <div class="reveal-on-scroll">
+            <h1 class="form-title" data-split-lines>Payment Portal</h1>
+            <p class="form-intro" data-split-lines>Enter your details to look up your balance and past services.</p>
+          </div>
+          <form class="service-form" id="paymentForm" action="#" method="post" novalidate>
+            <label class="form-field">
+              <span class="form-label">Name <em>required</em></span>
+              <input type="text" name="name" required placeholder="Your full name" autocomplete="name" class="form-input">
+            </label>
+            <div class="form-field form-field-contact">
+              <span class="form-label">Contact</span>
+              <div class="contact-switch" role="group" aria-label="Contact by email or phone">
+                <button type="button" class="contact-switch-option contact-switch-email active" data-mode="email" aria-pressed="true">
+                  <span class="contact-switch-text">Email</span>
+                </button>
+                <button type="button" class="contact-switch-option contact-switch-phone" data-mode="phone" aria-pressed="false">
+                  <span class="contact-switch-text">Phone</span>
+                </button>
+              </div>
+              <div class="contact-detail-wrap">
+                <label class="form-field contact-detail contact-detail-email">
+                  <span class="form-label visually-hidden">Email</span>
+                  <input type="email" name="email" placeholder="you@example.com" autocomplete="email" class="form-input" id="formEmail">
+                </label>
+                <label class="form-field contact-detail contact-detail-phone is-hidden">
+                  <span class="form-label visually-hidden">Phone</span>
+                  <input type="tel" name="phone" placeholder="(805) 555-0000" autocomplete="tel" class="form-input" id="formPhone">
+                </label>
+              </div>
+            </div>
+            <label class="form-field">
+              <span class="form-label">Reference number <em>optional</em></span>
+              <input type="text" name="reference_number" placeholder="e.g. invoice or job number" autocomplete="off" class="form-input">
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="form-submit" id="paymentFormSubmit">Look up</button>
+              <p id="paymentFormMessage" class="form-message" role="alert" aria-live="polite" hidden></p>
+            </div>
+          </form>
+        </div>
+      </section>
+    </section>
+
+    <!-- Dashboard (vehicles left, details + balance + past services) -->
+    <section class="payment-dashboard" id="paymentDashboard" hidden>
+      <div class="payment-dashboard-inner">
+        <aside class="payment-vehicles-block" id="paymentVehiclesBlock">
+          <h2 class="payment-vehicles-title">Your vehicles</h2>
+          <ul class="payment-vehicles-list" id="paymentVehiclesList"></ul>
+          <p class="payment-vehicles-empty" id="paymentVehiclesEmpty">No vehicles on file.</p>
+        </aside>
+
+        <div class="payment-details-block">
+          <h2 class="payment-details-title">Account details</h2>
+          <div class="payment-details-grid" id="paymentDetailsGrid"></div>
+        </div>
+
+        <div class="payment-balance-block">
+          <p class="payment-balance-label">Balance</p>
+          <p class="payment-balance-amount" id="paymentBalanceAmount">$0.00</p>
+          <button type="button" class="payment-pay-now" id="paymentPayNowBtn" disabled>Pay Now</button>
+        </div>
+
+        <aside class="payment-history">
+          <div class="payment-history-header">
+            <h2 class="payment-history-title">Past services</h2>
+            <input type="text" class="payment-history-search" id="paymentHistorySearch" placeholder="Search" aria-label="Search past services">
+          </div>
+          <ul class="payment-history-list" id="paymentHistoryList"></ul>
+          <p class="payment-history-empty" id="paymentHistoryEmpty">No past services.</p>
+          <p class="payment-history-no-match" id="paymentHistoryNoMatch" hidden>No matching services.</p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Service detail modal (click a past service) -->
+    <div class="payment-service-modal" id="paymentServiceModal" hidden aria-modal="true" role="dialog" aria-labelledby="paymentServiceModalTitle">
+      <div class="payment-service-modal-backdrop" id="paymentServiceModalBackdrop"></div>
+      <div class="payment-service-modal-content">
+        <h2 class="payment-service-modal-title" id="paymentServiceModalTitle">Service details</h2>
+        <div class="payment-service-modal-body" id="paymentServiceModalBody"></div>
+        <button type="button" class="payment-service-modal-close" id="paymentServiceModalClose">Close</button>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <nav class="footer-nav">
+      <a href="index.html">Home</a>
+      <a href="index.html#services">Services</a>
+      <a href="index.html#about">About</a>
+      <a href="request-service.html">Request service</a>
+      <a href="index.html#contact">Contact</a>
+      <a href="index.html#location">Location</a>
+    </nav>
+    <p class="footer-copy">Copyright &copy; since <span id="footerYear"></span> &ndash; <span id="footerName">Supple Automotive</span></p>
+    <div class="footer-legal">
+      <a href="#">Sitemap</a>
+      <a href="#">Privacy</a>
+    </div>
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+  (function () {
+    var formSection = document.getElementById('paymentFormSection');
+    var dashboard = document.getElementById('paymentDashboard');
+    var form = document.getElementById('paymentForm');
+    var detailsGrid = document.getElementById('paymentDetailsGrid');
+    var balanceAmount = document.getElementById('paymentBalanceAmount');
+    var historyList = document.getElementById('paymentHistoryList');
+    var historyEmpty = document.getElementById('paymentHistoryEmpty');
+    var payNowBtn = document.getElementById('paymentPayNowBtn');
+    var vehiclesList = document.getElementById('paymentVehiclesList');
+    var vehiclesEmpty = document.getElementById('paymentVehiclesEmpty');
+    var modal = document.getElementById('paymentServiceModal');
+    var modalBody = document.getElementById('paymentServiceModalBody');
+    var modalBackdrop = document.getElementById('paymentServiceModalBackdrop');
+    var modalClose = document.getElementById('paymentServiceModalClose');
+    var apiBase = (window.SUPPLE_CONFIG && window.SUPPLE_CONFIG.apiBaseUrl) ? window.SUPPLE_CONFIG.apiBaseUrl.replace(/\/$/, '') : '';
+
+    function phoneLast10(str) {
+      if (!str || typeof str !== 'string') return '';
+      var digits = str.replace(/\D/g, '');
+      return digits.length <= 10 ? digits : digits.slice(-10);
+    }
+    function formatPhone(digits) {
+      var d = phoneLast10(digits);
+      if (d.length !== 10) return d || '';
+      return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+    }
+
+    function showDashboard(data) {
+      if (formSection) formSection.setAttribute('hidden', '');
+      if (dashboard) dashboard.removeAttribute('hidden');
+
+      var c = data.customer || {};
+      var phoneVal = c.phone ? formatPhone(c.phone) : '';
+      var lines = [
+        { label: 'Name', value: c.name },
+        { label: 'Email', value: c.email },
+        { label: 'Phone', value: phoneVal },
+        { label: 'Address', value: [c.address_line1, c.address_line2, c.city, c.state, c.postal_code].filter(Boolean).join(', ') }
+      ].filter(function (x) { return x.value; });
+      if (detailsGrid) {
+        detailsGrid.innerHTML = lines.map(function (x) {
+          return '<div class="payment-detail-row"><span class="payment-detail-label">' + escapeHtml(x.label) + '</span><span class="payment-detail-value">' + escapeHtml(x.value) + '</span></div>';
+        }).join('');
+      }
+
+      var balance = typeof data.balance === 'number' ? data.balance : 0;
+      if (balanceAmount) balanceAmount.textContent = '$' + balance.toFixed(2);
+      if (payNowBtn) payNowBtn.disabled = balance <= 0;
+
+      var services = data.services || [];
+      var vehicles = data.vehicles || [];
+      var vehicleById = {};
+      vehicles.forEach(function (v) { vehicleById[v.id] = v; });
+
+      var requestedServiceValues = ['maintenance', 'diagnostics', 'inspection', 'other', 'Service request'];
+      function isRequestedService(s) {
+        var name = (s.service_name || '').trim().toLowerCase();
+        return requestedServiceValues.some(function (v) { return v.toLowerCase() === name; });
+      }
+      if (historyList) {
+        historyList.innerHTML = services.map(function (s, i) {
+          var total = s.total != null ? s.total : (parseFloat(s.service_price) || 0);
+          var date = s.created_at ? new Date(s.created_at).toLocaleDateString() : '—';
+          var status = s.payment_status === 'paid' ? 'Paid' : (s.payment_status === 'partial' ? 'Partial' : 'Unpaid');
+          var isPending = (s.bill_status || 'posted') === 'pending';
+          var vehicle = (s.vehicle_id && vehicleById[s.vehicle_id]) ? vehicleById[s.vehicle_id] : null;
+          var carLabel = vehicle ? [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') : '—';
+          var displayName = isRequestedService(s) ? 'Requested Service' : (s.service_name || 'Service');
+          var metaText = escapeHtml(date) + ' · ' + status + (isPending ? ' · <span class="payment-history-pending">Pending</span>' : '');
+          return '<li class="payment-history-item js-payment-service-item" data-index="' + i + '" role="button" tabindex="0">' +
+            '<div class="payment-history-item-head">' +
+            '<span class="payment-history-item-name">' + escapeHtml(displayName) + '</span>' +
+            '<span class="payment-history-item-vehicle">' + escapeHtml(carLabel) + '</span>' +
+            '</div>' +
+            '<span class="payment-history-item-meta">' + metaText + '</span>' +
+            '<span class="payment-history-item-amount">' + (isPending ? '—' : '$' + total.toFixed(2)) + '</span>' +
+            '</li>';
+        }).join('');
+      }
+      if (historyEmpty) historyEmpty.hidden = services.length > 0;
+      var historyNoMatch = document.getElementById('paymentHistoryNoMatch');
+      if (historyNoMatch) historyNoMatch.hidden = true;
+      dashboard._paymentServices = services;
+      dashboard._paymentVehicleById = vehicleById;
+      dashboard._paymentVehicles = vehicles;
+
+      function buildServiceSearchText(s, vehicleById) {
+        var v = (s.vehicle_id && vehicleById[s.vehicle_id]) ? vehicleById[s.vehicle_id] : null;
+        var carLabel = v ? [v.year, v.make, v.model].filter(Boolean).join(' ') : '';
+        var date = s.created_at ? new Date(s.created_at).toLocaleDateString() : '';
+        var status = s.payment_status === 'paid' ? 'Paid' : (s.payment_status === 'partial' ? 'Partial' : 'Unpaid');
+        var total = s.total != null ? s.total : (parseFloat(s.service_price) || 0);
+        return [s.service_name, carLabel, date, status, total.toFixed(2), (s.notes || ''), (s.bill_status || 'posted')].join(' ').toLowerCase();
+      }
+      if (historyList) {
+        historyList.querySelectorAll('.payment-history-item').forEach(function (li, idx) {
+          var s = services[idx];
+          if (s) li.setAttribute('data-search', buildServiceSearchText(s, vehicleById));
+        });
+      }
+      var historySearch = document.getElementById('paymentHistorySearch');
+      if (historySearch) {
+        historySearch.value = '';
+        historySearch.oninput = function () {
+          var q = (historySearch.value || '').trim().toLowerCase();
+          var items = historyList ? historyList.querySelectorAll('.payment-history-item') : [];
+          var visible = 0;
+          items.forEach(function (li) {
+            var match = !q || (li.getAttribute('data-search') || '').indexOf(q) !== -1;
+            li.hidden = !match;
+            if (match) visible++;
+          });
+          if (historyNoMatch) historyNoMatch.hidden = !(q && services.length > 0 && visible === 0);
+        };
+      }
+
+      var sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      function needsServiceSoon(vehicleId) {
+        var completed = services.filter(function (s) { return s.vehicle_id === vehicleId && s.status === 'completed'; });
+        if (completed.length === 0) return true;
+        var last = completed.reduce(function (latest, s) {
+          var d = s.completed_at ? new Date(s.completed_at) : (s.created_at ? new Date(s.created_at) : null);
+          return d && (!latest || d > latest) ? d : latest;
+        }, null);
+        return !last || last < sixMonthsAgo;
+      }
+
+      if (vehiclesList) {
+        var vehiclesBlock = document.getElementById('paymentVehiclesBlock');
+        vehiclesList.innerHTML = vehicles.map(function (v) {
+          var need = needsServiceSoon(v.id);
+          var label = [v.year, v.make, v.model].filter(Boolean).join(' ');
+          var serviceDates = services.filter(function (s) { return s.vehicle_id === v.id; }).map(function (s) {
+            return s.completed_at ? new Date(s.completed_at).toLocaleDateString() : (s.created_at ? new Date(s.created_at).toLocaleDateString() : '—');
+          });
+          var details = [
+            v.trim ? 'Trim: ' + v.trim : '',
+            v.vin ? 'VIN: ' + v.vin : '',
+            v.license_plate ? 'Plate: ' + v.license_plate : '',
+            v.mileage != null ? 'Mileage: ' + v.mileage.toLocaleString() : '',
+            v.color ? 'Color: ' + v.color : '',
+            v.notes ? 'Notes: ' + v.notes : ''
+          ].filter(Boolean);
+          var serviceLines = serviceDates.length ? 'Service dates: ' + serviceDates.join(', ') : 'No services yet.';
+          var nextLine = 'Next service: —';
+          return '<li class="payment-vehicle-item' + (need ? ' payment-vehicle-needs-service' : '') + '">' +
+            '<div class="payment-vehicle-summary">' +
+            (need ? '<span class="payment-vehicle-warning" aria-label="Needs service soon">!</span>' : '') +
+            '<span class="payment-vehicle-label">' + escapeHtml(label || 'Vehicle') + '</span>' +
+            '</div>' +
+            '<div class="payment-vehicle-expand">' +
+            '<div class="payment-vehicle-details">' + (details.length ? details.map(function (d) { return escapeHtml(d); }).join('<br>') : '—') + '</div>' +
+            '<p class="payment-vehicle-services">' + escapeHtml(serviceLines) + '</p>' +
+            '<p class="payment-vehicle-next">' + escapeHtml(nextLine) + '</p>' +
+            '</div>' +
+            '</li>';
+        }).join('');
+        if (vehiclesEmpty) vehiclesEmpty.hidden = vehicles.length > 0;
+      }
+
+      dashboard.querySelectorAll('.js-payment-service-item').forEach(function (el) {
+        el.addEventListener('click', function () {
+          var i = parseInt(el.getAttribute('data-index'), 10);
+          openServiceModal(services[i], vehicleById, vehicles);
+        });
+        el.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
+        });
+      });
+    }
+
+    function openServiceModal(service, vehicleById, vehicles) {
+      if (!service || !modal || !modalBody) return;
+      var vehicle = (service.vehicle_id && vehicleById[service.vehicle_id]) ? vehicleById[service.vehicle_id] : null;
+      var carLine = vehicle ? [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') : 'No vehicle';
+      var total = service.total != null ? service.total : (parseFloat(service.service_price) || 0);
+      var date = service.created_at ? new Date(service.created_at).toLocaleDateString() : '—';
+      var completed = service.completed_at ? new Date(service.completed_at).toLocaleDateString() : '—';
+      var status = service.payment_status === 'paid' ? 'Paid' : (service.payment_status === 'partial' ? 'Partial' : 'Unpaid');
+      var parts = (service.parts || []).map(function (p) {
+        return (p.part_name || 'Part') + (p.quantity > 1 ? ' × ' + p.quantity : '') + ' — $' + (parseFloat(p.total_price) || 0).toFixed(2);
+      }).join('<br>');
+      var isPending = (service.bill_status || 'posted') === 'pending';
+      var billStatusLabel = isPending ? 'Pending (not yet on your balance)' : 'Posted (on your balance)';
+      var html = '<p class="payment-service-modal-row"><strong>Vehicle</strong> ' + escapeHtml(carLine) + '</p>' +
+        '<p class="payment-service-modal-row"><strong>Service</strong> ' + escapeHtml(service.service_name || 'Service') + '</p>' +
+        '<p class="payment-service-modal-row"><strong>Bill status</strong> ' + escapeHtml(billStatusLabel) + '</p>' +
+        '<p class="payment-service-modal-row"><strong>Date</strong> ' + escapeHtml(date) + '</p>' +
+        '<p class="payment-service-modal-row"><strong>Completed</strong> ' + escapeHtml(completed) + '</p>' +
+        '<p class="payment-service-modal-row"><strong>Status</strong> ' + escapeHtml(service.status || '') + '</p>' +
+        '<p class="payment-service-modal-row"><strong>Payment</strong> ' + escapeHtml(status) + '</p>' +
+        '<p class="payment-service-modal-row"><strong>Total</strong> ' + (isPending ? '—' : '$' + total.toFixed(2)) + '</p>' +
+        (service.notes ? '<p class="payment-service-modal-row"><strong>Notes</strong> ' + escapeHtml(service.notes) + '</p>' : '') +
+        (parts ? '<p class="payment-service-modal-row"><strong>Parts</strong><br>' + parts + '</p>' : '');
+      modalBody.innerHTML = html;
+      modal.removeAttribute('hidden');
+    }
+    function closeServiceModal() {
+      if (modal) modal.setAttribute('hidden', '');
+    }
+    function escapeHtml(s) {
+      if (!s) return '';
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    if (modalBackdrop) modalBackdrop.addEventListener('click', closeServiceModal);
+    if (modalClose) modalClose.addEventListener('click', closeServiceModal);
+
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (!form.checkValidity()) { form.reportValidity(); return; }
+        var emailEl = form.querySelector('[name="email"]');
+        var phoneEl = form.querySelector('[name="phone"]');
+        var contactSwitch = form.querySelector('.contact-switch');
+        var isEmail = contactSwitch && contactSwitch.querySelector('.contact-switch-email.active');
+        var email = (isEmail && emailEl) ? emailEl.value.trim() : '';
+        var phoneRaw = (!isEmail && phoneEl) ? phoneEl.value.trim() : '';
+        var phone = phoneRaw ? phoneLast10(phoneRaw) : '';
+        if (!email && !phone) {
+          var msgEl = document.getElementById('paymentFormMessage');
+          if (msgEl) { msgEl.textContent = 'Please enter your email or phone number.'; msgEl.hidden = false; msgEl.className = 'form-message form-message-error'; }
+          return;
+        }
+        var msgEl = document.getElementById('paymentFormMessage');
+        if (msgEl) { msgEl.hidden = true; msgEl.textContent = ''; }
+        var submitBtn = form.querySelector('.form-submit');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Looking up…'; }
+        fetch(apiBase + '/api/payment-lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: (form.querySelector('[name="name"]') || {}).value || '',
+            email: email,
+            phone: phone,
+            reference_number: (form.querySelector('[name="reference_number"]') || {}).value || ''
+          })
+        })
+          .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Lookup failed'); return d; }); })
+          .then(showDashboard)
+          .catch(function (err) {
+            var msgEl = document.getElementById('paymentFormMessage');
+            if (msgEl) { msgEl.textContent = err.message || 'Lookup failed. Try again.'; msgEl.hidden = false; msgEl.className = 'form-message form-message-error'; }
+          })
+          .finally(function () {
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Look up'; }
+          });
+      });
+    }
+  })();
+  </script>
+</body>
+</html>
