@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    (function(){if (typeof crypto !== 'undefined' && !crypto.randomUUID) { crypto.randomUUID = function randomUUID() { var d = new Uint8Array(16); crypto.getRandomValues(d); d[6] = (d[6] & 15) | 64; d[8] = (d[8] & 63) | 128; return ([].slice.call(d).map(function(c,i){ return (i===4||i===6||i===8||i===10?'-':'') + ('0'+c.toString(16)).slice(-2); })).join(''); }; }})();
+  </script>
   <title>Supple Automotive — Auto Repair & Service</title>
   <link rel="stylesheet" href="css/styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,6 +17,7 @@
     <a href="#" class="logo"><span class="logo-main" id="logoMain">Supple</span><span class="logo-accent" id="logoAccent">Automotive</span></a>
     <nav class="nav-links">
       <a href="#services">Services</a>
+      <a href="#pricing">Pricing</a>
       <a href="#about">About</a>
       <a href="#contact">Contact</a>
       <a href="#location">Location</a>
@@ -228,6 +232,152 @@
       </div>
     </section>
 
+    <!-- Pricing -->
+    <section class="block block-pricing" id="pricing" aria-label="Pricing">
+      <div class="pricing-inner reveal-on-scroll">
+        <p class="copy-overline">Pricing</p>
+        <h2 class="pricing-title">Rates &amp; fees</h2>
+        <div class="pricing-cards">
+          <div class="pricing-card">
+            <span class="pricing-card-label">Labor</span>
+            <span class="pricing-card-value">$70<span class="pricing-card-unit">/hr</span></span>
+            <span class="pricing-card-note">Time is billed from arrival until departure, rounded to the nearest minute.</span>
+          </div>
+          <div class="pricing-card">
+            <span class="pricing-card-label">Drive-up</span>
+            <span class="pricing-card-value">$15 base <span class="pricing-card-unit">· $2/mi after 15 mi</span></span>
+            <span class="pricing-card-note">From Carmen Drive and E Ponderosa Drive, Camarillo. One-way mileage.</span>
+          </div>
+          <div class="pricing-card">
+            <span class="pricing-card-label">Parts pickup</span>
+            <span class="pricing-card-value">$2 <span class="pricing-card-unit">/mi</span></span>
+            <span class="pricing-card-note">To the nearest AutoZone for All Part Pickups. Miles only—no labor charge for the run.</span>
+          </div>
+          <div class="pricing-card">
+            <span class="pricing-card-label">Diagnosis</span>
+            <span class="pricing-card-value">$125</span>
+            <span class="pricing-card-note">Fee waived when the repair is completed by us.</span>
+          </div>
+        </div>
+
+        <h3 class="pricing-subtitle">Common service costs</h3>
+        <p class="pricing-subtitle-desc">Typical labor estimates based on common job times. Expand for details.</p>
+        <div class="pricing-accordion" role="region" aria-label="Common service cost estimates">
+          <details class="pricing-accordion-item">
+            <summary class="pricing-accordion-trigger">
+              <span class="pricing-accordion-label">Oil change</span>
+              <span class="pricing-accordion-chevron" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </span>
+            </summary>
+            <div class="pricing-accordion-panel">
+              <div class="pricing-accordion-panel-inner">
+                <ul class="pricing-accordion-list">
+                  <li>Conventional: ~1 hr labor + parts (filter &amp; oil)</li>
+                  <li>Synthetic: ~1 hr labor + parts (filter &amp; oil)</li>
+                </ul>
+              </div>
+            </div>
+          </details>
+          <details class="pricing-accordion-item">
+            <summary class="pricing-accordion-trigger">
+              <span class="pricing-accordion-label">Brake pads (front or rear)</span>
+              <span class="pricing-accordion-chevron" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </span>
+            </summary>
+            <div class="pricing-accordion-panel">
+              <div class="pricing-accordion-panel-inner">
+                <ul class="pricing-accordion-list">
+                  <li>Front or rear axle: ~1–1.5 hrs labor + parts</li>
+                  <li>Both axles: ~2–2.5 hrs labor + parts</li>
+                </ul>
+              </div>
+            </div>
+          </details>
+          <details class="pricing-accordion-item">
+            <summary class="pricing-accordion-trigger">
+              <span class="pricing-accordion-label">Battery replacement</span>
+              <span class="pricing-accordion-chevron" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </span>
+            </summary>
+            <div class="pricing-accordion-panel">
+              <div class="pricing-accordion-panel-inner">
+                <ul class="pricing-accordion-list">
+                  <li>~0.5 hr labor + battery cost</li>
+                </ul>
+              </div>
+            </div>
+          </details>
+          <details class="pricing-accordion-item">
+            <summary class="pricing-accordion-trigger">
+              <span class="pricing-accordion-label">Spark plugs</span>
+              <span class="pricing-accordion-chevron" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </span>
+            </summary>
+            <div class="pricing-accordion-panel">
+              <div class="pricing-accordion-panel-inner">
+                <ul class="pricing-accordion-list">
+                  <li>4-cylinder: ~1 hr labor + parts</li>
+                  <li>6-cylinder: ~1–1.5 hrs labor + parts</li>
+                  <li>8-cylinder: ~1.5–2 hrs labor + parts</li>
+                </ul>
+              </div>
+            </div>
+          </details>
+          <details class="pricing-accordion-item">
+            <summary class="pricing-accordion-trigger">
+              <span class="pricing-accordion-label">Air filter (engine cabin)</span>
+              <span class="pricing-accordion-chevron" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </span>
+            </summary>
+            <div class="pricing-accordion-panel">
+              <div class="pricing-accordion-panel-inner">
+                <ul class="pricing-accordion-list">
+                  <li>Engine air filter: ~0.25 hr labor + parts</li>
+                  <li>Cabin air filter: ~0.25–0.5 hr labor + parts</li>
+                </ul>
+              </div>
+            </div>
+          </details>
+          <details class="pricing-accordion-item">
+            <summary class="pricing-accordion-trigger">
+              <span class="pricing-accordion-label">Coolant flush</span>
+              <span class="pricing-accordion-chevron" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </span>
+            </summary>
+            <div class="pricing-accordion-panel">
+              <div class="pricing-accordion-panel-inner">
+                <ul class="pricing-accordion-list">
+                  <li>~1 hr labor + coolant</li>
+                </ul>
+              </div>
+            </div>
+          </details>
+          <details class="pricing-accordion-item">
+            <summary class="pricing-accordion-trigger">
+              <span class="pricing-accordion-label">Tire rotation</span>
+              <span class="pricing-accordion-chevron" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              </span>
+            </summary>
+            <div class="pricing-accordion-panel">
+              <div class="pricing-accordion-panel-inner">
+                <ul class="pricing-accordion-list">
+                  <li>~0.5 hr labor</li>
+                </ul>
+              </div>
+            </div>
+          </details>
+        </div>
+        <p class="pricing-disclaimer">Prices may vary depending on vehicle make, model, and condition. All estimates are subject to inspection and approval before work begins.</p>
+      </div>
+    </section>
+
     <!-- Our services / In-house care -->
     <section class="block block-copy">
       <div class="copy-inner reveal-on-scroll">
@@ -250,7 +400,7 @@
         <div class="about-copy reveal-on-scroll">
           <p class="copy-overline" data-split-lines>About</p>
           <h2 class="copy-title" data-split-lines>Hayden Supple</h2>
-          <p class="copy-body" data-split-lines>A mechanical engineer from Purdue with a years of experience under the hood, Hayden Supple doesn’t just work on cars—he gets them. From oil changes and brake jobs to full manual transmission swaps and engine builds, if it rolls, he can fix it, upgrade it, or make it faster. No job too small, none too involved.</p>
+          <p class="copy-body" data-split-lines>A mechanical engineer by trade from Purdue with a years of experience under the hood, Hayden Supple doesn’t just work on cars—he gets them. From oil changes and brake jobs to full manual transmission swaps and engine builds, if it rolls, he can fix it, upgrade it, or make it faster. No job too small, none too involved.</p>
           <a href="#contact" class="link-discover">Work with Hayden</a>
         </div>
       </div>
@@ -281,6 +431,7 @@
   <footer class="footer">
     <nav class="footer-nav">
       <a href="#services">Services</a>
+      <a href="#pricing">Pricing</a>
       <a href="#about">About</a>
       <a href="request-service.html" class="js-request-service-link">Request service</a>
       <a href="#contact">Contact</a>

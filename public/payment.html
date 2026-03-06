@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    (function(){if (typeof crypto !== 'undefined' && !crypto.randomUUID) { crypto.randomUUID = function randomUUID() { var d = new Uint8Array(16); crypto.getRandomValues(d); d[6] = (d[6] & 15) | 64; d[8] = (d[8] & 63) | 128; return ([].slice.call(d).map(function(c,i){ return (i===4||i===6||i===8||i===10?'-':'') + ('0'+c.toString(16)).slice(-2); })).join(''); }; }})();
+  </script>
   <title>Payment Portal — Supple Automotive</title>
   <link rel="stylesheet" href="css/styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
