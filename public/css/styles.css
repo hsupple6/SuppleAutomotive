@@ -87,6 +87,30 @@ body {
   margin-left: auto;
 }
 
+/* Desktop: nav links centered in header, Payment + Request service on the right */
+@media (min-width: 901px) {
+  .top-bar {
+    position: relative;
+  }
+  .top-bar .nav-menu {
+    flex: 1;
+    margin-left: 0;
+  }
+  .top-bar .nav-menu-content {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    width: 100%;
+  }
+  /* Center nav links relative to entire top-bar so they sit in the true middle */
+  .top-bar .nav-menu .nav-links {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+}
+
 .header-actions {
   display: flex;
   align-items: center;
