@@ -9,6 +9,108 @@ var express = require('express');
 var session = require('express-session');
 var app = express();
 
+// Stripe webhook must receive raw body for signature verification (register before express.json())
+var stripe = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  try {
+    stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+  } catch (e) {
+    console.warn('Stripe not available:', e.message);
+  }
+}
+var stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+
+app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), function (req, res) {
+  if (!stripe || !stripeWebhookSecret) {
+    return res.status(503).send('Stripe not configured');
+  }
+  var sig = req.headers['stripe-signature'];
+  if (!sig) return res.status(400).send('Missing stripe-signature');
+  var event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, stripeWebhookSecret);
+  } catch (err) {
+    console.warn('Stripe webhook signature verification failed:', err.message);
+    return res.status(400).send('Webhook signature verification failed');
+  }
+  if (event.type !== 'checkout.session.completed') {
+    return res.status(200).send();
+  }
+  var session = event.data.object;
+  var customerId = session.metadata && session.metadata.customer_id;
+  var amountTotal = session.amount_total; // cents
+  if (!customerId || !amountTotal || amountTotal <= 0) {
+    console.warn('Stripe webhook missing customer_id or amount_total in session');
+    return res.status(200).send();
+  }
+  var amountDollars = Math.round(amountTotal) / 100;
+  if (!supabase) return res.status(503).send('Database not configured');
+  getOrCreateShopAccount()
+    .then(function (accountId) {
+      if (!accountId) return Promise.reject(new Error('Account not ready'));
+      return supabase.from('customers').select('id').eq('id', customerId).eq('account_id', accountId).single();
+    })
+    .then(function (cRes) {
+      if (cRes.error || !cRes.data) return Promise.reject(new Error('Customer not found'));
+      return supabase.from('services').select('id, created_at, service_price').eq('customer_id', customerId).eq('bill_status', 'posted').order('created_at', { ascending: true });
+    })
+    .then(function (sRes) {
+      var services = sRes.data || [];
+      if (services.length === 0) return Promise.resolve([]);
+      var serviceIds = services.map(function (s) { return s.id; });
+      return Promise.all([
+        Promise.resolve(services),
+        supabase.from('service_parts').select('service_id, total_price').in('service_id', serviceIds),
+        supabase.from('service_payments').select('service_id, amount').in('service_id', serviceIds)
+      ]);
+    })
+    .then(function (results) {
+      var services = results[0];
+      var partsRows = results[1].data || [];
+      var payRows = results[2].data || [];
+      var partsBySvc = {};
+      partsRows.forEach(function (p) {
+        partsBySvc[p.service_id] = (partsBySvc[p.service_id] || 0) + Number(p.total_price || 0);
+      });
+      var paidBySvc = {};
+      payRows.forEach(function (p) {
+        paidBySvc[p.service_id] = (paidBySvc[p.service_id] || 0) + Number(p.amount || 0);
+      });
+      var servicesWithBalance = services.map(function (svc) {
+        var partsTotal = partsBySvc[svc.id] || 0;
+        var total = Number(svc.service_price || 0) + partsTotal;
+        var paid = paidBySvc[svc.id] || 0;
+        var balance = Math.round((total - paid) * 100) / 100;
+        return { id: svc.id, balance: balance };
+      }).filter(function (s) { return s.balance > 0; });
+      var remaining = amountDollars;
+      var inserts = [];
+      servicesWithBalance.forEach(function (s) {
+        if (remaining <= 0) return;
+        var apply = Math.min(remaining, s.balance);
+        apply = Math.round(apply * 100) / 100;
+        if (apply <= 0) return;
+        inserts.push({ service_id: s.id, amount: apply, method: 'credit', notes: 'Stripe' });
+        remaining = Math.round((remaining - apply) * 100) / 100;
+      });
+      if (inserts.length === 0) return res.status(200).send();
+      return Promise.all(inserts.map(function (row) {
+        return supabase.from('service_payments').insert(row);
+      })).then(function () {
+        return Promise.all(inserts.map(function (row) {
+          return updateServicePaymentStatus(row.service_id);
+        }));
+      });
+    })
+    .then(function () {
+      res.status(200).send();
+    })
+    .catch(function (err) {
+      console.error('Stripe webhook error:', err.message || err);
+      res.status(500).send('Webhook handler error');
+    });
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -436,6 +538,62 @@ app.post('/api/payment-lookup', function (req, res) {
       console.error('Payment lookup error:', err.message || err);
       var isNotFound = err.message && err.message.indexOf('No customer found') === 0;
       sendError(isNotFound ? 404 : 500, err.message || 'Lookup failed');
+    });
+});
+
+// Create Stripe Checkout Session for Pay Now (redirect to Stripe, then back to payment page)
+app.post('/api/create-checkout-session', function (req, res) {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Stripe is not configured' });
+  }
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+  var body = req.body || {};
+  var customerId = (body.customerId || body.customer_id || '').trim();
+  var amount = parseFloat(body.amount);
+  if (!customerId || !amount || amount <= 0) {
+    return res.status(400).json({ error: 'customerId and amount (greater than 0) are required' });
+  }
+  var amountCents = Math.round(amount * 100);
+  if (amountCents < 50) {
+    return res.status(400).json({ error: 'Minimum payment is $0.50' });
+  }
+  var baseUrl = (body.baseUrl || req.protocol + '://' + req.get('host') || '').replace(/\/$/, '');
+  var successUrl = baseUrl ? baseUrl + '/payment.html?paid=1' : '/payment.html?paid=1';
+  var cancelUrl = baseUrl ? baseUrl + '/payment.html' : '/payment.html';
+
+  getOrCreateShopAccount()
+    .then(function (accountId) {
+      if (!accountId) return Promise.reject(new Error('Account not ready'));
+      return supabase.from('customers').select('id, name').eq('id', customerId).eq('account_id', accountId).single();
+    })
+    .then(function (cRes) {
+      if (cRes.error || !cRes.data) return Promise.reject(new Error('Customer not found'));
+      return stripe.checkout.sessions.create({
+        mode: 'payment',
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            unit_amount: amountCents,
+            product_data: {
+              name: 'Supple Automotive — Balance payment',
+              description: 'Payment toward your service balance'
+            }
+          },
+          quantity: 1
+        }],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: { customer_id: customerId }
+      });
+    })
+    .then(function (session) {
+      res.json({ url: session.url });
+    })
+    .catch(function (err) {
+      console.error('Create checkout session error:', err.message || err);
+      res.status(500).json({ error: err.message || 'Could not create checkout session' });
     });
 });
 

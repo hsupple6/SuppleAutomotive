@@ -1174,6 +1174,17 @@ body {
 }
 
 /* ========== Payment portal dashboard ========== */
+.payment-success-banner {
+  margin: 0 auto 1.5rem;
+  padding: 0.85rem 1.25rem;
+  max-width: 1200px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid var(--accent-light-dim);
+  color: var(--text);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
 .page-payment {
   min-height: 100vh;
   background: var(--bg);

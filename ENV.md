@@ -55,3 +55,14 @@ The controls panel is at **http://localhost:3000/supplecontrols**. Sign in with 
 | `SUPPLE_CONTROLS_USERNAME` | Username for the controls panel (e.g. `hsupple06`). |
 | `SUPPLE_CONTROLS_PASSWORD` | Password for the controls panel. Store only in `.env`; do not commit. |
 | `SUPPLE_CONTROLS_SESSION_SECRET` | Secret used to sign the session cookie. Set a long random string in production. |
+
+## Stripe (Pay Now on payment portal)
+
+The **Pay Now** button on the Payment Portal redirects customers to Stripe Checkout. After they pay, Stripe sends a webhook to your server so the payment is applied to their balance in the database.
+
+| Variable | Description |
+|----------|-------------|
+| `STRIPE_SECRET_KEY` | Stripe secret key (e.g. `sk_test_...` for test, `sk_live_...` for production). Required for Pay Now. |
+| `STRIPE_WEBHOOK_SECRET` | Webhook signing secret from the Stripe Dashboard. Create a webhook endpoint with URL `https://your-domain.com/api/stripe-webhook` and event **checkout.session.completed**; copy the "Signing secret" (starts with `whsec_...`) here. |
+
+**Local testing:** Use the Stripe CLI to forward webhooks: `stripe listen --forward-to localhost:3000/api/stripe-webhook`. Use the secret it prints as `STRIPE_WEBHOOK_SECRET`.
