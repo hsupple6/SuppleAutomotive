@@ -1995,17 +1995,134 @@ body {
   }
 
   .top-bar.nav-open .nav-menu {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    z-index: 102;
-    background: transparent;
-    justify-content: center;
-    align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* X (close) button stays on top of blue when mobile nav open */
+  .top-bar.nav-open {
+    z-index: 103;
+    background: transparent !important;
   }
 
   .mobile-nav-slash.mobile-nav-slash-behind {
     pointer-events: none;
+  }
+
+  .mobile-nav-slash.mobile-nav-slash-behind .mobile-nav-overlay-content {
+    pointer-events: auto;
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* Nav content on top of blue: Gustavo links under logo, actions 15% from bottom */
+  .mobile-nav-overlay-content {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 5rem 1.5rem 2rem;
+    opacity: 0;
+    visibility: hidden;
+    transition: none;
+  }
+
+  .mobile-nav-overlay-links {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding-bottom: 0;
+    width: 100%;
+    max-width: 100%;
+    padding-left: 1.25rem;
+  }
+
+  .mobile-nav-overlay-links a {
+    margin: 0;
+    padding: 0.0454545455em 0;
+    font-family: Gustavo, sans-serif;
+    font-weight: 500;
+    line-height: 80%;
+    text-transform: uppercase;
+    font-size: clamp(2.2rem, calc(2.2rem + 2.2vw - 17px), 6rem);
+    color: var(--text);
+    text-decoration: none;
+    text-align: left;
+    transition: color 0.2s;
+  }
+
+  .mobile-nav-overlay-links a:hover {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .mobile-nav-overlay-actions {
+    position: absolute;
+    bottom: 15%;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0;
+  }
+
+  .mobile-nav-overlay-actions a {
+    display: block;
+    padding: 0.85rem 1.25rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text);
+    text-decoration: none;
+    text-align: center;
+    background: transparent;
+  }
+
+  .mobile-nav-overlay-actions a:hover {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  /* Payment button: main gray, rounded rectangle, blue inset shadow */
+  .mobile-nav-overlay-actions a:first-child {
+    background: var(--bg);
+    border-radius: 12px;
+    box-shadow: inset 0 0 20px 2px var(--accent-light-dim), inset 0 0 40px 4px rgba(56, 189, 248, 0.12);
+  }
+
+  .mobile-nav-overlay-actions a:first-child:hover {
+    box-shadow: inset 0 0 24px 4px var(--accent-light-dim), inset 0 0 48px 6px rgba(56, 189, 248, 0.15);
+  }
+
+  .mobile-nav-slash.mobile-nav-slash-behind .mobile-nav-overlay-links a,
+  .mobile-nav-slash.mobile-nav-slash-behind .mobile-nav-overlay-actions a {
+    opacity: 0;
+    transform: translateY(10px);
+    animation: mobile-nav-overlay-item-in 0.3s ease-out forwards;
+  }
+
+  .mobile-nav-slash.mobile-nav-slash-behind .mobile-nav-overlay-links a:nth-child(1) { animation-delay: 0s; }
+  .mobile-nav-slash.mobile-nav-slash-behind .mobile-nav-overlay-links a:nth-child(2) { animation-delay: 0.03s; }
+  .mobile-nav-slash.mobile-nav-slash-behind .mobile-nav-overlay-links a:nth-child(3) { animation-delay: 0.06s; }
+  .mobile-nav-slash.mobile-nav-slash-behind .mobile-nav-overlay-links a:nth-child(4) { animation-delay: 0.09s; }
+  .mobile-nav-slash.mobile-nav-slash-behind .mobile-nav-overlay-links a:nth-child(5) { animation-delay: 0.12s; }
+  .mobile-nav-slash.mobile-nav-slash-behind .mobile-nav-overlay-actions a:nth-child(1) { animation-delay: 0.15s; }
+  .mobile-nav-slash.mobile-nav-slash-behind .mobile-nav-overlay-actions a:nth-child(2) { animation-delay: 0.18s; }
+
+  @keyframes mobile-nav-overlay-item-in {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Keep blue fill visible when nav is open (after slash animation); do not revert to scale(0) */
+  .mobile-nav-slash.mobile-nav-slash-behind .mobile-nav-slash-fill {
+    transform: rotate(-45deg) scale(1.6);
   }
 
   .top-bar .nav-menu-content {
@@ -2088,7 +2205,7 @@ body {
   }
 
   .mobile-nav-slash-open .mobile-nav-slash-fill {
-    animation: mobile-slash-open 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: mobile-slash-open 1.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 
   .mobile-nav-slash-close .mobile-nav-slash-fill {

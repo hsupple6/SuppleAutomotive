@@ -146,6 +146,7 @@
   var navMenuContent = document.getElementById('navMenuContent');
   var mobileNavSlash = document.getElementById('mobileNavSlash');
   var mobileNavSlashFill = mobileNavSlash ? mobileNavSlash.querySelector('.mobile-nav-slash-fill') : null;
+  var mobileNavOverlayContent = document.getElementById('mobileNavOverlayContent');
   var isMobile = function () { return window.matchMedia('(max-width: 900px)').matches; };
 
   if (navToggle && navMenu && topBar) {
@@ -176,6 +177,7 @@
     function onSlashOpenEnd() {
       mobileNavSlash.classList.remove('mobile-nav-slash-open');
       mobileNavSlash.classList.add('mobile-nav-slash-behind');
+      if (mobileNavOverlayContent) mobileNavOverlayContent.setAttribute('aria-hidden', 'false');
       topBar.classList.add('nav-with-slash');
       setNavOpen(true);
     }
@@ -196,6 +198,7 @@
     function onSlashCloseEnd() {
       mobileNavSlash.classList.remove('mobile-nav-slash-active', 'mobile-nav-slash-close', 'mobile-nav-slash-behind');
       mobileNavSlash.setAttribute('aria-hidden', 'true');
+      if (mobileNavOverlayContent) mobileNavOverlayContent.setAttribute('aria-hidden', 'true');
       topBar.classList.remove('nav-with-slash');
       setNavOpen(false);
     }
@@ -221,6 +224,15 @@
         else setNavOpen(false);
       }
     });
+
+    if (mobileNavOverlayContent) {
+      mobileNavOverlayContent.addEventListener('click', function (e) {
+        if (e.target.closest('a')) {
+          if (isMobile() && mobileNavSlash) closeWithSlash();
+          else setNavOpen(false);
+        }
+      });
+    }
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && topBar.classList.contains('nav-open')) {
