@@ -140,6 +140,96 @@
     onScroll();
   }
 
+  // Mobile nav: slash from top-left (open = fill, close = reverse), then content stagger
+  var navToggle = document.getElementById('navToggle');
+  var navMenu = document.getElementById('navMenu');
+  var navMenuContent = document.getElementById('navMenuContent');
+  var mobileNavSlash = document.getElementById('mobileNavSlash');
+  var mobileNavSlashFill = mobileNavSlash ? mobileNavSlash.querySelector('.mobile-nav-slash-fill') : null;
+  var isMobile = function () { return window.matchMedia('(max-width: 900px)').matches; };
+
+  if (navToggle && navMenu && topBar) {
+    function setNavOpen(open) {
+      topBar.classList.toggle('nav-open', open);
+      navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      navToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+      if (navMenuContent) navMenuContent.classList.toggle('is-visible', open);
+      if (open) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
+    }
+
+    function openWithSlash() {
+      if (!mobileNavSlash || !mobileNavSlashFill) {
+        setNavOpen(true);
+        return;
+      }
+      mobileNavSlash.setAttribute('aria-hidden', 'false');
+      mobileNavSlash.classList.add('mobile-nav-slash-active', 'mobile-nav-slash-open');
+      mobileNavSlash.classList.remove('mobile-nav-slash-close');
+      mobileNavSlashFill.removeEventListener('animationend', onSlashCloseEnd);
+      mobileNavSlashFill.addEventListener('animationend', onSlashOpenEnd, { once: true });
+    }
+
+    function onSlashOpenEnd() {
+      mobileNavSlash.classList.remove('mobile-nav-slash-open');
+      mobileNavSlash.classList.add('mobile-nav-slash-behind');
+      topBar.classList.add('nav-with-slash');
+      setNavOpen(true);
+    }
+
+    function closeWithSlash() {
+      if (!mobileNavSlash || !mobileNavSlashFill) {
+        setNavOpen(false);
+        return;
+      }
+      mobileNavSlash.classList.remove('mobile-nav-slash-behind');
+      mobileNavSlash.setAttribute('aria-hidden', 'false');
+      mobileNavSlash.classList.add('mobile-nav-slash-active', 'mobile-nav-slash-close');
+      mobileNavSlash.classList.remove('mobile-nav-slash-open');
+      mobileNavSlashFill.removeEventListener('animationend', onSlashOpenEnd);
+      mobileNavSlashFill.addEventListener('animationend', onSlashCloseEnd, { once: true });
+    }
+
+    function onSlashCloseEnd() {
+      mobileNavSlash.classList.remove('mobile-nav-slash-active', 'mobile-nav-slash-close', 'mobile-nav-slash-behind');
+      mobileNavSlash.setAttribute('aria-hidden', 'true');
+      topBar.classList.remove('nav-with-slash');
+      setNavOpen(false);
+    }
+
+    navToggle.addEventListener('click', function () {
+      var open = !topBar.classList.contains('nav-open');
+      if (open) {
+        if (isMobile() && mobileNavSlash) openWithSlash();
+        else setNavOpen(true);
+      } else {
+        if (isMobile() && mobileNavSlash) closeWithSlash();
+        else setNavOpen(false);
+      }
+    });
+
+    navMenu.addEventListener('click', function (e) {
+      if (e.target.closest('a')) {
+        if (isMobile() && mobileNavSlash) closeWithSlash();
+        else setNavOpen(false);
+      }
+      if (e.target === navMenu) {
+        if (isMobile() && mobileNavSlash) closeWithSlash();
+        else setNavOpen(false);
+      }
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && topBar.classList.contains('nav-open')) {
+        if (isMobile() && mobileNavSlash) closeWithSlash();
+        else setNavOpen(false);
+      }
+    });
+  }
+
   // Koenigsegg-style: split text into lines (.split-element), then reveal on scroll with stagger
   function splitElementIntoLines(el) {
     if (!el || el.hasAttribute('data-split-done')) return;

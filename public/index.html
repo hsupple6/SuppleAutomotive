@@ -15,24 +15,35 @@
 <body>
   <header class="top-bar">
     <a href="#" class="logo"><span class="logo-main" id="logoMain">Supple</span><span class="logo-accent" id="logoAccent">Automotive</span></a>
-    <nav class="nav-links">
-      <a href="#services">Services</a>
-      <a href="#pricing">Pricing</a>
-      <a href="#about">About</a>
-      <a href="#contact">Contact</a>
-      <a href="#location">Location</a>
-    </nav>
-    <div class="header-actions">
-      <a href="payment.html" class="link-payment js-payment-portal-link" id="headerPaymentPortal">Payment Portal</a>
-      <a href="request-service.html" class="link-cta js-request-service-link" id="headerRequestService">
-        <span class="link-cta-border link-cta-border-t" aria-hidden="true"></span>
-        <span class="link-cta-border link-cta-border-r" aria-hidden="true"></span>
-        <span class="link-cta-border link-cta-border-b" aria-hidden="true"></span>
-        <span class="link-cta-border link-cta-border-l" aria-hidden="true"></span>
-        <span class="link-cta-label">Request service</span>
-      </a>
+    <button type="button" class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navMenu">
+      <span class="nav-toggle-icon" aria-hidden="true"></span>
+    </button>
+    <div class="nav-menu" id="navMenu" role="navigation">
+      <div class="nav-menu-content reveal-on-scroll" id="navMenuContent">
+        <nav class="nav-links">
+          <a href="#services">Services</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#about">About</a>
+          <a href="#contact">Contact</a>
+          <a href="#location">Location</a>
+        </nav>
+        <div class="header-actions">
+        <a href="payment.html" class="link-payment js-payment-portal-link" id="headerPaymentPortal">Payment Portal</a>
+        <a href="request-service.html" class="link-cta js-request-service-link" id="headerRequestService">
+          <span class="link-cta-border link-cta-border-t" aria-hidden="true"></span>
+          <span class="link-cta-border link-cta-border-r" aria-hidden="true"></span>
+          <span class="link-cta-border link-cta-border-b" aria-hidden="true"></span>
+          <span class="link-cta-border link-cta-border-l" aria-hidden="true"></span>
+          <span class="link-cta-label">Request service</span>
+        </a>
+        </div>
+      </div>
     </div>
   </header>
+
+  <div class="mobile-nav-slash" id="mobileNavSlash" aria-hidden="true">
+    <div class="mobile-nav-slash-fill"></div>
+  </div>
 
   <main>
     <!-- Hero: full viewport, big split headline -->
