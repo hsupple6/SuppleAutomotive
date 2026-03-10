@@ -2,7 +2,7 @@
   'use strict';
 
   var CONFIG = window.SUPPLE_CONFIG || {};
-  var phoneDisplay = '+(1) 805 - 443 - 4181';
+  var phoneDisplay = '+1 (805) 443-4181';
   var businessName = 'Supple Automotive';
   var tagline = 'Professional auto care you can trust.';
 
@@ -138,6 +138,20 @@
     }
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
+  }
+
+  // Scroll-to-top button: show when scrolled down, limited opacity
+  var scrollToTop = document.getElementById('scrollToTop');
+  if (scrollToTop) {
+    var scrollThreshold = 400;
+    function updateScrollToTop() {
+      scrollToTop.hidden = window.scrollY < scrollThreshold;
+    }
+    window.addEventListener('scroll', updateScrollToTop, { passive: true });
+    updateScrollToTop();
+    scrollToTop.addEventListener('click', function () {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   }
 
   // Mobile nav: slash from top-left (open = fill, close = reverse), then content stagger

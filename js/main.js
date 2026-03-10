@@ -2,7 +2,7 @@
   'use strict';
 
   var CONFIG = window.SUPPLE_CONFIG || {};
-  var phoneDisplay = '+(1) 805 - 443 - 4181';
+  var phoneDisplay = '+1 (805) 443-4181';
   var businessName = 'Supple Automotive';
   var tagline = 'Professional auto care you can trust.';
 

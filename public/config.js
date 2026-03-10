@@ -4,7 +4,7 @@
  */
 window.SUPPLE_CONFIG = {
   businessName: "Supple Automotive",
-  phone: "+(1) 805-443-4181",
+  phone: "+1 (805) 443-4181",
   email: "hsupple06@gmail.com",           // e.g. "info@suppleautomotive.com"
   address: "5395 Quailridge Dr., Camarillo, CA 93012",         // e.g. "123 Main St, City, CA 93001"
   addressLine2: "",    // optional suite/unit
