@@ -293,8 +293,8 @@ body {
 .process-slider {
   position: relative;
   width: 100%;
-  height: 100vh;
-  min-height: 480px;
+  aspect-ratio: 16 / 9;
+  min-height: 320px;
   overflow: hidden;
   background: var(--bg);
 }
@@ -317,8 +317,16 @@ body {
 .process-slide-image {
   position: absolute;
   inset: 0;
-  background: var(--bg-alt) center / cover no-repeat;
+  background-color: var(--bg-alt);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
+
+.process-slide[data-slide="0"] .process-slide-image { background-image: url('/images/process-schedule.jpg'); }
+.process-slide[data-slide="1"] .process-slide-image { background-image: url('/images/process-diagnose.jpg'); }
+.process-slide[data-slide="2"] .process-slide-image { background-image: url('/images/process-parts-quote.jpg'); }
+.process-slide[data-slide="3"] .process-slide-image { background-image: url('/images/process-repair-go.jpg'); }
 
 .process-slide-image::after {
   content: '';
@@ -507,6 +515,13 @@ body {
   position: absolute;
   inset: 0;
   background: var(--bg-alt);
+}
+
+.hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .hero-placeholder,
@@ -873,6 +888,42 @@ body {
 
 .block-service .block-content {
   width: 100%;
+}
+
+#service-maintenance .block-bg {
+  background-image: url('/images/service-maintenance.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+#service-maintenance .block-bg .block-placeholder {
+  background: transparent;
+  color: transparent;
+}
+
+#service-diagnostics .block-bg {
+  background-image: url('/images/service-diagnostics.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+#service-diagnostics .block-bg .block-placeholder {
+  background: transparent;
+  color: transparent;
+}
+
+#service-inspection .block-bg {
+  background-image: url('/images/service-inspection.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+#service-inspection .block-bg .block-placeholder {
+  background: transparent;
+  color: transparent;
 }
 
 /* ========== Copy blocks (In-house / About us) ========== */
