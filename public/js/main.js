@@ -4,7 +4,7 @@
   var CONFIG = window.SUPPLE_CONFIG || {};
   var phoneDisplay = '+1 (805) 443-4181';
   var businessName = 'Supple Automotive';
-  var tagline = 'Professional auto care you can trust.';
+  var tagline = 'Professional Mobile Auto Repair You Can Trust.';
 
   if (CONFIG.phone) phoneDisplay = CONFIG.phone;
   if (CONFIG.businessName) businessName = CONFIG.businessName;
@@ -575,6 +575,128 @@
             submitBtn.disabled = false;
             submitBtn.textContent = btnText;
           }
+        });
+    });
+  }
+
+  // ========== Reviews section: fetch, render, auto-scroll, add form ==========
+  var reviewsTrack = byId('reviewsSlideshowTrack');
+  var reviewsAddBtn = byId('reviewsAddBtn');
+  var reviewsModal = byId('reviewsModal');
+  var reviewsModalBackdrop = byId('reviewsModalBackdrop');
+  var reviewsModalCancel = byId('reviewsModalCancel');
+  var reviewsForm = byId('reviewsForm');
+  var reviewRatingInput = byId('reviewRating');
+  var reviewsStarsInput = byId('reviewsStarsInput');
+
+  function formatReviewDate(isoStr) {
+    if (!isoStr) return '';
+    var d = new Date(isoStr);
+    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function renderStars(rating) {
+    var html = '';
+    for (var i = 1; i <= 5; i++) {
+      html += '<span class="review-card-star' + (i <= rating ? ' filled' : '') + '" aria-hidden="true">★</span>';
+    }
+    return html;
+  }
+
+  function buildReviewCards(reviews) {
+    if (!reviews || reviews.length === 0) {
+      return '<div class="review-card"><p class="review-card-body">No reviews yet. Be the first to leave one!</p></div>';
+    }
+    return reviews.map(function (r) {
+      return (
+        '<div class="review-card" data-id="' + (r.id || '') + '">' +
+          '<div class="review-card-header">' +
+            '<span class="review-card-name">' + escapeHtml(r.name || '') + '</span>' +
+            '<span class="review-card-date">' + escapeHtml(formatReviewDate(r.created_at)) + '</span>' +
+          '</div>' +
+          '<p class="review-card-body">' + escapeHtml(r.body || '') + '</p>' +
+          '<div class="review-card-stars">' + renderStars(typeof r.rating === 'number' ? r.rating : 5) + '</div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    var div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function loadReviews() {
+    if (!reviewsTrack) return;
+    var apiBase = (typeof window.SUPPLE_API_BASE !== 'undefined' && window.SUPPLE_API_BASE) ? window.SUPPLE_API_BASE : '';
+    fetch(apiBase + '/api/reviews')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var list = (data && data.reviews) ? data.reviews : [];
+        var cardsHtml = buildReviewCards(list);
+        reviewsTrack.innerHTML = cardsHtml + cardsHtml;
+        reviewsTrack.classList.remove('paused');
+      })
+      .catch(function () {
+        reviewsTrack.innerHTML = '<div class="review-card"><p class="review-card-body">Reviews could not be loaded.</p></div>';
+      });
+  }
+
+  if (reviewsTrack) loadReviews();
+
+  if (reviewsAddBtn && reviewsModal) {
+    reviewsAddBtn.addEventListener('click', function () {
+      reviewsModal.hidden = false;
+      if (reviewRatingInput) reviewRatingInput.value = '5';
+      if (reviewsStarsInput) {
+        [].forEach.call(reviewsStarsInput.querySelectorAll('.reviews-star-btn'), function (btn, i) {
+          btn.classList.toggle('filled', i < 5);
+        });
+      }
+    });
+  }
+
+  if (reviewsModalBackdrop) reviewsModalBackdrop.addEventListener('click', function () { if (reviewsModal) reviewsModal.hidden = true; });
+  if (reviewsModalCancel) reviewsModalCancel.addEventListener('click', function () { if (reviewsModal) reviewsModal.hidden = true; });
+
+  if (reviewsStarsInput) {
+    reviewsStarsInput.addEventListener('click', function (e) {
+      var btn = e.target.closest('.reviews-star-btn');
+      if (!btn) return;
+      var rating = parseInt(btn.getAttribute('data-rating'), 10);
+      if (reviewRatingInput) reviewRatingInput.value = String(rating);
+      [].forEach.call(reviewsStarsInput.querySelectorAll('.reviews-star-btn'), function (b, i) {
+        b.classList.toggle('filled', i < rating);
+      });
+    });
+  }
+
+  if (reviewsForm) {
+    reviewsForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var nameEl = reviewsForm.querySelector('#reviewName');
+      var bodyEl = reviewsForm.querySelector('#reviewBody');
+      var name = nameEl ? nameEl.value.trim() : '';
+      var body = bodyEl ? bodyEl.value.trim() : '';
+      var rating = reviewRatingInput ? parseInt(reviewRatingInput.value, 10) : 5;
+      if (!name || !body) return;
+      var apiBase = (typeof window.SUPPLE_API_BASE !== 'undefined' && window.SUPPLE_API_BASE) ? window.SUPPLE_API_BASE : '';
+      fetch(apiBase + '/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, body: body, rating: isNaN(rating) ? 5 : Math.min(5, Math.max(1, rating)) })
+      })
+        .then(function (r) { return r.json().then(function (data) { if (!r.ok) throw new Error(data.error || 'Failed'); return data; }); })
+        .then(function () {
+          reviewsModal.hidden = true;
+          reviewsForm.reset();
+          if (reviewRatingInput) reviewRatingInput.value = '5';
+          loadReviews();
+        })
+        .catch(function (err) {
+          alert(err.message || 'Could not submit review. Try again.');
         });
     });
   }

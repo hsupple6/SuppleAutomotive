@@ -597,6 +597,51 @@ app.post('/api/create-checkout-session', function (req, res) {
     });
 });
 
+// ========== Reviews (public: list + submit) ==========
+app.get('/api/reviews', function (req, res) {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+  getOrCreateShopAccount()
+    .then(function (accountId) {
+      if (!accountId) return Promise.reject(new Error('Account not ready'));
+      return supabase.from('reviews').select('id, name, body, rating, created_at').eq('account_id', accountId).order('created_at', { ascending: false });
+    })
+    .then(function (r) {
+      if (r.error) return Promise.reject(new Error(r.error.message));
+      res.json({ reviews: r.data || [] });
+    })
+    .catch(function (err) {
+      console.error('Reviews list error:', err.message || err);
+      res.status(500).json({ error: err.message || 'Could not load reviews' });
+    });
+});
+
+app.post('/api/reviews', function (req, res) {
+  if (!supabase) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+  var body = req.body || {};
+  var name = (body.name || '').trim();
+  var reviewBody = (body.body || body.review || '').trim();
+  var rating = Math.min(5, Math.max(1, parseInt(body.rating, 10) || 5));
+  if (!name) return res.status(400).json({ error: 'Name is required' });
+  if (!reviewBody) return res.status(400).json({ error: 'Review text is required' });
+  getOrCreateShopAccount()
+    .then(function (accountId) {
+      if (!accountId) return Promise.reject(new Error('Account not ready'));
+      return supabase.from('reviews').insert({ account_id: accountId, name: name, body: reviewBody, rating: rating }).select('id, name, body, rating, created_at').single();
+    })
+    .then(function (r) {
+      if (r.error) return Promise.reject(new Error(r.error.message));
+      res.status(201).json(r.data);
+    })
+    .catch(function (err) {
+      console.error('Review submit error:', err.message || err);
+      res.status(500).json({ error: err.message || 'Could not save review' });
+    });
+});
+
 // ========== Controls panel API (require auth + Supabase) ==========
 function controlsApiAuth(req, res, next) {
   if (!controlsAuth(req)) {

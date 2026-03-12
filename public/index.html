@@ -96,14 +96,14 @@
         <div class="process-slide" data-slide="2">
           <div class="process-slide-image" aria-hidden="true"></div>
           <div class="process-slide-copy">
-            <h2 class="process-slide-title">Parts &amp; quote</h2>
+            <h2 class="process-slide-title">Parts &amp; Quote</h2>
             <p class="process-slide-text">We source quality parts and give you a firm quote. You approve before any work begins.</p>
           </div>
         </div>
         <div class="process-slide" data-slide="3">
           <div class="process-slide-image" aria-hidden="true"></div>
           <div class="process-slide-copy">
-            <h2 class="process-slide-title">Repair &amp; go</h2>
+            <h2 class="process-slide-title">Repair &amp; Go</h2>
             <p class="process-slide-text">We complete the work to standard, then you pick up and get back on the road. Simple.</p>
           </div>
         </div>
@@ -143,6 +143,44 @@
           </span>
           <span class="process-dot-label">Repair &amp; go</span>
         </button>
+      </div>
+    </section>
+
+    <!-- Reviews: quote + auto-scrolling slideshow + add review -->
+    <section class="reviews-section" id="reviews" aria-label="Customer reviews">
+      <div class="reviews-inner">
+        <p class="reviews-quote">"From commuters to hypercars—we can fix it."</p>
+        <div class="reviews-slideshow-wrap">
+          <div class="reviews-slideshow-track" id="reviewsSlideshowTrack" aria-live="polite">
+            <!-- Cards injected by JS -->
+          </div>
+        </div>
+        <button type="button" class="reviews-add-btn" id="reviewsAddBtn" aria-label="Add a review">+</button>
+      </div>
+      <div class="reviews-modal" id="reviewsModal" role="dialog" aria-modal="true" aria-labelledby="reviewsModalTitle" hidden>
+        <div class="reviews-modal-backdrop" id="reviewsModalBackdrop"></div>
+        <div class="reviews-modal-box">
+          <h2 class="reviews-modal-title" id="reviewsModalTitle">Add a review</h2>
+          <form class="reviews-form" id="reviewsForm">
+            <label for="reviewName">Name</label>
+            <input type="text" id="reviewName" name="name" required placeholder="Your name">
+            <label for="reviewBody">Your review</label>
+            <textarea id="reviewBody" name="body" required placeholder="What did you think?"></textarea>
+            <label>Rating</label>
+            <div class="reviews-stars-input" id="reviewsStarsInput" role="group" aria-label="Star rating">
+              <button type="button" class="reviews-star-btn" data-rating="1" aria-label="1 star"><span class="reviews-star-icon" aria-hidden="true">★</span></button>
+              <button type="button" class="reviews-star-btn" data-rating="2" aria-label="2 stars"><span class="reviews-star-icon" aria-hidden="true">★</span></button>
+              <button type="button" class="reviews-star-btn" data-rating="3" aria-label="3 stars"><span class="reviews-star-icon" aria-hidden="true">★</span></button>
+              <button type="button" class="reviews-star-btn" data-rating="4" aria-label="4 stars"><span class="reviews-star-icon" aria-hidden="true">★</span></button>
+              <button type="button" class="reviews-star-btn" data-rating="5" aria-label="5 stars"><span class="reviews-star-icon" aria-hidden="true">★</span></button>
+            </div>
+            <input type="hidden" name="rating" id="reviewRating" value="5">
+            <div class="reviews-form-actions">
+              <button type="button" class="reviews-modal-cancel" id="reviewsModalCancel">Cancel</button>
+              <button type="submit" class="reviews-modal-submit">Submit</button>
+            </div>
+          </form>
+        </div>
       </div>
     </section>
 
