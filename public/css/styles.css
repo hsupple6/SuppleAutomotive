@@ -522,6 +522,15 @@ body {
   inset: 0;
   width: 100%;
   height: 100%;
+  background-image: url('/images/hero.jpg');
+  background-size: 110%;
+  background-position: 60% 65%;
+  background-repeat: no-repeat;
+}
+
+.hero .hero-placeholder {
+  background: transparent;
+  color: transparent;
 }
 
 .hero-placeholder,
@@ -912,6 +921,12 @@ body {
 #service-diagnostics .block-bg .block-placeholder {
   background: transparent;
   color: transparent;
+}
+
+#service-inspection .block-headline,
+#service-inspection .block-headline .block-headline-line {
+  -webkit-text-stroke: 2px black;
+  paint-order: stroke fill;
 }
 
 #service-inspection .block-bg {
