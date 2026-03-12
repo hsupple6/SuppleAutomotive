@@ -2050,6 +2050,30 @@ body {
     background-size: 140%;
   }
 
+  .hero-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    padding-top: 30%;
+    padding-bottom: 12%;
+
+    max-width: 360px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .hero-content .link-discover {
+    margin-top: auto;
+  }
+
+  .hero-content > .split-element:last-child {
+    margin-top: auto;
+  }
+
   .top-bar .nav-menu {
     position: fixed;
     top: 0;
@@ -2451,6 +2475,34 @@ body {
 
   .hero-tagline {
     font-size: 1rem;
+  }
+
+  .hero-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    padding-top: 30%;
+    padding-bottom: 30%;
+  }
+
+  .hero-content .link-discover {
+    margin-top: auto;
+  }
+
+  .hero-content > .split-element:last-child {
+    margin-top: auto;
+  }
+
+  .hero-tagline {
+    font-size: 1.125rem;
+    color: var(--text);
+    font-weight: 400;
+    margin-bottom: 2rem;
+    letter-spacing: 0.02em;
   }
 
   /* Services grid: 2 columns on very small */
