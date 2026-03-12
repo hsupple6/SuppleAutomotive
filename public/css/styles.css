@@ -2465,7 +2465,7 @@ body {
   /* Hero: scale up background so it reaches the top on mobile */
   .hero-img {
     background-size: 165%;
-    background-position: 50% 65%;
+    background-position: 60% 65%;
   }
 
   /* Hero: comfortable spacing on small screens */

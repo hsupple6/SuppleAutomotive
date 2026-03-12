@@ -8,7 +8,7 @@ window.SUPPLE_CONFIG = {
   email: "hsupple06@gmail.com",           // e.g. "info@suppleautomotive.com"
   address: "5395 Quailridge Dr., Camarillo, CA 93012",         // e.g. "123 Main St, City, CA 93001"
   addressLine2: "",    // optional suite/unit
-  tagline: "Professional auto care you can trust.",
+  tagline: "Professional Mobile Auto Repair You Can Trust.",
   services: [
     { id: "maintenance", title: "Maintenance & Repairs", description: "Oil changes, brakes, tires, and factory-recommended service." },
     { id: "diagnostics", title: "Diagnostics", description: "Check engine light, electrical, and computer diagnostics." },
