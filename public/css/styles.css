@@ -2551,7 +2551,7 @@ body {
     flex-direction: column;
     align-items: flex-start;
     justify-content: flex-start;
-    padding: 5rem 1.5rem 2rem;
+    padding: 4rem 1rem 1.5rem 0.5rem;
     opacity: 0;
     visibility: hidden;
     transition: none;
@@ -2565,7 +2565,7 @@ body {
     padding-bottom: 0;
     width: 100%;
     max-width: 100%;
-    padding-left: 1.25rem;
+    padding-left: 0.5rem;
   }
 
   .mobile-nav-overlay-links a {
@@ -2575,7 +2575,7 @@ body {
     font-weight: 500;
     line-height: 80%;
     text-transform: uppercase;
-    font-size: clamp(4.4rem, calc(4.4rem + 4.4vw - 34px), 12rem);
+    font-size: clamp(2rem, 5vw, 2.75rem);
     color: var(--text);
     text-decoration: none;
     text-align: left;
@@ -2600,8 +2600,8 @@ body {
 
   .mobile-nav-overlay-actions a {
     display: block;
-    padding: 1rem 1.5rem;
-    font-size: 1.5rem;
+    padding: 0.65rem 1rem;
+    font-size: 1rem;
     font-weight: 500;
     color: var(--text);
     text-decoration: none;
