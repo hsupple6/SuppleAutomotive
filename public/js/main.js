@@ -404,17 +404,21 @@
     revealImageEl.classList.add('is-revealed');
   }
 
-  // Process slideshow: nav tabs (top-left), 45° slide, sliding underline, image parallax
+  // Process slideshow: stacked images, transparent by default; 45° clip sweep on change
   var processTrack = document.getElementById('processSliderTrack');
   var processNav = document.getElementById('processNav');
   var processNavUnderline = document.getElementById('processNavUnderline');
-  if (processTrack && processNav) {
+  var processImageStack = processTrack && processTrack.querySelector('.process-slider-image-stack');
+  var processSlideImages = processImageStack ? processImageStack.querySelectorAll('.process-slide-image') : [];
+  var processSlides = processTrack ? processTrack.querySelectorAll('.process-slide') : [];
+  if (processTrack && processNav && processSlideImages.length) {
     var processDots = processNav.querySelectorAll('.process-dot');
     var processIndex = 0;
     var processTotal = processDots.length;
     var processInterval = 6000;
     var processTimer = null;
     var processAutoStoppedByUser = false;
+    var processSweeping = false;
 
     function updateProcessUnderline() {
       if (!processNavUnderline || processDots.length === 0) return;
@@ -426,14 +430,41 @@
       processNavUnderline.style.width = btnRect.width + 'px';
     }
 
-    function setProcessSlide(i) {
-      processIndex = (i + processTotal) % processTotal;
-      processTrack.style.setProperty('--process-index', String(processIndex));
-      processTrack.style.setProperty('--current-index', String(processIndex));
+    function setCopyAndNav(index) {
+      processIndex = (index + processTotal) % processTotal;
+      processSlides.forEach(function (slide, s) {
+        slide.classList.toggle('is-active', s === processIndex);
+      });
       for (var d = 0; d < processDots.length; d++) {
         processDots[d].setAttribute('aria-selected', d === processIndex);
       }
       updateProcessUnderline();
+    }
+
+    function setProcessSlide(i) {
+      var next = (i + processTotal) % processTotal;
+      if (next === processIndex && !processSweeping) return;
+      if (processSweeping) return;
+
+      var prevIndex = processIndex;
+      setCopyAndNav(next);
+
+      var prevImg = processSlideImages[prevIndex];
+      var nextImg = processSlideImages[next];
+      if (!prevImg || !nextImg) return;
+
+      processSweeping = true;
+      var goingForward = next > prevIndex || (prevIndex === processTotal - 1 && next === 0);
+      // Apply sweeping to outgoing image first so its higher z-index is set before the next becomes visible
+      prevImg.classList.add('is-sweeping', goingForward ? 'is-sweep-ltr' : 'is-sweep-rtl');
+      nextImg.classList.add('is-visible');
+
+      function onSweepEnd() {
+        prevImg.removeEventListener('animationend', onSweepEnd);
+        prevImg.classList.remove('is-sweeping', 'is-sweep-ltr', 'is-sweep-rtl', 'is-visible');
+        processSweeping = false;
+      }
+      prevImg.addEventListener('animationend', onSweepEnd);
     }
 
     function stopAutoAdvance(byUser) {
@@ -443,6 +474,10 @@
       }
       if (byUser) processAutoStoppedByUser = true;
     }
+
+    // Initial state: first image visible, first copy active
+    processSlideImages[0].classList.add('is-visible');
+    processSlides[0].classList.add('is-active');
 
     processDots.forEach(function (dot, d) {
       dot.addEventListener('click', function () {

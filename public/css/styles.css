@@ -311,21 +311,31 @@ body {
 
 .process-slider-track {
   --process-index: 0;
-  --current-index: 0;
-  display: flex;
+  position: relative;
   width: 100%;
   height: 100%;
-  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
-  transform: translateX(calc(-100% * var(--process-index)));
+}
+
+/* Stacked image layers: all in one pile, transparent unless active/clicked */
+.process-slider-image-stack {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
 }
 
 .process-slide {
   --slide-index: 0;
-  flex: 0 0 100%;
-  width: 100%;
-  height: 100%;
-  position: relative;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.process-slide.is-active {
+  pointer-events: auto;
+  opacity: 1;
+  z-index: 1;
 }
 
 .process-slide[data-slide="0"] { --slide-index: 0; }
@@ -333,25 +343,79 @@ body {
 .process-slide[data-slide="2"] { --slide-index: 2; }
 .process-slide[data-slide="3"] { --slide-index: 3; }
 
-.process-slide-image {
+/* Each image layer: stacked, transparent by default, visible when active or selected */
+.process-slider-image-stack .process-slide-image {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   background-color: var(--bg-alt);
-  background-size: 100% auto;
-  background-width: 100%;
-  background-height: 100%;
+  background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
-  transform: translateX(calc((var(--current-index) - var(--slide-index)) * 4%));
+  opacity: 0;
+  transition: opacity 0.25s ease;
 }
 
-.process-slide[data-slide="0"] .process-slide-image { background-image: url('/images/process-schedule.jpg'); width: 100%; height: 100%; }
-.process-slide[data-slide="1"] .process-slide-image { background-image: url('/images/process-diagnose.jpg'); }
-.process-slide[data-slide="2"] .process-slide-image { background-image: url('/images/process-parts-quote.jpg'); }
-.process-slide[data-slide="3"] .process-slide-image { background-image: url('/images/process-repair-go.jpg'); }
+.process-slider-image-stack .process-slide-image.is-visible {
+  opacity: 1;
+  z-index: 1;
+}
+
+/* 60° diagonal sweep — outgoing (original) image is the one clipped; animation runs reverse so it sweeps off. */
+.process-slider-image-stack .process-slide-image.is-sweeping { 
+  z-index: 10; 
+  clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%); 
+  animation: process-sweep-60-ltr 0.5s ease-in-out forwards reverse; 
+  transform: translateZ(0); 
+  will-change: clip-path; }
+
+.process-slider-image-stack .process-slide-image.is-sweeping.is-sweep-rtl {
+  animation-name: process-sweep-60-rtl;
+}
+
+/* 60° LTR: visible = right of diagonal. At 0% line is along top (100% 0%) so full frame; then diagonal moves down. */
+@keyframes process-sweep-60-ltr {
+  0% {
+    clip-path: polygon(0% 0%, -25% 0%, -25% 100%, 0% 100%);
+  }
+  25% {
+    clip-path: polygon(0% 0%, 25% 0%, 0% 100%, 0% 100%);
+  }
+  50% {
+    clip-path: polygon(0% 0%, 50% 0%, 25% 100%, 0% 100%);
+  }
+  75% {
+    clip-path: polygon(0% 0%, 75% 0%, 50% 100%, 0% 100%);
+  }
+  100% {
+    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+  }
+}
+
+/* RTL: 90° from LTR — diagonal at 150° (top-right to bottom-left). Visible = left of line. */
+@keyframes process-sweep-60-rtl {
+  0% {
+    clip-path: polygon(100% 0%, 100% 0%, 100% 100%, 100% 100%);
+  }
+  25% {
+    clip-path: polygon(100% 0%, 75% 0%, 100% 100%, 100% 100%);
+  }
+  50% {
+    clip-path: polygon(100% 0%, 50% 0%, 75% 100%, 100% 100%);
+  }
+  75% {
+    clip-path: polygon(100% 0%, 25% 0%, 50% 100%, 100% 100%);
+  }
+  100% {
+    clip-path: polygon(100% 0%, 0% 0%, 0% 100%, 100% 100%);
+  }
+}
+
+.process-slider-image-stack .process-slide-image[data-slide="0"] { background-image: url('/images/process-schedule.jpg'); }
+.process-slider-image-stack .process-slide-image[data-slide="1"] { background-image: url('/images/process-diagnose.jpg'); }
+.process-slider-image-stack .process-slide-image[data-slide="2"] { background-image: url('/images/process-parts-quote.jpg'); }
+.process-slider-image-stack .process-slide-image[data-slide="3"] { background-image: url('/images/process-repair-go.jpg'); }
 
 /* Fade from black over top 10% of process slide */
 .process-slide-image::before {
