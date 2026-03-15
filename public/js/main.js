@@ -455,6 +455,8 @@
 
       processSweeping = true;
       var goingForward = next > prevIndex || (prevIndex === processTotal - 1 && next === 0);
+      processTrack.classList.remove('is-sweep-ltr', 'is-sweep-rtl');
+      processTrack.classList.add(goingForward ? 'is-sweep-ltr' : 'is-sweep-rtl');
       // Apply sweeping to outgoing image first so its higher z-index is set before the next becomes visible
       prevImg.classList.add('is-sweeping', goingForward ? 'is-sweep-ltr' : 'is-sweep-rtl');
       nextImg.classList.add('is-visible');
@@ -462,6 +464,7 @@
       function onSweepEnd() {
         prevImg.removeEventListener('animationend', onSweepEnd);
         prevImg.classList.remove('is-sweeping', 'is-sweep-ltr', 'is-sweep-rtl', 'is-visible');
+        processTrack.classList.remove('is-sweep-ltr', 'is-sweep-rtl');
         processSweeping = false;
       }
       prevImg.addEventListener('animationend', onSweepEnd);
