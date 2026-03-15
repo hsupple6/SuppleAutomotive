@@ -29,6 +29,7 @@ body {
   color: var(--text);
   line-height: 1.5;
   min-height: 100vh;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -289,44 +290,77 @@ body {
 .link-cta:not(:hover) .link-cta-border-b { transition-delay: 0.1s; }
 .link-cta:not(:hover) .link-cta-border-l { transition-delay: 0s; }
 
+/* ========== Black section between hero and process ========== */
+.section-black {
+  width: 100%;
+  min-height: 4rem;
+  background: #000;
+}
+
 /* ========== Process slideshow (above services) ========== */
 .process-slider {
   position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  min-height: 320px;
+  width: 100vw;
+  max-width: 100%;
+  height: 100vh;
+  max-height: 100vh;
+  margin-left: calc(50% - 50vw);
   overflow: hidden;
   background: var(--bg);
 }
 
 .process-slider-track {
+  --process-index: 0;
+  --current-index: 0;
   display: flex;
   width: 100%;
   height: 100%;
-  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
+  transform: translateX(calc(-100% * var(--process-index)));
 }
 
 .process-slide {
+  --slide-index: 0;
   flex: 0 0 100%;
   width: 100%;
   height: 100%;
   position: relative;
 }
 
+.process-slide[data-slide="0"] { --slide-index: 0; }
+.process-slide[data-slide="1"] { --slide-index: 1; }
+.process-slide[data-slide="2"] { --slide-index: 2; }
+.process-slide[data-slide="3"] { --slide-index: 3; }
+
 .process-slide-image {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   background-color: var(--bg-alt);
-  background-size: cover;
+  background-size: 100% auto;
+  background-width: 100%;
+  background-height: 100%;
   background-position: center;
   background-repeat: no-repeat;
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateX(calc((var(--current-index) - var(--slide-index)) * 4%));
 }
 
-.process-slide[data-slide="0"] .process-slide-image { background-image: url('/images/process-schedule.jpg'); }
+.process-slide[data-slide="0"] .process-slide-image { background-image: url('/images/process-schedule.jpg'); width: 100%; height: 100%; }
 .process-slide[data-slide="1"] .process-slide-image { background-image: url('/images/process-diagnose.jpg'); }
 .process-slide[data-slide="2"] .process-slide-image { background-image: url('/images/process-parts-quote.jpg'); }
 .process-slide[data-slide="3"] .process-slide-image { background-image: url('/images/process-repair-go.jpg'); }
+
+/* Fade from black over top 10% of process slide */
+.process-slide-image::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, transparent 20%);
+  pointer-events: none;
+}
 
 .process-slide-image::after {
   content: '';
@@ -360,143 +394,65 @@ body {
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* Large white chevrons left/right */
-.process-chevron {
+/* Process nav: top-left tabs, full bar + sliding underline on top */
+.process-nav {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 4;
-  width: 56px;
-  height: 56px;
-  padding: 0;
-  border: none;
-  background: rgba(0, 0, 0, 0.25);
-  color: #fff;
-  cursor: pointer;
+  top: 2.5rem;
+  left: 2.5rem;
+  z-index: 5;
+}
+
+.process-nav-tabs {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s, color 0.2s;
-}
-
-.process-chevron:hover {
-  background: rgba(0, 0, 0, 0.45);
-  color: #fff;
-}
-
-.process-chevron:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
-}
-
-.process-chevron-prev {
-  left: 1rem;
-}
-
-.process-chevron-next {
-  right: 1rem;
-}
-
-.process-chevron svg {
-  width: 32px;
-  height: 32px;
-}
-
-@media (min-width: 768px) {
-  .process-chevron {
-    width: 64px;
-    height: 64px;
-  }
-  .process-chevron-prev {
-    left: 1.5rem;
-  }
-  .process-chevron-next {
-    right: 1.5rem;
-  }
-  .process-chevron svg {
-    width: 40px;
-    height: 40px;
-  }
-}
-
-/* Progress dots: 5% from bottom; black circle, gray ring when active */
-.process-dots {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 5%;
-  z-index: 3;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  gap: 2.5rem;
-  padding: 0 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 2.5rem;
+  align-items: baseline;
 }
 
 .process-dot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
+  position: relative;
+  padding: 0.6rem 0;
   border: none;
   background: none;
   cursor: pointer;
   font-family: inherit;
   color: var(--text-muted);
-  font-size: 0.75rem;
+  font-size: clamp(1.25rem, 2.5vw, 1.75rem);
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  transition: color 0.2s;
+  letter-spacing: 0.02em;
+  transition: color 0.25s ease;
 }
 
 .process-dot:hover {
   color: var(--text);
 }
 
-.process-dot-inner {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--black);
-  flex-shrink: 0;
-  transition: transform 0.2s;
-}
-
-.process-dot-bullet {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-}
-
-.process-dot-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 2px solid var(--text-muted);
-  opacity: 0;
-  transition: opacity 0.25s;
-  pointer-events: none;
-}
-
-.process-dot {
-  position: relative;
-}
-
-.process-dot[aria-selected="true"] .process-dot-ring {
-  opacity: 1;
-}
-
-.process-dot[aria-selected="true"] .process-dot-label {
+.process-dot[aria-selected="true"] {
   color: var(--text);
 }
 
-.process-dot-label {
-  transition: color 0.2s;
+/* Full-width bar under all tabs (background) */
+.process-nav-bar-bg {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+}
+
+/* Sliding indicator on top of the bar */
+.process-nav-underline {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 4px;
+  background: var(--text);
+  z-index: 1;
+  transition: left 0.35s cubic-bezier(0.22, 1, 0.36, 1), width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
 }
 
 /* ========== Reviews section (quote + auto-scroll slideshow + add) ========== */
@@ -756,6 +712,10 @@ body {
   background: var(--bg-alt);
 }
 
+.hero-bg {
+  overflow: hidden;
+}
+
 .hero-img {
   position: absolute;
   inset: 0;
@@ -765,6 +725,25 @@ body {
   background-size: 110%;
   background-position: 60% 65%;
   background-repeat: no-repeat;
+  animation: hero-img-zoom 1s forwards;
+}
+
+/* Fade to black over bottom 10% of hero */
+.hero-img::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 80%, rgba(0, 0, 0, 1) 100%);
+  pointer-events: none;
+}
+
+@keyframes hero-img-zoom {
+  from {
+    transform: scale(1.25);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 .hero .hero-placeholder {
@@ -2663,24 +2642,22 @@ body {
     padding: 1rem 1rem;
   }
 
-  /* Process slider: smaller dots, tighter copy */
+  /* Process slider: tighter copy, smaller nav on mobile */
   .process-slide-copy {
     padding: 2rem 1rem 5rem;
   }
 
-  .process-dots {
-    gap: 1rem;
-    padding: 0 0.5rem;
-    flex-wrap: wrap;
-    justify-content: center;
+  .process-nav {
+    top: 1.5rem;
+    left: 1.5rem;
+  }
+
+  .process-nav-tabs {
+    gap: 0.4rem 1.5rem;
   }
 
   .process-dot {
-    min-width: 60px;
-  }
-
-  .process-dot-label {
-    font-size: 0.5rem;
+    font-size: 1.15rem;
   }
 
   .process-chevron {

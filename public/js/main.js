@@ -404,27 +404,36 @@
     revealImageEl.classList.add('is-revealed');
   }
 
-  // Process slideshow: dots + track + chevrons, auto-advance (stops when chevron clicked)
+  // Process slideshow: nav tabs (top-left), 45° slide, sliding underline, image parallax
   var processTrack = document.getElementById('processSliderTrack');
-  var processDotsContainer = document.getElementById('processDots');
-  var processPrev = document.getElementById('processPrev');
-  var processNext = document.getElementById('processNext');
-  if (processTrack && processDotsContainer) {
-    var processSlides = processTrack.querySelectorAll('.process-slide');
-    var processDots = processDotsContainer.querySelectorAll('.process-dot');
+  var processNav = document.getElementById('processNav');
+  var processNavUnderline = document.getElementById('processNavUnderline');
+  if (processTrack && processNav) {
+    var processDots = processNav.querySelectorAll('.process-dot');
     var processIndex = 0;
-    var processTotal = processSlides.length;
+    var processTotal = processDots.length;
     var processInterval = 6000;
     var processTimer = null;
     var processAutoStoppedByUser = false;
 
+    function updateProcessUnderline() {
+      if (!processNavUnderline || processDots.length === 0) return;
+      var active = processDots[processIndex];
+      if (!active) return;
+      var navRect = processNav.getBoundingClientRect();
+      var btnRect = active.getBoundingClientRect();
+      processNavUnderline.style.left = (btnRect.left - navRect.left) + 'px';
+      processNavUnderline.style.width = btnRect.width + 'px';
+    }
+
     function setProcessSlide(i) {
       processIndex = (i + processTotal) % processTotal;
-      processTrack.style.transform = 'translateX(-' + processIndex * 100 + '%)';
-      processDots.forEach(function (dot, d) {
-        var selected = d === processIndex;
-        dot.setAttribute('aria-selected', selected);
-      });
+      processTrack.style.setProperty('--process-index', String(processIndex));
+      processTrack.style.setProperty('--current-index', String(processIndex));
+      for (var d = 0; d < processDots.length; d++) {
+        processDots[d].setAttribute('aria-selected', d === processIndex);
+      }
+      updateProcessUnderline();
     }
 
     function stopAutoAdvance(byUser) {
@@ -441,19 +450,6 @@
       });
     });
 
-    if (processPrev) {
-      processPrev.addEventListener('click', function () {
-        stopAutoAdvance(true);
-        setProcessSlide(processIndex - 1);
-      });
-    }
-    if (processNext) {
-      processNext.addEventListener('click', function () {
-        stopAutoAdvance(true);
-        setProcessSlide(processIndex + 1);
-      });
-    }
-
     processTimer = setInterval(function () {
       setProcessSlide(processIndex + 1);
     }, processInterval);
@@ -468,6 +464,9 @@
         }, processInterval);
       }
     });
+
+    updateProcessUnderline();
+    window.addEventListener('resize', updateProcessUnderline);
   }
 
   // Contact switch (Email / Phone) with animation

@@ -76,8 +76,21 @@
       </div>
     </section>
 
-    <!-- Process slideshow: full-width, steps + progress dots -->
+    <!-- Black divider between hero and process -->
+    <section class="section-black" aria-hidden="true"></section>
+
+    <!-- Process slideshow: nav top-left, 45° slide, image parallax -->
     <section class="process-slider" aria-label="How we work">
+      <nav class="process-nav" id="processNav" role="tablist" aria-label="Process steps">
+        <div class="process-nav-tabs">
+          <button type="button" class="process-dot" role="tab" aria-selected="true" aria-controls="processSliderTrack" data-index="0" id="process-dot-0">Schedule</button>
+          <button type="button" class="process-dot" role="tab" aria-selected="false" data-index="1" id="process-dot-1">Diagnose</button>
+          <button type="button" class="process-dot" role="tab" aria-selected="false" data-index="2" id="process-dot-2">Parts &amp; Quote</button>
+          <button type="button" class="process-dot" role="tab" aria-selected="false" data-index="3" id="process-dot-3">Repair &amp; Go</button>
+        </div>
+        <span class="process-nav-bar-bg" aria-hidden="true"></span>
+        <span class="process-nav-underline" id="processNavUnderline" aria-hidden="true"></span>
+      </nav>
       <div class="process-slider-track" id="processSliderTrack">
         <div class="process-slide" data-slide="0">
           <div class="process-slide-image" aria-hidden="true"></div>
@@ -107,42 +120,6 @@
             <p class="process-slide-text">We complete the work to standard, then you pick up and get back on the road. Simple.</p>
           </div>
         </div>
-      </div>
-      <button type="button" class="process-chevron process-chevron-prev" id="processPrev" aria-label="Previous step">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-      </button>
-      <button type="button" class="process-chevron process-chevron-next" id="processNext" aria-label="Next step">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-      </button>
-      <div class="process-dots" id="processDots" role="tablist" aria-label="Process steps">
-        <button type="button" class="process-dot" role="tab" aria-selected="true" aria-controls="processSliderTrack" data-index="0" id="process-dot-0">
-          <span class="process-dot-bullet">
-            <span class="process-dot-ring"></span>
-            <span class="process-dot-inner"></span>
-          </span>
-          <span class="process-dot-label">Schedule</span>
-        </button>
-        <button type="button" class="process-dot" role="tab" aria-selected="false" data-index="1" id="process-dot-1">
-          <span class="process-dot-bullet">
-            <span class="process-dot-ring"></span>
-            <span class="process-dot-inner"></span>
-          </span>
-          <span class="process-dot-label">Diagnose</span>
-        </button>
-        <button type="button" class="process-dot" role="tab" aria-selected="false" data-index="2" id="process-dot-2">
-          <span class="process-dot-bullet">
-            <span class="process-dot-ring"></span>
-            <span class="process-dot-inner"></span>
-          </span>
-          <span class="process-dot-label">Parts &amp; quote</span>
-        </button>
-        <button type="button" class="process-dot" role="tab" aria-selected="false" data-index="3" id="process-dot-3">
-          <span class="process-dot-bullet">
-            <span class="process-dot-ring"></span>
-            <span class="process-dot-inner"></span>
-          </span>
-          <span class="process-dot-label">Repair &amp; go</span>
-        </button>
       </div>
     </section>
 
