@@ -2822,6 +2822,19 @@ body {
 @media (max-width: 768px) {
   .logo {
     letter-spacing: 0.02em;
+    font-weight: 1000;
+  }
+
+  .top-bar .logo,
+  .top-bar .logo-main,
+  .top-bar .logo-accent {
+    -webkit-text-stroke: 1px #111;
+  }
+
+  .top-bar.scrolled .logo,
+  .top-bar.scrolled .logo-main,
+  .top-bar.scrolled .logo-accent {
+    -webkit-text-stroke: 1px #fff;
   }
 
   .top-bar {
