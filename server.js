@@ -7,6 +7,7 @@ require('dotenv').config();
 var path = require('path');
 var express = require('express');
 var session = require('express-session');
+var multer = require('multer');
 var app = express();
 
 // Stripe webhook must receive raw body for signature verification (register before express.json())
@@ -158,7 +159,7 @@ function escapeHtmlControl(s) {
 }
 
 app.get('/supplecontrols', function (req, res) {
-  if (controlsAuth(req)) return sendControlsPanel(res);
+  // Always show the login screen first; no auto-login shortcuts.
   sendControlsLogin(res);
 });
 
@@ -480,32 +481,44 @@ app.post('/api/payment-lookup', function (req, res) {
       var customerId = _.customer.id;
       var srvQ = supabase.from('services').select('*').eq('customer_id', customerId).order('created_at', { ascending: false });
       if (referenceNumber) srvQ = srvQ.eq('reference_number', referenceNumber);
-      return srvQ.then(function (srvRes) {
-        var services = srvRes.data || [];
-        var serviceIds = services.map(function (s) { return s.id; });
-        if (serviceIds.length === 0) {
-          var cust = _.customer;
-          if (cust && cust.phone) cust.phone = phoneLast10(cust.phone) || cust.phone;
-          return res.json({
-            ok: true,
-            customer: cust,
-            vehicles: [],
-            services: [],
-            balance: 0
-          });
-        }
-        return supabase.from('service_parts').select('*').in('service_id', serviceIds).then(function (partsRes) {
-          var parts = partsRes.data || [];
-          var partsByService = {};
-          parts.forEach(function (p) {
-            if (!partsByService[p.service_id]) partsByService[p.service_id] = [];
-            partsByService[p.service_id].push(p);
-          });
-          return supabase.from('service_payments').select('service_id, amount').in('service_id', serviceIds).then(function (payRes) {
+        return srvQ.then(function (srvRes) {
+          var services = srvRes.data || [];
+          var serviceIds = services.map(function (s) { return s.id; });
+          if (serviceIds.length === 0) {
+            var cust = _.customer;
+            if (cust && cust.phone) cust.phone = phoneLast10(cust.phone) || cust.phone;
+            return res.json({
+              ok: true,
+              customer: cust,
+              vehicles: [],
+              services: [],
+              balance: 0
+            });
+          }
+          return Promise.all([
+            supabase.from('service_parts').select('*').in('service_id', serviceIds),
+            supabase.from('service_payments').select('service_id, amount').in('service_id', serviceIds),
+            supabase.from('service_images').select('*').in('service_id', serviceIds)
+          ]).then(function (results) {
+            var partsRes = results[0];
+            var payRes = results[1];
+            var imagesRes = results[2];
+            var parts = partsRes.data || [];
             var payments = payRes.data || [];
+            var images = imagesRes.data || [];
+            var partsByService = {};
+            parts.forEach(function (p) {
+              if (!partsByService[p.service_id]) partsByService[p.service_id] = [];
+              partsByService[p.service_id].push(p);
+            });
             var paidByService = {};
             payments.forEach(function (p) {
               paidByService[p.service_id] = (paidByService[p.service_id] || 0) + Number(p.amount || 0);
+            });
+            var imagesByService = {};
+            images.forEach(function (img) {
+              if (!imagesByService[img.service_id]) imagesByService[img.service_id] = [];
+              imagesByService[img.service_id].push(img);
             });
             var balance = 0;
             var servicesWithParts = services.map(function (s) {
@@ -517,7 +530,13 @@ app.post('/api/payment-lookup', function (req, res) {
               var isPosted = (s.bill_status || 'posted') === 'posted';
               if (isPosted && serviceBalance > 0) balance += serviceBalance;
               var paymentStatus = serviceBalance <= 0 ? 'paid' : (paidTotal > 0 ? 'partial' : 'unpaid');
-              return { ...s, parts: serviceParts, total: total, payment_status: paymentStatus, bill_status: s.bill_status || 'posted' };
+              return Object.assign({}, s, {
+                parts: serviceParts,
+                images: imagesByService[s.id] || [],
+                total: total,
+                payment_status: paymentStatus,
+                bill_status: s.bill_status || 'posted'
+              });
             });
             return supabase.from('vehicles').select('*').eq('customer_id', customerId).then(function (vRes) {
               var cust = _.customer;
@@ -731,10 +750,12 @@ app.get('/supplecontrols/api/customers/:id', controlsApiAuth, function (req, res
           var serviceIds = services.map(function (s) { return s.id; });
           Promise.all([
             supabase.from('service_parts').select('*').in('service_id', serviceIds),
-            supabase.from('service_payments').select('*').in('service_id', serviceIds)
-          ]).then(function (partsPayments) {
-            var parts = partsPayments[0].data || [];
-            var payments = partsPayments[1].data || [];
+            supabase.from('service_payments').select('*').in('service_id', serviceIds),
+            supabase.from('service_images').select('*').in('service_id', serviceIds)
+          ]).then(function (partsPaymentsImages) {
+            var parts = partsPaymentsImages[0].data || [];
+            var payments = partsPaymentsImages[1].data || [];
+            var images = partsPaymentsImages[2].data || [];
             var partsBySvc = {};
             parts.forEach(function (p) {
               if (!partsBySvc[p.service_id]) partsBySvc[p.service_id] = [];
@@ -745,6 +766,11 @@ app.get('/supplecontrols/api/customers/:id', controlsApiAuth, function (req, res
               if (!paymentsBySvc[p.service_id]) paymentsBySvc[p.service_id] = [];
               paymentsBySvc[p.service_id].push(p);
             });
+            var imagesBySvc = {};
+            images.forEach(function (img) {
+              if (!imagesBySvc[img.service_id]) imagesBySvc[img.service_id] = [];
+              imagesBySvc[img.service_id].push(img);
+            });
             var servicesWithExtra = services.map(function (s) {
               var serviceParts = partsBySvc[s.id] || [];
               var partsTotal = serviceParts.reduce(function (sum, p) { return sum + Number(p.total_price || 0); }, 0);
@@ -752,7 +778,15 @@ app.get('/supplecontrols/api/customers/:id', controlsApiAuth, function (req, res
               var paidTotal = (paymentsBySvc[s.id] || []).reduce(function (sum, p) { return sum + Number(p.amount || 0); }, 0);
               var balance = Math.round((total - paidTotal) * 100) / 100;
               var paymentStatus = balance <= 0 ? 'paid' : (paidTotal > 0 ? 'partial' : 'unpaid');
-              return Object.assign({}, s, { parts: serviceParts, payments: paymentsBySvc[s.id] || [], total: total, paidTotal: paidTotal, balance: balance, paymentStatus: paymentStatus });
+              return Object.assign({}, s, {
+                parts: serviceParts,
+                payments: paymentsBySvc[s.id] || [],
+                images: imagesBySvc[s.id] || [],
+                total: total,
+                paidTotal: paidTotal,
+                balance: balance,
+                paymentStatus: paymentStatus
+              });
             });
             res.json({ customer: customer, vehicles: vehicles, contacts: contacts, services: servicesWithExtra });
           });
@@ -1008,6 +1042,61 @@ app.post('/supplecontrols/api/services/:id/payments', controlsApiAuth, function 
           res.status(201).json(p.data);
         });
       });
+    });
+  });
+});
+
+// ========== Service images (attach photos to a service) ==========
+var upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+app.post('/supplecontrols/api/services/:id/images', controlsApiAuth, upload.array('images', 10), function (req, res) {
+  var serviceId = req.params.id;
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  var files = req.files || [];
+  if (!files.length) return res.status(400).json({ error: 'No images uploaded' });
+  var caption = (req.body && req.body.caption != null) ? String(req.body.caption).trim() : null;
+  var takenAtLocalLabel = (req.body && req.body.taken_at_local_label != null) ? String(req.body.taken_at_local_label).trim() : null;
+  var addressLabel = (req.body && req.body.address_label != null) ? String(req.body.address_label).trim() : null;
+
+  getAccountThen(req, res, function (accountId) {
+    supabase.from('services').select('id').eq('id', serviceId).eq('account_id', accountId).single().then(function (r) {
+      if (r.error || !r.data) return res.status(404).json({ error: 'Service not found' });
+      var bucket = 'service-images';
+      var uploads = files.map(function (file) {
+        var safeName = (file.originalname || 'image').replace(/[^a-zA-Z0-9.\-_]/g, '_');
+        var pathKey = 'service-' + serviceId + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '-' + safeName;
+        return supabase.storage.from(bucket).upload(pathKey, file.buffer, {
+          contentType: file.mimetype || 'image/jpeg',
+          upsert: false
+        }).then(function (up) {
+          if (up.error) throw new Error(up.error.message || 'Upload failed');
+          var pub = supabase.storage.from(bucket).getPublicUrl(pathKey);
+          var url = (pub && pub.data && pub.data.publicUrl) ? pub.data.publicUrl : null;
+          if (!url) throw new Error('Could not get public URL for image');
+          return { image_url: url };
+        });
+      });
+
+      Promise.all(uploads)
+        .then(function (uploaded) {
+          var rows = uploaded.map(function (u) {
+            return {
+              service_id: serviceId,
+              image_url: u.image_url,
+              caption: caption,
+              taken_at_local_label: takenAtLocalLabel,
+              address_label: addressLabel
+            };
+          });
+          return supabase.from('service_images').insert(rows).select('*');
+        })
+        .then(function (ins) {
+          if (ins.error) return controlsJson(new Error(ins.error.message), res);
+          res.status(201).json({ images: ins.data || [] });
+        })
+        .catch(function (err) {
+          controlsJson(err, res);
+        });
     });
   });
 });

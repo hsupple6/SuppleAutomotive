@@ -475,10 +475,13 @@
       <a href="#contact">Contact</a>
       <a href="#location">Location</a>
     </nav>
-    <p class="footer-copy">Copyright &copy; since <span id="footerYear"></span> &ndash; <span id="footerName">Supple Automotive</span></p>
+    <p class="footer-copy">Copyright &copy; since <span id="footerYear"></span> &ndash; <a href="/supplecontrols" class="footer-brand-link" id="footerNameLink"><span id="footerName">Supple Automotive</span></a></p>
     <div class="footer-legal">
       <a href="#">Sitemap</a>
       <a href="#">Privacy</a>
+    </div>
+    <div class="footer-dev-controls" id="footerDevControls" style="display:none;">
+      <button type="button" class="footer-dev-button" id="footerDevAdminBtn">Dev: Admin dashboard (hsupple06)</button>
     </div>
   </footer>
 
@@ -498,5 +501,10 @@
 
   <script src="config.js"></script>
   <script src="js/main.js"></script>
+  <script>
+  (function () {
+    // (Footer dev shortcut script removed; Supple Controls is now linked via the brand name in the footer.)
+  })();
+  </script>
 </body>
 </html>

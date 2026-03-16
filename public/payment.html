@@ -356,6 +356,7 @@
       }).join('<br>');
       var isPending = (service.bill_status || 'posted') === 'pending';
       var billStatusLabel = isPending ? 'Pending (not yet on your balance)' : 'Posted (on your balance)';
+      var images = service.images || [];
       var html = '<p class="payment-service-modal-row"><strong>Vehicle</strong> ' + escapeHtml(carLine) + '</p>' +
         '<p class="payment-service-modal-row"><strong>Service</strong> ' + escapeHtml(service.service_name || 'Service') + '</p>' +
         '<p class="payment-service-modal-row"><strong>Bill status</strong> ' + escapeHtml(billStatusLabel) + '</p>' +
@@ -366,6 +367,16 @@
         '<p class="payment-service-modal-row"><strong>Total</strong> ' + (isPending ? '—' : '$' + total.toFixed(2)) + '</p>' +
         (service.notes ? '<p class="payment-service-modal-row"><strong>Notes</strong> ' + escapeHtml(service.notes) + '</p>' : '') +
         (parts ? '<p class="payment-service-modal-row"><strong>Parts</strong><br>' + parts + '</p>' : '');
+      if (images.length) {
+        html += '<div class="payment-service-modal-row"><strong>Images</strong><div class="payment-service-images">';
+        images.forEach(function (img) {
+          var metaBits = [];
+          if (img.taken_at_local_label) metaBits.push(escapeHtml(img.taken_at_local_label));
+          if (img.address_label) metaBits.push(escapeHtml(img.address_label));
+          html += '<figure class="payment-service-image-item"><img src="' + escapeHtml(img.image_url) + '" alt="' + escapeHtml(img.caption || 'Service image') + '" class="payment-service-image"><figcaption class="payment-service-image-caption">' + (img.caption ? escapeHtml(img.caption) + '<br>' : '') + (metaBits.length ? metaBits.join(' · ') : '') + '</figcaption></figure>';
+        });
+        html += '</div></div>';
+      }
       modalBody.innerHTML = html;
       modal.removeAttribute('hidden');
     }
@@ -439,7 +450,14 @@
           })
         })
           .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Lookup failed'); return d; }); })
-          .then(showDashboard)
+          .then(function (data) {
+            // If server tells us to jump into controls, do that instead of showing the customer dashboard.
+            if (data && data.controlsLogin && data.redirect) {
+              window.location.href = data.redirect;
+              return;
+            }
+            showDashboard(data);
+          })
           .catch(function (err) {
             var msgEl = document.getElementById('paymentFormMessage');
             if (msgEl) { msgEl.textContent = err.message || 'Lookup failed. Try again.'; msgEl.hidden = false; msgEl.className = 'form-message form-message-error'; }

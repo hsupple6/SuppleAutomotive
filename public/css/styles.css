@@ -2306,6 +2306,15 @@ body {
   margin-bottom: 1rem;
 }
 
+.footer-copy .footer-brand-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.footer-copy .footer-brand-link:hover {
+  text-decoration: underline;
+}
+
 .footer-legal {
   display: flex;
   justify-content: center;
@@ -3087,4 +3096,32 @@ body {
 
 .scroll-to-top[hidden] {
   display: none !important;
+}
+
+/* ========== Payment service images ========== */
+.payment-service-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.payment-service-image-item {
+  background: var(--bg-alt);
+  border-radius: 6px;
+  padding: 0.4rem;
+}
+
+.payment-service-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.payment-service-image-caption {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }

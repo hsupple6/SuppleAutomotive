@@ -281,7 +281,18 @@
           html += '<span class="part-item" data-part-id="' + p.id + '">' + esc(p.part_name) + ' $' + (p.total_price != null ? Number(p.total_price).toFixed(2) : '0') + ' <button type="button" class="btn btn-ghost delete-part" style="margin-left:0.25rem">Delete</button></span>; ';
         });
         html += '<button type="button" class="btn btn-ghost add-part" style="margin-left:0.5rem">+ Part</button></div>';
-        html += '<div class="service-notes-row"><label style="font-size:0.8rem;color:#999;">Notes (customer will see when they open this service)</label><textarea class="service-notes-input" data-service-id="' + s.id + '" rows="2" placeholder="Add notes…">' + esc(s.notes || '') + '</textarea><button type="button" class="btn btn-ghost save-service-notes">Save notes</button></div>';
+        var images = s.images || [];
+        if (images.length) {
+          html += '<div class="service-images-row" style="margin-top:0.75rem;font-size:0.8rem;"><div style="margin-bottom:0.35rem;color:#999;">Images attached to this service</div><div class="service-images-grid">';
+          images.forEach(function (img) {
+            var metaBits = [];
+            if (img.taken_at_local_label) metaBits.push(esc(img.taken_at_local_label));
+            if (img.address_label) metaBits.push(esc(img.address_label));
+            html += '<div class="service-image-item"><div class="service-image-thumb-wrap"><img src="' + esc(img.image_url) + '" alt="' + esc(img.caption || 'Service image') + '" class="service-image-thumb"></div><div class="service-image-meta">' + (img.caption ? esc(img.caption) + '<br>' : '') + (metaBits.length ? metaBits.join(' · ') : '') + '</div></div>';
+          });
+          html += '</div></div>';
+        }
+        html += '<div class="service-notes-row"><label style="font-size:0.8rem;color:#999;">Notes (customer will see when they open this service)</label><textarea class="service-notes-input" data-service-id="' + s.id + '" rows="2" placeholder="Add notes…">' + esc(s.notes || '') + '</textarea><button type="button" class="btn btn-ghost save-service-notes">Save notes</button> <button type="button" class="btn btn-ghost add-service-images">+ Add images</button></div>';
         html += '</div>';
       });
       html += '<button type="button" class="btn btn-ghost" id="addService">+ Add service</button></div>';
@@ -289,6 +300,7 @@
       modalContent.innerHTML = html;
       modalContent.dataset.customerId = customerId;
       modalContent.dataset.vehicles = JSON.stringify(vehicles);
+      modalContent.dataset.customerAddressLabel = [c.address_line1, c.address_line2, c.city, c.state, c.postal_code].filter(Boolean).join(', ');
 
       document.getElementById('saveDetails').addEventListener('click', function () {
         var stateZip = (document.getElementById('editStateZip').value || '').trim().split(/\s+/);
@@ -463,6 +475,52 @@
           var notes = textarea ? textarea.value.trim() : '';
           api('/services/' + serviceId, { method: 'PATCH', body: { notes: notes || null } })
             .then(function () { showToast('Notes saved. Customer will see them when they open this service.'); }).catch(function (e) { showToast(e.message, true); });
+        });
+      });
+
+      // Attach images to a service (uploads to backend, which stores in Supabase Storage)
+      modalContent.querySelectorAll('.add-service-images').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var block = btn.closest('.service-block');
+          var serviceId = block.getAttribute('data-service-id');
+          if (!serviceId) return;
+          var fileInput = document.createElement('input');
+          fileInput.type = 'file';
+          fileInput.accept = 'image/*';
+          fileInput.multiple = true;
+          fileInput.style.display = 'none';
+          document.body.appendChild(fileInput);
+          fileInput.addEventListener('change', function () {
+            var files = Array.prototype.slice.call(fileInput.files || []);
+            document.body.removeChild(fileInput);
+            if (!files.length) return;
+            showPrompt('Caption for these images (optional)', '').then(function (caption) {
+              var formData = new FormData();
+              files.forEach(function (f) { formData.append('images', f); });
+              if (caption != null && caption !== '') formData.append('caption', caption);
+              var now = new Date();
+              try {
+                var localLabel = now.toLocaleString();
+                formData.append('taken_at_local_label', localLabel);
+              } catch (e) {}
+              var addr = modalContent.dataset.customerAddressLabel || '';
+              if (addr) formData.append('address_label', addr);
+              fetch('/supplecontrols/api/services/' + encodeURIComponent(serviceId) + '/images', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+              })
+                .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Upload failed'); return d; }); })
+                .then(function () {
+                  showToast('Images added to service.');
+                  openCustomer(customerId);
+                })
+                .catch(function (err) {
+                  showToast(err.message || 'Could not upload images', true);
+                });
+            });
+          });
+          fileInput.click();
         });
       });
 
