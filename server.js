@@ -1057,45 +1057,42 @@ app.post('/supplecontrols/api/services/:id/images', controlsApiAuth, upload.arra
   var addressLabel = (req.body && req.body.address_label != null) ? String(req.body.address_label).trim() : null;
 
   getAccountThen(req, res, function (accountId) {
-    supabase.from('services').select('id').eq('id', serviceId).eq('account_id', accountId).single().then(function (r) {
-      if (r.error || !r.data) return res.status(404).json({ error: 'Service not found' });
-      var bucket = 'service-images';
-      var uploads = files.map(function (file) {
-        var safeName = (file.originalname || 'image').replace(/[^a-zA-Z0-9.\-_]/g, '_');
-        var pathKey = 'service-' + serviceId + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '-' + safeName;
-        return supabase.storage.from(bucket).upload(pathKey, file.buffer, {
-          contentType: file.mimetype || 'image/jpeg',
-          upsert: false
-        }).then(function (up) {
-          if (up.error) throw new Error(up.error.message || 'Upload failed');
-          var pub = supabase.storage.from(bucket).getPublicUrl(pathKey);
-          var url = (pub && pub.data && pub.data.publicUrl) ? pub.data.publicUrl : null;
-          if (!url) throw new Error('Could not get public URL for image');
-          return { image_url: url };
-        });
+    var bucket = 'service-images';
+    var uploads = files.map(function (file) {
+      var safeName = (file.originalname || 'image').replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      var pathKey = 'service-' + serviceId + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '-' + safeName;
+      return supabase.storage.from(bucket).upload(pathKey, file.buffer, {
+        contentType: file.mimetype || 'image/jpeg',
+        upsert: false
+      }).then(function (up) {
+        if (up.error) throw new Error(up.error.message || 'Upload failed');
+        var pub = supabase.storage.from(bucket).getPublicUrl(pathKey);
+        var url = (pub && pub.data && pub.data.publicUrl) ? pub.data.publicUrl : null;
+        if (!url) throw new Error('Could not get public URL for image');
+        return { image_url: url };
       });
-
-      Promise.all(uploads)
-        .then(function (uploaded) {
-          var rows = uploaded.map(function (u) {
-            return {
-              service_id: serviceId,
-              image_url: u.image_url,
-              caption: caption,
-              taken_at_local_label: takenAtLocalLabel,
-              address_label: addressLabel
-            };
-          });
-          return supabase.from('service_images').insert(rows).select('*');
-        })
-        .then(function (ins) {
-          if (ins.error) return controlsJson(new Error(ins.error.message), res);
-          res.status(201).json({ images: ins.data || [] });
-        })
-        .catch(function (err) {
-          controlsJson(err, res);
-        });
     });
+
+    Promise.all(uploads)
+      .then(function (uploaded) {
+        var rows = uploaded.map(function (u) {
+          return {
+            service_id: serviceId,
+            image_url: u.image_url,
+            caption: caption,
+            taken_at_local_label: takenAtLocalLabel,
+            address_label: addressLabel
+          };
+        });
+        return supabase.from('service_images').insert(rows).select('*');
+      })
+      .then(function (ins) {
+        if (ins.error) return controlsJson(new Error(ins.error.message), res);
+        res.status(201).json({ images: ins.data || [] });
+      })
+      .catch(function (err) {
+        controlsJson(err, res);
+      });
   });
 });
 
