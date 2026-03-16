@@ -552,7 +552,6 @@ app.post('/api/payment-lookup', function (req, res) {
           });
         });
       });
-    })
     .catch(function (err) {
       console.error('Payment lookup error:', err.message || err);
       var isNotFound = err.message && err.message.indexOf('No customer found') === 0;
