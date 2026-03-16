@@ -551,12 +551,11 @@ app.post('/api/payment-lookup', function (req, res) {
             });
           });
         });
+      }).catch(function (err) {
+        console.error('Payment lookup error:', err.message || err);
+        var isNotFound = err.message && err.message.indexOf('No customer found') === 0;
+        sendError(isNotFound ? 404 : 500, err.message || 'Lookup failed');
       });
-    .catch(function (err) {
-      console.error('Payment lookup error:', err.message || err);
-      var isNotFound = err.message && err.message.indexOf('No customer found') === 0;
-      sendError(isNotFound ? 404 : 500, err.message || 'Lookup failed');
-    });
 });
 
 // Create Stripe Checkout Session for Pay Now (redirect to Stripe, then back to payment page)
