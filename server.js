@@ -130,10 +130,6 @@ app.post('/payment.html', function (req, res) {
 // Controls panel: /supplecontrols — login with username/password from env
 var controlsUsername = process.env.SUPPLE_CONTROLS_USERNAME || '';
 var controlsPassword = process.env.SUPPLE_CONTROLS_PASSWORD || '';
-console.log('Supple Controls env check:', {
-  SUPPLE_CONTROLS_USERNAME: controlsUsername ? '[set]' : '[missing]',
-  SUPPLE_CONTROLS_PASSWORD: controlsPassword ? '[set]' : '[missing]'
-});
 
 function controlsAuth(req) {
   return req.session && req.session.controlsUser === true;
@@ -163,7 +159,7 @@ function escapeHtmlControl(s) {
 }
 
 app.get('/supplecontrols', function (req, res) {
-  // Always show the login screen first; no auto-login shortcuts.
+  if (controlsAuth(req)) return sendControlsPanel(res);
   sendControlsLogin(res);
 });
 
