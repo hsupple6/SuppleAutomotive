@@ -127,9 +127,13 @@ app.post('/payment.html', function (req, res) {
   res.redirect(302, '/payment.html');
 });
 
-// Controls panel: /supplecontrols — login with username/password from .env
+// Controls panel: /supplecontrols — login with username/password from env
 var controlsUsername = process.env.SUPPLE_CONTROLS_USERNAME || '';
 var controlsPassword = process.env.SUPPLE_CONTROLS_PASSWORD || '';
+console.log('Supple Controls env check:', {
+  SUPPLE_CONTROLS_USERNAME: controlsUsername ? '[set]' : '[missing]',
+  SUPPLE_CONTROLS_PASSWORD: controlsPassword ? '[set]' : '[missing]'
+});
 
 function controlsAuth(req) {
   return req.session && req.session.controlsUser === true;
