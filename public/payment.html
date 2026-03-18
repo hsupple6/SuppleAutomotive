@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <header class="top-bar">
@@ -104,6 +105,12 @@
 
     <!-- Dashboard (vehicles left, details + balance + past services) -->
     <section class="payment-dashboard" id="paymentDashboard" hidden>
+      <div class="payment-pending-signatures-banner" id="paymentPendingSignaturesBanner" hidden role="region" aria-label="Documents requiring signature">
+        <div class="payment-pending-signatures-inner">
+          <p class="payment-pending-signatures-text">You have paperwork awaiting your electronic signature. Please review and sign to complete your file.</p>
+          <button type="button" class="payment-pending-signatures-cta" id="paymentPendingSignaturesBtn">Sign now</button>
+        </div>
+      </div>
       <div class="payment-dashboard-inner">
         <aside class="payment-vehicles-block" id="paymentVehiclesBlock">
           <h2 class="payment-vehicles-title">Your vehicles</h2>
@@ -123,6 +130,7 @@
         </div>
 
         <aside class="payment-history">
+          <button type="button" class="payment-documents-btn" id="paymentDocumentsBtn">Documents</button>
           <div class="payment-history-header">
             <h2 class="payment-history-title">Past services</h2>
             <input type="text" class="payment-history-search" id="paymentHistorySearch" placeholder="Search" aria-label="Search past services">
@@ -141,6 +149,54 @@
         <h2 class="payment-service-modal-title" id="paymentServiceModalTitle">Service details</h2>
         <div class="payment-service-modal-body" id="paymentServiceModalBody"></div>
         <button type="button" class="payment-service-modal-close" id="paymentServiceModalClose">Close</button>
+      </div>
+    </div>
+
+    <div class="payment-sign-modal" id="paymentSignModal" hidden aria-modal="true" role="dialog" aria-labelledby="paymentSignModalTitle">
+      <div class="payment-sign-modal-backdrop" id="paymentSignModalBackdrop"></div>
+      <div class="payment-sign-modal-content">
+        <h2 class="payment-sign-modal-title" id="paymentSignModalTitle">Documents</h2>
+        <p class="payment-sign-progress" id="paymentSignProgress"></p>
+        <div class="payment-sign-pdf-wrap" id="paymentSignPdfWrap">
+          <div class="payment-sign-pdf-scroll" id="paymentSignPdfScroll">
+            <div class="payment-sign-pdf-pages" id="paymentSignPdfPages"></div>
+          </div>
+          <p class="payment-sign-scroll-hint" id="paymentSignScrollHint">Scroll to the end of this document to continue.</p>
+        </div>
+        <div class="payment-sign-step-agree" id="paymentSignStepAgree" hidden>
+          <p class="payment-sign-agree-lead">By signing below, you confirm that you have read each document in this packet in full and agree to all applicable terms and provisions.</p>
+          <div class="payment-sign-mode-tabs" role="tablist">
+            <button type="button" class="payment-sign-tab active" id="paymentSignTabType" role="tab" aria-selected="true">Type</button>
+            <button type="button" class="payment-sign-tab" id="paymentSignTabDraw" role="tab" aria-selected="false">Draw</button>
+          </div>
+          <div id="paymentSignTypePanel">
+            <label class="payment-sign-type-label">Full legal name (must match account)</label>
+            <input type="text" class="payment-sign-type-input" id="paymentSignTypeInput" autocomplete="name" placeholder="Type your full name">
+          </div>
+          <div id="paymentSignDrawPanel" hidden>
+            <canvas class="payment-sign-canvas" id="paymentSignCanvas" width="560" height="180" aria-label="Draw your signature"></canvas>
+            <button type="button" class="payment-sign-clear" id="paymentSignClearCanvas">Clear</button>
+          </div>
+        </div>
+        <div class="payment-sign-actions" id="paymentSignActionsRead">
+          <button type="button" class="payment-sign-btn-secondary" id="paymentSignBtnCancel">Cancel</button>
+          <button type="button" class="payment-sign-btn-primary" id="paymentSignBtnNext" disabled>Next document</button>
+          <button type="button" class="payment-sign-btn-primary" id="paymentSignBtnSignAll" disabled hidden>Sign all</button>
+        </div>
+        <div class="payment-sign-actions" id="paymentSignActionsAgree" hidden>
+          <button type="button" class="payment-sign-btn-secondary" id="paymentSignBtnBack">Back</button>
+          <button type="button" class="payment-sign-btn-primary" id="paymentSignBtnSubmit">Submit signature</button>
+        </div>
+        <p class="payment-sign-error" id="paymentSignError" hidden role="alert"></p>
+      </div>
+    </div>
+
+    <div class="payment-documents-modal" id="paymentDocumentsModal" hidden aria-modal="true" role="dialog" aria-labelledby="paymentDocumentsModalTitle">
+      <div class="payment-documents-modal-backdrop" id="paymentDocumentsModalBackdrop"></div>
+      <div class="payment-documents-modal-content">
+        <h2 class="payment-documents-modal-title" id="paymentDocumentsModalTitle">Documents</h2>
+        <div class="payment-documents-modal-body" id="paymentDocumentsModalBody"></div>
+        <button type="button" class="payment-documents-modal-close" id="paymentDocumentsModalClose">Close</button>
       </div>
     </div>
   </main>
@@ -196,9 +252,10 @@
       return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
     }
 
-    function showDashboard(data) {
+    function showDashboard(data, lookupCreds) {
       if (formSection) formSection.setAttribute('hidden', '');
       if (dashboard) dashboard.removeAttribute('hidden');
+      if (lookupCreds && dashboard) dashboard._lookupCredentials = lookupCreds;
 
       var c = data.customer || {};
       var phoneVal = c.phone ? formatPhone(c.phone) : '';
@@ -256,6 +313,14 @@
       dashboard._paymentServices = services;
       dashboard._paymentVehicleById = vehicleById;
       dashboard._paymentVehicles = vehicles;
+      dashboard._customerInvoices = data.invoices || [];
+      dashboard._customerDocuments = data.documents || [];
+      dashboard._pendingSignatureBundles = data.pendingSignatureBundles || [];
+      var sigB = document.getElementById('paymentPendingSignaturesBanner');
+      if (sigB) {
+        if (dashboard._pendingSignatureBundles.length) sigB.removeAttribute('hidden');
+        else sigB.setAttribute('hidden', '');
+      }
 
       function buildServiceSearchText(s, vehicleById) {
         var v = (s.vehicle_id && vehicleById[s.vehicle_id]) ? vehicleById[s.vehicle_id] : null;
@@ -370,10 +435,11 @@
       if (images.length) {
         html += '<div class="payment-service-modal-row"><strong>Images</strong><div class="payment-service-images">';
         images.forEach(function (img) {
-          var metaBits = [];
-          if (img.taken_at_local_label) metaBits.push(escapeHtml(img.taken_at_local_label));
-          if (img.address_label) metaBits.push(escapeHtml(img.address_label));
-          html += '<figure class="payment-service-image-item"><img src="' + escapeHtml(img.image_url) + '" alt="' + escapeHtml(img.caption || 'Service image') + '" class="payment-service-image"><figcaption class="payment-service-image-caption">' + (img.caption ? escapeHtml(img.caption) + '<br>' : '') + (metaBits.length ? metaBits.join(' · ') : '') + '</figcaption></figure>';
+          var lines = [];
+          if (img.caption) lines.push(escapeHtml(img.caption));
+          if (img.taken_at_local_label) lines.push('Time: ' + escapeHtml(img.taken_at_local_label));
+          if (img.address_label) lines.push('Location: ' + escapeHtml(img.address_label));
+          html += '<figure class="payment-service-image-item"><img src="' + escapeHtml(img.image_url) + '" alt="' + escapeHtml(img.caption || 'Service image') + '" class="payment-service-image"><figcaption class="payment-service-image-caption">' + lines.join('<br>') + '</figcaption></figure>';
         });
         html += '</div></div>';
       }
@@ -419,6 +485,50 @@
       });
     }
 
+    var documentsModal = document.getElementById('paymentDocumentsModal');
+    var documentsModalBody = document.getElementById('paymentDocumentsModalBody');
+    var documentsModalBackdrop = document.getElementById('paymentDocumentsModalBackdrop');
+    var documentsModalClose = document.getElementById('paymentDocumentsModalClose');
+    var documentsBtn = document.getElementById('paymentDocumentsBtn');
+
+    function serviceNameForInvoice(serviceId, services) {
+      var s = (services || []).find(function (x) { return x.id === serviceId; });
+      return s ? (s.service_name || 'Service') : 'Service';
+    }
+
+    function openDocumentsModal() {
+      if (!documentsModal || !documentsModalBody || !dashboard) return;
+      var invoices = dashboard._customerInvoices || [];
+      var docs = dashboard._customerDocuments || [];
+      var svcs = dashboard._paymentServices || [];
+      var invHtml = invoices.length ? invoices.map(function (inv) {
+        var svc = escapeHtml(serviceNameForInvoice(inv.service_id, svcs));
+        var num = escapeHtml(inv.invoice_number || 'Invoice');
+        var when = inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '—';
+        return '<div class="payment-docs-row"><div class="payment-docs-row-main"><span class="payment-docs-row-title">' + num + '</span><span class="payment-docs-row-meta">' + svc + ' · ' + escapeHtml(when) + '</span></div><a class="payment-docs-row-link" href="' + escapeHtml(inv.pdf_url) + '" target="_blank" rel="noopener">View PDF</a></div>';
+      }).join('') : '<p class="payment-docs-empty">No invoices yet.</p>';
+      var docHtml = docs.length ? docs.map(function (d) {
+        var when = d.created_at ? new Date(d.created_at).toLocaleDateString() : '—';
+        return '<div class="payment-docs-row"><div class="payment-docs-row-main"><span class="payment-docs-row-title">' + escapeHtml(d.title || 'Document') + '</span><span class="payment-docs-row-meta">' + escapeHtml(when) + '</span></div><a class="payment-docs-row-link" href="' + escapeHtml(d.pdf_url) + '" target="_blank" rel="noopener">View PDF</a></div>';
+      }).join('') : '<p class="payment-docs-empty">No documents yet.</p>';
+      documentsModalBody.innerHTML =
+        '<details class="payment-docs-fold" open>' +
+        '<summary class="payment-docs-fold-summary">Invoices</summary>' +
+        '<div class="payment-docs-fold-inner">' + invHtml + '</div></details>' +
+        '<details class="payment-docs-fold">' +
+        '<summary class="payment-docs-fold-summary">Documents</summary>' +
+        '<div class="payment-docs-fold-inner">' + docHtml + '</div></details>';
+      documentsModal.removeAttribute('hidden');
+    }
+
+    function closeDocumentsModal() {
+      if (documentsModal) documentsModal.setAttribute('hidden', '');
+    }
+
+    if (documentsBtn) documentsBtn.addEventListener('click', openDocumentsModal);
+    if (documentsModalBackdrop) documentsModalBackdrop.addEventListener('click', closeDocumentsModal);
+    if (documentsModalClose) documentsModalClose.addEventListener('click', closeDocumentsModal);
+
     if (form) {
       form.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -456,7 +566,11 @@
               window.location.href = data.redirect;
               return;
             }
-            showDashboard(data);
+            showDashboard(data, {
+              name: (form.querySelector('[name="name"]') || {}).value.trim(),
+              email: email,
+              phone: phone
+            });
           })
           .catch(function (err) {
             var msgEl = document.getElementById('paymentFormMessage');
@@ -467,6 +581,347 @@
           });
       });
     }
+
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    (function () {
+      var signModal = document.getElementById('paymentSignModal');
+      var signBackdrop = document.getElementById('paymentSignModalBackdrop');
+      var signProgress = document.getElementById('paymentSignProgress');
+      var signPdfScroll = document.getElementById('paymentSignPdfScroll');
+      var signPdfPages = document.getElementById('paymentSignPdfPages');
+      var signScrollHint = document.getElementById('paymentSignScrollHint');
+      var signStepAgree = document.getElementById('paymentSignStepAgree');
+      var signPdfWrap = document.getElementById('paymentSignPdfWrap');
+      var signActionsRead = document.getElementById('paymentSignActionsRead');
+      var signActionsAgree = document.getElementById('paymentSignActionsAgree');
+      var signBtnCancel = document.getElementById('paymentSignBtnCancel');
+      var signBtnNext = document.getElementById('paymentSignBtnNext');
+      var signBtnSignAll = document.getElementById('paymentSignBtnSignAll');
+      var signBtnBack = document.getElementById('paymentSignBtnBack');
+      var signBtnSubmit = document.getElementById('paymentSignBtnSubmit');
+      var signTabType = document.getElementById('paymentSignTabType');
+      var signTabDraw = document.getElementById('paymentSignTabDraw');
+      var signTypePanel = document.getElementById('paymentSignTypePanel');
+      var signDrawPanel = document.getElementById('paymentSignDrawPanel');
+      var signTypeInput = document.getElementById('paymentSignTypeInput');
+      var signCanvas = document.getElementById('paymentSignCanvas');
+      var signClearCanvas = document.getElementById('paymentSignClearCanvas');
+      var signError = document.getElementById('paymentSignError');
+      var signOpenBtn = document.getElementById('paymentPendingSignaturesBtn');
+      var signModalTitle = document.getElementById('paymentSignModalTitle');
+
+      var signState = { bundle: null, docIndex: 0, scrolled: false, drawing: false };
+
+      function signCreds() {
+        var d = document.getElementById('paymentDashboard');
+        var c = d && d._lookupCredentials;
+        if (!c || !c.name) return null;
+        return { name: c.name, email: c.email || '', phone: c.phone || '' };
+      }
+
+      function closeSignModal() {
+        if (signModal) signModal.setAttribute('hidden', '');
+        signState.bundle = null;
+        if (signPdfPages) signPdfPages.innerHTML = '';
+        if (signError) { signError.hidden = true; signError.textContent = ''; }
+      }
+
+      function setReadStep() {
+        if (signBtnCancel) { signBtnCancel.hidden = false; signBtnCancel.style.display = ''; }
+        if (signBtnNext) signBtnNext.style.display = '';
+        if (signBtnSignAll) signBtnSignAll.style.display = '';
+        if (signStepAgree) signStepAgree.hidden = true;
+        if (signPdfWrap) signPdfWrap.hidden = false;
+        if (signActionsRead) {
+          signActionsRead.hidden = false;
+          signActionsRead.style.display = '';
+          signActionsRead.setAttribute('aria-hidden', 'false');
+        }
+        if (signActionsAgree) signActionsAgree.hidden = true;
+        if (signScrollHint) signScrollHint.hidden = false;
+        if (signModalTitle) signModalTitle.textContent = 'Documents';
+      }
+
+      function setAgreeStep() {
+        if (signBtnSignAll) {
+          signBtnSignAll.hidden = true;
+          signBtnSignAll.disabled = true;
+          signBtnSignAll.style.display = 'none';
+        }
+        if (signBtnNext) {
+          signBtnNext.hidden = true;
+          signBtnNext.style.display = 'none';
+        }
+        if (signBtnCancel) {
+          signBtnCancel.hidden = true;
+          signBtnCancel.style.display = 'none';
+        }
+        if (signActionsRead) {
+          signActionsRead.hidden = true;
+          signActionsRead.style.display = 'none';
+          signActionsRead.setAttribute('aria-hidden', 'true');
+        }
+        if (signStepAgree) signStepAgree.hidden = false;
+        if (signPdfWrap) signPdfWrap.hidden = true;
+        if (signActionsAgree) signActionsAgree.hidden = false;
+        if (signScrollHint) signScrollHint.hidden = true;
+        if (signProgress) signProgress.textContent = 'Add your signature below to complete.';
+        if (signModalTitle) signModalTitle.textContent = 'Sign agreement';
+      }
+
+      function updateSignFooter() {
+        var docs = (signState.bundle && signState.bundle.documents) || [];
+        var last = signState.docIndex >= docs.length - 1;
+        if (signBtnNext) {
+          signBtnNext.hidden = last;
+          signBtnNext.disabled = !signState.scrolled;
+        }
+        if (signBtnSignAll) {
+          signBtnSignAll.hidden = !last;
+          signBtnSignAll.disabled = !signState.scrolled;
+        }
+        if (signScrollHint) {
+          signScrollHint.textContent = signState.scrolled
+            ? (last ? 'You may proceed to sign below.' : 'Select Next document to continue.')
+            : 'Scroll to the end of this document to continue.';
+        }
+      }
+
+      function onPdfScroll() {
+        var el = signPdfScroll;
+        if (!el) return;
+        var near = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+        if (near && !signState.scrolled) {
+          signState.scrolled = true;
+          updateSignFooter();
+        }
+      }
+
+      function renderPdfBuffer(buf) {
+        if (!signPdfPages || typeof pdfjsLib === 'undefined') return Promise.reject(new Error('PDF viewer unavailable'));
+        signPdfPages.innerHTML = '<p class="payment-sign-loading">Loading document…</p>';
+        signState.scrolled = false;
+        updateSignFooter();
+        return pdfjsLib.getDocument({ data: buf }).promise.then(function (pdf) {
+          signPdfPages.innerHTML = '';
+          var wrap = document.createElement('div');
+          var w = signPdfScroll ? signPdfScroll.clientWidth - 32 : 400;
+          if (w < 200) w = 280;
+          var chain = Promise.resolve();
+          for (var p = 1; p <= pdf.numPages; p++) {
+            (function (pageNum) {
+              chain = chain.then(function () {
+                return pdf.getPage(pageNum).then(function (page) {
+                  var base = page.getViewport({ scale: 1 });
+                  var scale = Math.min(1.35, w / base.width);
+                  var viewport = page.getViewport({ scale: scale });
+                  var canvas = document.createElement('canvas');
+                  var ctx = canvas.getContext('2d');
+                  canvas.height = viewport.height;
+                  canvas.width = viewport.width;
+                  canvas.style.display = 'block';
+                  canvas.style.margin = '0 auto 14px';
+                  canvas.style.maxWidth = '100%';
+                  return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
+                    wrap.appendChild(canvas);
+                  });
+                });
+              });
+            })(p);
+          }
+          return chain.then(function () {
+            signPdfPages.appendChild(wrap);
+            if (signPdfScroll) {
+              signPdfScroll.scrollTop = 0;
+              var short = signPdfScroll.scrollHeight <= signPdfScroll.clientHeight + 8;
+              if (short) {
+                signState.scrolled = true;
+                updateSignFooter();
+              }
+            }
+          });
+        });
+      }
+
+      function loadSignDoc(index) {
+        var docs = (signState.bundle && signState.bundle.documents) || [];
+        var doc = docs[index];
+        var creds = signCreds();
+        if (!doc || !creds) return Promise.reject(new Error('Missing data'));
+        signState.docIndex = index;
+        signState.scrolled = false;
+        if (signProgress) {
+          signProgress.textContent = 'Document ' + (index + 1) + ' of ' + docs.length + (doc.title ? ' — ' + doc.title : '');
+        }
+        updateSignFooter();
+        return fetch(apiBase + '/api/signable-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.assign({ documentId: doc.id }, creds))
+        })
+          .then(function (r) {
+            if (!r.ok) return r.json().then(function (j) { throw new Error(j.error || 'Could not load document'); });
+            return r.arrayBuffer();
+          })
+          .then(renderPdfBuffer);
+      }
+
+      function openSignWizard() {
+        var d = document.getElementById('paymentDashboard');
+        var bundles = (d && d._pendingSignatureBundles) || [];
+        if (!bundles.length || !signModal) return;
+        signState.bundle = bundles[0];
+        setReadStep();
+        if (signTypeInput) signTypeInput.value = '';
+        if (signCanvas) {
+          var ctx = signCanvas.getContext('2d');
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, signCanvas.width, signCanvas.height);
+        }
+        if (signTabType && signTabDraw) {
+          signTabType.classList.add('active');
+          signTabDraw.classList.remove('active');
+          signTabType.setAttribute('aria-selected', 'true');
+          signTabDraw.setAttribute('aria-selected', 'false');
+        }
+        if (signTypePanel) signTypePanel.hidden = false;
+        if (signDrawPanel) signDrawPanel.hidden = true;
+        signModal.removeAttribute('hidden');
+        loadSignDoc(0).catch(function (e) {
+          if (signError) { signError.textContent = e.message || 'Failed to load'; signError.hidden = false; }
+        });
+      }
+
+      if (signPdfScroll) signPdfScroll.addEventListener('scroll', onPdfScroll, { passive: true });
+      if (signOpenBtn) signOpenBtn.addEventListener('click', openSignWizard);
+      if (signBackdrop) signBackdrop.addEventListener('click', closeSignModal);
+      if (signBtnCancel) signBtnCancel.addEventListener('click', closeSignModal);
+
+      if (signBtnNext) {
+        signBtnNext.addEventListener('click', function () {
+          var n = signState.docIndex + 1;
+          loadSignDoc(n).catch(function (e) {
+            if (signError) { signError.textContent = e.message || 'Failed'; signError.hidden = false; }
+          });
+        });
+      }
+
+      if (signBtnSignAll) {
+        signBtnSignAll.addEventListener('click', function () {
+          setAgreeStep();
+          if (signError) signError.hidden = true;
+        });
+      }
+
+      if (signBtnBack) {
+        signBtnBack.addEventListener('click', function () {
+          setReadStep();
+          var docs = (signState.bundle && signState.bundle.documents) || [];
+          loadSignDoc(docs.length - 1);
+        });
+      }
+
+      if (signTabType && signTabDraw && signTypePanel && signDrawPanel) {
+        signTabType.addEventListener('click', function () {
+          signTabType.classList.add('active');
+          signTabDraw.classList.remove('active');
+          signTypePanel.hidden = false;
+          signDrawPanel.hidden = true;
+        });
+        signTabDraw.addEventListener('click', function () {
+          signTabDraw.classList.add('active');
+          signTabType.classList.remove('active');
+          signDrawPanel.hidden = false;
+          signTypePanel.hidden = true;
+        });
+      }
+
+      if (signCanvas && signClearCanvas) {
+        signClearCanvas.addEventListener('click', function () {
+          var ctx = signCanvas.getContext('2d');
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, signCanvas.width, signCanvas.height);
+        });
+        function pos(e) {
+          var r = signCanvas.getBoundingClientRect();
+          var x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+          var y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+          var sx = signCanvas.width / r.width;
+          var sy = signCanvas.height / r.height;
+          return { x: x * sx, y: y * sy };
+        }
+        signCanvas.addEventListener('mousedown', function (e) {
+          signState.drawing = true;
+          var p = pos(e);
+          var ctx = signCanvas.getContext('2d');
+          ctx.strokeStyle = '#111';
+          ctx.lineWidth = 2;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+        });
+        signCanvas.addEventListener('mousemove', function (e) {
+          if (!signState.drawing) return;
+          var p = pos(e);
+          var ctx = signCanvas.getContext('2d');
+          ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+        });
+        function endDraw() { signState.drawing = false; }
+        signCanvas.addEventListener('mouseup', endDraw);
+        signCanvas.addEventListener('mouseleave', endDraw);
+        signCanvas.addEventListener('touchstart', function (e) { e.preventDefault(); signState.drawing = true; var p = pos(e); var ctx = signCanvas.getContext('2d'); ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
+        signCanvas.addEventListener('touchmove', function (e) { e.preventDefault(); if (!signState.drawing) return; var p = pos(e); var ctx = signCanvas.getContext('2d'); ctx.lineTo(p.x, p.y); ctx.stroke(); }, { passive: false });
+        signCanvas.addEventListener('touchend', function () { signState.drawing = false; });
+      }
+
+      if (signBtnSubmit) {
+        signBtnSubmit.addEventListener('click', function () {
+          var creds = signCreds();
+          var bundle = signState.bundle;
+          if (!creds || !bundle) return;
+          var useDraw = signTabDraw && signTabDraw.classList.contains('active');
+          var body = Object.assign({ bundleId: bundle.id, signatureMode: useDraw ? 'drawn' : 'typed' }, creds);
+          if (useDraw && signCanvas) {
+            body.signaturePayload = signCanvas.toDataURL('image/png');
+          } else if (signTypeInput) {
+            body.signaturePayload = signTypeInput.value.trim();
+          }
+          if (!useDraw && (!body.signaturePayload || body.signaturePayload.length < 2)) {
+            if (signError) { signError.textContent = 'Please type your full name.'; signError.hidden = false; }
+            return;
+          }
+          if (useDraw && (!body.signaturePayload || body.signaturePayload.length < 80)) {
+            if (signError) { signError.textContent = 'Please draw your signature.'; signError.hidden = false; }
+            return;
+          }
+          signBtnSubmit.disabled = true;
+          if (signError) signError.hidden = true;
+          fetch(apiBase + '/api/complete-signature-bundle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          })
+            .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || 'Submit failed'); return j; }); })
+            .then(function () {
+              var dash = document.getElementById('paymentDashboard');
+              if (dash && dash._pendingSignatureBundles) {
+                dash._pendingSignatureBundles = dash._pendingSignatureBundles.filter(function (b) { return b.id !== bundle.id; });
+              }
+              var bnr = document.getElementById('paymentPendingSignaturesBanner');
+              if (bnr && dash && (!dash._pendingSignatureBundles || !dash._pendingSignatureBundles.length)) bnr.setAttribute('hidden', '');
+              closeSignModal();
+            })
+            .catch(function (e) {
+              if (signError) { signError.textContent = e.message || 'Submit failed'; signError.hidden = false; }
+            })
+            .finally(function () { signBtnSubmit.disabled = false; });
+        });
+      }
+    })();
   })();
   </script>
 </body>

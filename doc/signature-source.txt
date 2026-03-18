@@ -1,0 +1,1 @@
+Agreement PDFs are generated from doc/agreement.md (Markdown) using pdfkit — no LaTeX. Edit that file, or lib/default-agreement.md as fallback when agreement.md is empty.

@@ -12,10 +12,13 @@
     .bar h1 { font-size: 1.25rem; margin: 0; font-weight: 600; }
     a { color: #7eb; text-decoration: none; }
     a:hover { text-decoration: underline; }
-    .search-row { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; max-width: 400px; }
+    .search-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .search-row { display: flex; gap: 0.5rem; flex: 1; min-width: 220px; max-width: 420px; margin-bottom: 0; }
     .search-row input { flex: 1; padding: 0.6rem 0.75rem; background: #1a1a1a; border: 1px solid #333; color: #e5e5e5; font: inherit; border-radius: 4px; }
     .search-row button { padding: 0.6rem 1rem; background: #333; color: #e5e5e5; border: none; font: inherit; font-weight: 500; cursor: pointer; border-radius: 4px; }
     .search-row button:hover { background: #444; }
+    .btn-doc-release { padding: 0.6rem 1rem; background: #2a3d2a; color: #c8e6c9; border: 1px solid #3d5c3d; font: inherit; font-weight: 500; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+    .btn-doc-release:hover { background: #354f35; }
     #customerList { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
     .customer-card { background: #1a1a1a; border: 1px solid #333; border-radius: 6px; padding: 1rem 1.25rem; cursor: pointer; transition: border-color 0.2s; }
     .customer-card:hover { border-color: #555; }
@@ -52,6 +55,12 @@
     .payment-list { font-size: 0.85rem; color: #999; margin-top: 0.35rem; }
     .service-notes-row { margin-top: 0.75rem; }
     .service-notes-row textarea { margin-top: 0.35rem; margin-bottom: 0.35rem; display: block; }
+    .service-images-row { margin-top: 0.75rem; }
+    .service-images-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.75rem; margin-top: 0.5rem; }
+    .service-image-item { background: #1a1a1a; border-radius: 6px; padding: 0.4rem; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+    .service-image-thumb-wrap { width: 100%; padding-top: 70%; position: relative; overflow: hidden; border-radius: 4px; background:#000; }
+    .service-image-thumb-wrap img.service-image-thumb { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+    .service-image-meta { margin-top: 0.25rem; font-size: 0.75rem; color: #aaa; line-height: 1.3; }
     .empty-msg { color: #666; font-size: 0.9rem; }
     .toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: #2a2a2a; border: 1px solid #444; color: #e5e5e5; padding: 0.75rem 1.25rem; border-radius: 6px; z-index: 1000; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
     .toast.error { border-color: #744; color: #f88; }
@@ -64,8 +73,9 @@
       body { padding: 1rem; }
       .bar { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
       .bar h1 { font-size: 1.1rem; }
-      .search-row { flex-direction: column; max-width: none; }
-      .search-row input, .search-row button { width: 100%; }
+      .search-toolbar { flex-direction: column; align-items: stretch; }
+      .search-row { flex-direction: column; max-width: none; width: 100%; }
+      .search-row input, .search-row button, .btn-doc-release { width: 100%; }
       #customerList { grid-template-columns: 1fr; }
       .modal-box { width: 95%; max-width: none; left: 50%; top: 50%; transform: translate(-50%, -50%); max-height: 85vh; padding: 1.25rem 1rem; }
       .modal-close { top: 0.5rem; right: 0.5rem; }
@@ -76,6 +86,26 @@
       .item-row { flex-direction: column; align-items: flex-start; gap: 0.35rem; }
       .dialog-box { min-width: 0; width: 100%; max-width: 340px; margin: 1rem; }
     }
+    #invoiceModalBackdrop { z-index: 120; }
+    #invoiceModalBox { z-index: 121; max-width: 840px; width: 95%; }
+    #invoicePdfFrame { width: 100%; height: 480px; border: 1px solid #333; border-radius: 4px; background: #111; }
+    .invoice-modal-actions { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    #docReleaseBackdrop { z-index: 105; }
+    #docReleaseBox { z-index: 106; max-width: 520px; }
+    .doc-release-search { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .doc-release-search input { flex: 1; }
+    .doc-release-list { max-height: 240px; overflow-y: auto; margin-bottom: 1rem; border: 1px solid #333; border-radius: 6px; }
+    .doc-release-item { padding: 0.65rem 0.85rem; border-bottom: 1px solid #252525; cursor: pointer; }
+    .doc-release-item:hover { background: #252525; }
+    .doc-release-item:last-child { border-bottom: none; }
+    .doc-release-item.selected { outline: 2px solid #7eb; }
+    .doc-release-actions { padding-top: 0.75rem; border-top: 1px solid #333; }
+    .doc-release-actions .btn-starter { margin-top: 0.5rem; width: 100%; padding: 0.65rem 1rem; background: #e5e5e5; color: #0d0d0d; border: none; font: inherit; font-weight: 600; border-radius: 4px; cursor: pointer; }
+    .doc-release-actions .btn-starter:hover { opacity: 0.92; }
+    .starter-field-label { display: block; margin-bottom: 0.85rem; }
+    .starter-field-label-text { display: block; font-size: 0.85rem; color: #bbb; margin-bottom: 0.35rem; }
+    .starter-field-input { width: 100%; max-width: 100%; }
+    .starter-field-input-text { max-width: 420px; }
     @media (max-width: 480px) {
       body { padding: 0.75rem; }
       .customer-card { padding: 0.9rem 1rem; }
@@ -94,9 +124,12 @@
     <h1>Supple Controls — Customers</h1>
     <a href="/supplecontrols/logout">Sign out</a>
   </div>
-  <div class="search-row">
-    <input type="text" id="searchInput" placeholder="Search by name, email, or phone" aria-label="Search customers">
-    <button type="button" id="searchBtn">Search</button>
+  <div class="search-toolbar">
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="Search by name, email, or phone" aria-label="Search customers">
+      <button type="button" id="searchBtn">Search</button>
+    </div>
+    <button type="button" class="btn-doc-release" id="documentReleaseBtn">Document release</button>
   </div>
   <div id="customerList"></div>
 
@@ -104,6 +137,52 @@
   <div class="modal-box" id="modalBox" style="display: none;">
     <button type="button" class="modal-close" id="modalClose" aria-label="Close">&times;</button>
     <div id="modalContent"></div>
+  </div>
+
+  <div class="modal-backdrop" id="docReleaseBackdrop" style="display: none;"></div>
+  <div class="modal-box" id="docReleaseBox" style="display: none;">
+    <button type="button" class="modal-close" id="docReleaseClose" aria-label="Close">&times;</button>
+    <h2 style="margin:0 0 0.75rem;font-size:1.1rem;">Document release</h2>
+    <p style="font-size:0.8rem;color:#999;margin:0 0 1rem;">Agreements are built from <code style="background:#252525;padding:0.15rem 0.35rem;border-radius:3px;">doc/agreement.md</code> (Markdown + pdfkit, Vercel-safe). Optional env <code style="background:#252525;padding:0.15rem 0.35rem;border-radius:3px;">SIGNATURE_RELEASE_MODE=pdf-folder</code> uses PDFs in <code style="background:#252525;padding:0.15rem 0.35rem;border-radius:3px;">blank-docs/Starter</code> instead.</p>
+    <div class="doc-release-search">
+      <input type="text" id="docReleaseSearchInput" placeholder="Name, email, or phone" aria-label="Search for document release">
+      <button type="button" class="btn" id="docReleaseSearchBtn" style="background:#333;color:#e5e5e5;">Search</button>
+    </div>
+    <div class="doc-release-list" id="docReleaseList"></div>
+    <div class="doc-release-actions" id="docReleaseActions" style="display: none;">
+      <div style="font-size:0.85rem;margin-bottom:0.5rem;">Selected: <strong id="docReleaseSelectedName"></strong></div>
+      <button type="button" class="btn-starter" id="docReleaseStarterBtn">Starter Docs</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="starterWizardBackdrop" style="display: none; z-index: 10002;">
+    <div class="modal-box" id="starterWizardBox" style="max-width: 720px; max-height: 92vh; overflow: auto;">
+      <button type="button" class="modal-close" id="starterWizardClose" aria-label="Close">&times;</button>
+      <h2 style="margin: 0 0 0.5rem; font-size: 1.1rem;">Starter agreement</h2>
+      <p style="font-size: 0.8rem; color: #999; margin: 0 0 1rem;">Fill every required field (labor rate, diagnostic fee, warranty days, etc.). Addendum is optional. Generate a preview, review the PDF, then submit for signing. Release is blocked until all required fields are set and you have generated a preview.</p>
+      <div id="starterWizardFields"></div>
+      <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+        <button type="button" class="btn" id="starterWizardPreviewBtn" style="background: #333; color: #e5e5e5;">Generate doc (preview)</button>
+        <button type="button" class="btn btn-primary" id="starterWizardSubmitBtn" disabled>Submit document for signing</button>
+      </div>
+      <p id="starterWizardErr" style="color: #f66; font-size: 0.85rem; margin: 0.75rem 0 0; display: none;"></p>
+      <div id="starterWizardPreviewWrap" style="display: none; margin-top: 1rem;">
+        <p style="font-size: 0.85rem; margin: 0 0 0.5rem;">Preview</p>
+        <iframe id="starterWizardPdfFrame" title="Agreement preview" style="width: 100%; height: 480px; border: 1px solid #333; background: #1a1a1a;"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="invoiceModalBackdrop" style="display: none;"></div>
+  <div class="modal-box" id="invoiceModalBox" style="display: none;">
+    <button type="button" class="modal-close" id="invoiceModalClose" aria-label="Close">&times;</button>
+    <h2 style="margin:0 0 1rem;font-size:1.1rem;">Invoice preview</h2>
+    <p style="font-size:0.8rem;color:#999;margin:0 0 0.75rem;">Review the PDF below, then submit to add it to this customer&rsquo;s Documents in the payment portal.</p>
+    <iframe id="invoicePdfFrame" title="Invoice PDF"></iframe>
+    <div class="invoice-modal-actions">
+      <a href="#" id="invoiceOpenTab" class="btn btn-ghost" target="_blank" rel="noopener">Open PDF in new tab</a>
+      <button type="button" class="btn btn-primary" id="invoiceSubmitCustomer">Submit to customer</button>
+    </div>
   </div>
 
   <script>
@@ -115,6 +194,14 @@
     var modalBox = document.getElementById('modalBox');
     var modalContent = document.getElementById('modalContent');
     var modalClose = document.getElementById('modalClose');
+    var invoiceModalBackdrop = document.getElementById('invoiceModalBackdrop');
+    var invoiceModalBox = document.getElementById('invoiceModalBox');
+    var invoiceModalClose = document.getElementById('invoiceModalClose');
+    var invoicePdfFrame = document.getElementById('invoicePdfFrame');
+    var invoiceOpenTab = document.getElementById('invoiceOpenTab');
+    var invoiceSubmitCustomer = document.getElementById('invoiceSubmitCustomer');
+    var invoiceContextServiceId = null;
+    var invoiceContextCustomerId = null;
 
     function api(path, opts) {
       opts = opts || {};
@@ -259,12 +346,38 @@
       });
       html += '<div class="add-payment-row"><select id="newContactType"><option value="email">Email</option><option value="phone">Phone</option></select><input type="text" id="newContactValue" placeholder="Value"><button type="button" class="btn btn-primary" id="addContact">Add</button></div></div>';
 
+      var portalInvoices = data.invoices || [];
+      var portalDocuments = data.documents || [];
+      html += '<div class="section"><div class="section-title">Payment portal — Documents</div>';
+      html += '<p style="font-size:0.8rem;color:#888;margin:0 0 0.75rem 0;line-height:1.45;">These are the same invoice and document links the customer sees when they open <strong>Documents</strong> on the payment portal (identical PDF URLs).</p>';
+      html += '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin:0 0 0.4rem;">Invoices</div>';
+      if (!portalInvoices.length) {
+        html += '<p style="color:#666;font-size:0.85rem;margin:0 0 0.65rem;">None</p>';
+      } else {
+        portalInvoices.forEach(function (inv) {
+          var svc = services.find(function (x) { return x.id === inv.service_id; });
+          var svcName = svc ? (svc.service_name || 'Service') : '—';
+          var when = inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '—';
+          html += '<div class="item-row" style="align-items:center;"><span style="flex:1;min-width:200px;font-size:0.88rem;">' + esc(inv.invoice_number || 'Invoice') + ' · ' + esc(svcName) + ' · ' + esc(when) + '</span><a class="btn btn-primary" href="' + esc(inv.pdf_url) + '" target="_blank" rel="noopener" style="text-decoration:none;">View PDF</a></div>';
+        });
+      }
+      html += '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin:0.85rem 0 0.4rem;">Documents</div>';
+      if (!portalDocuments.length) {
+        html += '<p style="color:#666;font-size:0.85rem;margin:0;">None</p>';
+      } else {
+        portalDocuments.forEach(function (d) {
+          var when = d.created_at ? new Date(d.created_at).toLocaleDateString() : '—';
+          html += '<div class="item-row" style="align-items:center;"><span style="flex:1;min-width:200px;font-size:0.88rem;">' + esc(d.title || 'Document') + ' · ' + esc(when) + '</span><a class="btn btn-primary" href="' + esc(d.pdf_url) + '" target="_blank" rel="noopener" style="text-decoration:none;">View PDF</a></div>';
+        });
+      }
+      html += '</div>';
+
       html += '<div class="section"><div class="section-title">Services</div>';
       services.forEach(function (s) {
         var v = vehicles.find(function (x) { return x.id === s.vehicle_id; });
         var vehicleLabel = v ? [v.year, v.make, v.model].filter(Boolean).join(' ') : '—';
         html += '<div class="service-block" data-service-id="' + s.id + '">';
-        html += '<div class="service-head"><strong>' + esc(s.service_name) + '</strong> <span class="balance ' + (s.paymentStatus === 'paid' ? 'paid' : '') + '">' + (s.paymentStatus === 'paid' ? 'Paid' : '$' + (s.balance != null ? s.balance.toFixed(2) : s.total)) + '</span> <button type="button" class="btn btn-ghost edit-service">Edit</button> <button type="button" class="btn btn-danger delete-service">Delete</button></div>';
+        html += '<div class="service-head"><strong>' + esc(s.service_name) + '</strong> <span class="balance ' + (s.paymentStatus === 'paid' ? 'paid' : '') + '">' + (s.paymentStatus === 'paid' ? 'Paid' : '$' + (s.balance != null ? s.balance.toFixed(2) : s.total)) + '</span> <button type="button" class="btn btn-ghost open-invoice" data-service-id="' + s.id + '">Invoice</button> <button type="button" class="btn btn-ghost edit-service">Edit</button> <button type="button" class="btn btn-danger delete-service">Delete</button></div>';
         html += '<div class="meta">Vehicle: ' + esc(vehicleLabel) + ' &middot; Total $' + (s.total != null ? s.total.toFixed(2) : '0.00') + '</div>';
         var billStatus = s.bill_status || 'posted';
         html += '<div class="service-bill-status" style="margin-top:0.5rem;font-size:0.85rem;"><label style="color:#999;">Bill status: </label><select class="bill-status-select" data-service-id="' + s.id + '"><option value="pending"' + (billStatus === 'pending' ? ' selected' : '') + '>Pending (visible, not on balance)</option><option value="posted"' + (billStatus === 'posted' ? ' selected' : '') + '>Posted (on balance)</option></select></div>';
@@ -285,10 +398,11 @@
         if (images.length) {
           html += '<div class="service-images-row" style="margin-top:0.75rem;font-size:0.8rem;"><div style="margin-bottom:0.35rem;color:#999;">Images attached to this service</div><div class="service-images-grid">';
           images.forEach(function (img) {
-            var metaBits = [];
-            if (img.taken_at_local_label) metaBits.push(esc(img.taken_at_local_label));
-            if (img.address_label) metaBits.push(esc(img.address_label));
-            html += '<div class="service-image-item"><div class="service-image-thumb-wrap"><img src="' + esc(img.image_url) + '" alt="' + esc(img.caption || 'Service image') + '" class="service-image-thumb"></div><div class="service-image-meta">' + (img.caption ? esc(img.caption) + '<br>' : '') + (metaBits.length ? metaBits.join(' · ') : '') + '</div></div>';
+            var lines = [];
+            if (img.caption) lines.push(esc(img.caption));
+            if (img.taken_at_local_label) lines.push('<span>Time: ' + esc(img.taken_at_local_label) + '</span>');
+            if (img.address_label) lines.push('<span>Location: ' + esc(img.address_label) + '</span>');
+            html += '<div class="service-image-item"><div class="service-image-thumb-wrap"><img src="' + esc(img.image_url) + '" alt="' + esc(img.caption || 'Service image') + '" class="service-image-thumb"></div><div class="service-image-meta">' + lines.join('<br>') + '</div></div>';
           });
           html += '</div></div>';
         }
@@ -533,12 +647,305 @@
             .then(function () { showToast(value === 'posted' ? 'Service is now posted (counts toward balance).' : 'Service is pending (visible but not on balance).'); openCustomer(customerId); }).catch(function (e) { showToast(e.message, true); });
         });
       });
+
+      modalContent.querySelectorAll('.open-invoice').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var sid = btn.getAttribute('data-service-id');
+          if (!sid) return;
+          invoiceContextServiceId = sid;
+          invoiceContextCustomerId = customerId;
+          var pdfUrl = '/supplecontrols/api/services/' + encodeURIComponent(sid) + '/invoice.pdf';
+          if (invoicePdfFrame) invoicePdfFrame.src = pdfUrl;
+          if (invoiceOpenTab) invoiceOpenTab.href = pdfUrl;
+          if (invoiceModalBackdrop) { invoiceModalBackdrop.style.display = 'block'; invoiceModalBackdrop.classList.add('open'); }
+          if (invoiceModalBox) invoiceModalBox.style.display = 'block';
+        });
+      });
+    }
+
+    function closeInvoiceModal() {
+      if (invoiceModalBackdrop) { invoiceModalBackdrop.style.display = 'none'; invoiceModalBackdrop.classList.remove('open'); }
+      if (invoiceModalBox) invoiceModalBox.style.display = 'none';
+      if (invoicePdfFrame) invoicePdfFrame.src = 'about:blank';
+      invoiceContextServiceId = null;
+    }
+
+    if (invoiceModalClose) invoiceModalClose.addEventListener('click', closeInvoiceModal);
+    if (invoiceModalBackdrop) invoiceModalBackdrop.addEventListener('click', closeInvoiceModal);
+
+    if (invoiceSubmitCustomer) {
+      invoiceSubmitCustomer.addEventListener('click', function () {
+        if (!invoiceContextServiceId) return;
+        invoiceSubmitCustomer.disabled = true;
+        fetch('/supplecontrols/api/services/' + encodeURIComponent(invoiceContextServiceId) + '/invoices/submit', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        })
+          .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Submit failed'); return d; }); })
+          .then(function () {
+            var cid = invoiceContextCustomerId;
+            showToast('Invoice submitted. Customer will see it under Documents.');
+            closeInvoiceModal();
+            if (cid) openCustomer(cid);
+          })
+          .catch(function (e) { showToast(e.message || 'Submit failed', true); })
+          .finally(function () { invoiceSubmitCustomer.disabled = false; });
+      });
     }
 
     if (searchBtn) searchBtn.addEventListener('click', loadCustomers);
     if (searchInput) searchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') loadCustomers(); });
     if (modalBackdrop) modalBackdrop.addEventListener('click', closeModal);
     if (modalClose) modalClose.addEventListener('click', closeModal);
+
+    var docReleaseBtn = document.getElementById('documentReleaseBtn');
+    var docReleaseBackdrop = document.getElementById('docReleaseBackdrop');
+    var docReleaseBox = document.getElementById('docReleaseBox');
+    var docReleaseClose = document.getElementById('docReleaseClose');
+    var docReleaseSearchInput = document.getElementById('docReleaseSearchInput');
+    var docReleaseSearchBtn = document.getElementById('docReleaseSearchBtn');
+    var docReleaseList = document.getElementById('docReleaseList');
+    var docReleaseActions = document.getElementById('docReleaseActions');
+    var docReleaseSelectedName = document.getElementById('docReleaseSelectedName');
+    var docReleaseStarterBtn = document.getElementById('docReleaseStarterBtn');
+    var docReleaseSelectedId = null;
+
+    function openDocReleaseModal() {
+      if (docReleaseBackdrop) { docReleaseBackdrop.style.display = 'block'; docReleaseBackdrop.classList.add('open'); }
+      if (docReleaseBox) docReleaseBox.style.display = 'block';
+      docReleaseSelectedId = null;
+      if (docReleaseActions) docReleaseActions.style.display = 'none';
+      if (docReleaseList) docReleaseList.innerHTML = '<p class="empty-msg" style="padding:0.75rem;">Search to list customers.</p>';
+      if (docReleaseSearchInput) { docReleaseSearchInput.value = searchInput ? searchInput.value : ''; docReleaseSearchInput.focus(); }
+    }
+    function closeDocReleaseModal() {
+      if (docReleaseBackdrop) { docReleaseBackdrop.style.display = 'none'; docReleaseBackdrop.classList.remove('open'); }
+      if (docReleaseBox) docReleaseBox.style.display = 'none';
+    }
+    function loadDocReleaseCustomers() {
+      var q = docReleaseSearchInput ? docReleaseSearchInput.value.trim() : '';
+      if (!docReleaseList) return;
+      if (!q) {
+        docReleaseList.innerHTML = '<p class="empty-msg" style="padding:0.75rem;">Enter a search term.</p>';
+        return;
+      }
+      api('/customers?q=' + encodeURIComponent(q)).then(function (data) {
+        var list = (data && data.customers) || [];
+        if (list.length === 0) {
+          docReleaseList.innerHTML = '<p class="empty-msg" style="padding:0.75rem;">No matches.</p>';
+          docReleaseActions.style.display = 'none';
+          docReleaseSelectedId = null;
+          return;
+        }
+        docReleaseList.innerHTML = list.map(function (c) {
+          return '<div class="doc-release-item" data-id="' + esc(c.id) + '">' +
+            '<div style="font-weight:600;">' + esc(c.name) + '</div>' +
+            '<div style="font-size:0.8rem;color:#999;">' + esc(c.email || '—') + ' · ' + esc(c.phone ? formatPhone(c.phone) : '—') + '</div></div>';
+        }).join('');
+        docReleaseList.querySelectorAll('.doc-release-item').forEach(function (el) {
+          el.addEventListener('click', function () {
+            docReleaseList.querySelectorAll('.doc-release-item').forEach(function (x) { x.classList.remove('selected'); });
+            el.classList.add('selected');
+            docReleaseSelectedId = el.getAttribute('data-id');
+            var nameEl = el.querySelector('div');
+            if (docReleaseSelectedName && nameEl) docReleaseSelectedName.textContent = nameEl.textContent || '';
+            if (docReleaseActions) docReleaseActions.style.display = 'block';
+          });
+        });
+      }).catch(function (e) { showToast(e.message || 'Search failed', true); });
+    }
+    if (docReleaseBtn) docReleaseBtn.addEventListener('click', openDocReleaseModal);
+    if (docReleaseClose) docReleaseClose.addEventListener('click', closeDocReleaseModal);
+    if (docReleaseBackdrop) docReleaseBackdrop.addEventListener('click', closeDocReleaseModal);
+    if (docReleaseSearchBtn) docReleaseSearchBtn.addEventListener('click', loadDocReleaseCustomers);
+    if (docReleaseSearchInput) docReleaseSearchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') loadDocReleaseCustomers(); });
+    var starterWizardBackdrop = document.getElementById('starterWizardBackdrop');
+    var starterWizardClose = document.getElementById('starterWizardClose');
+    var starterWizardFields = document.getElementById('starterWizardFields');
+    var starterWizardPreviewBtn = document.getElementById('starterWizardPreviewBtn');
+    var starterWizardSubmitBtn = document.getElementById('starterWizardSubmitBtn');
+    var starterWizardPdfFrame = document.getElementById('starterWizardPdfFrame');
+    var starterWizardPreviewWrap = document.getElementById('starterWizardPreviewWrap');
+    var starterWizardErr = document.getElementById('starterWizardErr');
+    var releaseFieldSpec = [];
+    var previewBlobUrl = null;
+    var starterWizardCustomerId = null;
+
+    function closeStarterWizard() {
+      if (starterWizardBackdrop) {
+        starterWizardBackdrop.style.display = 'none';
+        starterWizardBackdrop.classList.remove('open');
+      }
+      if (previewBlobUrl) {
+        URL.revokeObjectURL(previewBlobUrl);
+        previewBlobUrl = null;
+      }
+      if (starterWizardPdfFrame) starterWizardPdfFrame.src = '';
+      starterWizardCustomerId = null;
+    }
+
+    function collectStarterFields() {
+      var fields = {};
+      releaseFieldSpec.forEach(function (f) {
+        var el = document.getElementById('starter-field-' + f.key);
+        fields[f.key] = el ? el.value : '';
+      });
+      return fields;
+    }
+
+    function invalidateStarterPreview() {
+      if (starterWizardSubmitBtn) starterWizardSubmitBtn.disabled = true;
+      if (previewBlobUrl) {
+        URL.revokeObjectURL(previewBlobUrl);
+        previewBlobUrl = null;
+      }
+      if (starterWizardPdfFrame) starterWizardPdfFrame.src = '';
+      if (starterWizardPreviewWrap) starterWizardPreviewWrap.style.display = 'none';
+    }
+
+    function renderStarterFieldForm() {
+      if (!starterWizardFields) return;
+      starterWizardFields.innerHTML = releaseFieldSpec.map(function (f) {
+        var id = 'starter-field-' + f.key;
+        var defVal = f.defaultValue != null && f.defaultValue !== '' ? String(f.defaultValue) : '';
+        if (f.multiline) {
+          return '<label class="starter-field-label"><span class="starter-field-label-text">' + esc(f.label) + '</span><textarea id="' + esc(id) + '" class="starter-field-input" rows="3" aria-label="' + esc(f.label) + '">' + esc(defVal) + '</textarea></label>';
+        }
+        return '<label class="starter-field-label"><span class="starter-field-label-text">' + esc(f.label) + '</span><input type="text" id="' + esc(id) + '" class="starter-field-input starter-field-input-text" aria-label="' + esc(f.label) + '" value="' + esc(defVal).replace(/"/g, '&quot;') + '" /></label>';
+      }).join('');
+      releaseFieldSpec.forEach(function (f) {
+        var el = document.getElementById('starter-field-' + f.key);
+        if (el) el.addEventListener('input', invalidateStarterPreview);
+      });
+    }
+
+    function showStarterErr(msg) {
+      if (!starterWizardErr) return;
+      starterWizardErr.textContent = msg || '';
+      starterWizardErr.style.display = msg ? 'block' : 'none';
+    }
+
+    if (docReleaseStarterBtn) {
+      docReleaseStarterBtn.addEventListener('click', function () {
+        if (!docReleaseSelectedId) return;
+        showStarterErr('');
+        docReleaseStarterBtn.disabled = true;
+        fetch('/supplecontrols/api/signature-release-options', { credentials: 'same-origin' })
+          .then(function (r) {
+            return r.json().then(function (d) {
+              if (!r.ok) throw new Error(d.error || 'Options failed');
+              return d;
+            });
+          })
+          .then(function (opts) {
+            if (!opts.requiresAgreementFields) {
+              return fetch('/supplecontrols/api/customers/' + encodeURIComponent(docReleaseSelectedId) + '/signature-bundles/release', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bundleKey: 'Starter' })
+              })
+                .then(function (r) {
+                  return r.json().then(function (d) {
+                    if (!r.ok) throw new Error(d.error || 'Release failed');
+                    return d;
+                  });
+                })
+                .then(function (d) {
+                  showToast('Released ' + (d.documentCount || 0) + ' document(s). Customer will see a notice in the payment portal.');
+                  closeDocReleaseModal();
+                });
+            }
+            releaseFieldSpec = opts.fieldSpec || [];
+            starterWizardCustomerId = docReleaseSelectedId;
+            renderStarterFieldForm();
+            invalidateStarterPreview();
+            if (starterWizardBackdrop) {
+              starterWizardBackdrop.style.display = 'block';
+              starterWizardBackdrop.classList.add('open');
+            }
+          })
+          .catch(function (e) { showToast(e.message || 'Failed', true); })
+          .finally(function () { docReleaseStarterBtn.disabled = false; });
+      });
+    }
+
+    if (starterWizardClose) starterWizardClose.addEventListener('click', closeStarterWizard);
+    if (starterWizardBackdrop) {
+      starterWizardBackdrop.addEventListener('click', function (e) {
+        if (e.target === starterWizardBackdrop) closeStarterWizard();
+      });
+    }
+
+    if (starterWizardPreviewBtn) {
+      starterWizardPreviewBtn.addEventListener('click', function () {
+        if (!starterWizardCustomerId) return;
+        showStarterErr('');
+        starterWizardPreviewBtn.disabled = true;
+        fetch(
+          '/supplecontrols/api/customers/' + encodeURIComponent(starterWizardCustomerId) + '/signature-bundles/preview-agreement',
+          {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields: collectStarterFields() })
+          }
+        )
+          .then(function (r) {
+            if (!r.ok) {
+              return r.json().then(function (d) {
+                throw new Error(d.error || 'Preview failed');
+              });
+            }
+            return r.blob();
+          })
+          .then(function (blob) {
+            if (previewBlobUrl) URL.revokeObjectURL(previewBlobUrl);
+            previewBlobUrl = URL.createObjectURL(blob);
+            if (starterWizardPdfFrame) starterWizardPdfFrame.src = previewBlobUrl;
+            if (starterWizardPreviewWrap) starterWizardPreviewWrap.style.display = 'block';
+            if (starterWizardSubmitBtn) starterWizardSubmitBtn.disabled = false;
+          })
+          .catch(function (e) {
+            showStarterErr(e.message || 'Preview failed');
+            if (starterWizardSubmitBtn) starterWizardSubmitBtn.disabled = true;
+          })
+          .finally(function () { starterWizardPreviewBtn.disabled = false; });
+      });
+    }
+
+    if (starterWizardSubmitBtn) {
+      starterWizardSubmitBtn.addEventListener('click', function () {
+        if (!starterWizardCustomerId || starterWizardSubmitBtn.disabled) return;
+        starterWizardSubmitBtn.disabled = true;
+        fetch(
+          '/supplecontrols/api/customers/' + encodeURIComponent(starterWizardCustomerId) + '/signature-bundles/release',
+          {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bundleKey: 'Starter', fields: collectStarterFields() })
+          }
+        )
+          .then(function (r) {
+            return r.json().then(function (d) {
+              if (!r.ok) throw new Error(d.error || 'Release failed');
+              return d;
+            });
+          })
+          .then(function (d) {
+            showToast('Released ' + (d.documentCount || 0) + ' document(s). Customer will see a notice in the payment portal.');
+            closeStarterWizard();
+            closeDocReleaseModal();
+          })
+          .catch(function (e) {
+            showToast(e.message || 'Release failed', true);
+            starterWizardSubmitBtn.disabled = false;
+          });
+      });
+    }
 
     loadCustomers();
   })();

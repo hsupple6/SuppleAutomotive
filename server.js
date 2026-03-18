@@ -5,6 +5,10 @@
  */
 require('dotenv').config();
 var path = require('path');
+var fs = require('fs');
+var buildInvoicePdfBuffer = require(path.join(__dirname, 'lib', 'invoice-pdf')).buildInvoicePdfBuffer;
+var agreementPdf = require(path.join(__dirname, 'lib', 'agreement-pdf'));
+var signedAgreementPdf = require(path.join(__dirname, 'lib', 'signed-agreement-pdf'));
 var express = require('express');
 var session = require('express-session');
 var multer = require('multer');
@@ -112,8 +116,8 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), funct
     });
 });
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: false, limit: '2mb' }));
 
 app.use(session({
   secret: process.env.SUPPLE_CONTROLS_SESSION_SECRET || 'supple-controls-secret-change-in-env',
@@ -229,6 +233,68 @@ function phoneLast10(str) {
   var digits = normalizePhone(str);
   if (digits.length <= 10) return digits;
   return digits.slice(-10);
+}
+
+function normalizeNameCompare(submitted, stored) {
+  function norm(s) {
+    return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+  return norm(submitted) === norm(stored);
+}
+
+function bundleSignatureLabel(bundleKey) {
+  if (bundleKey === 'Starter') return 'Starter documentation';
+  return String(bundleKey || '').replace(/[-_]/g, ' ');
+}
+
+function fetchPendingSignatureBundlesForCustomer(customerId) {
+  if (!supabase) return Promise.resolve([]);
+  return supabase
+    .from('customer_signature_bundles')
+    .select('id, bundle_key, created_at')
+    .eq('customer_id', customerId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .then(function (bRes) {
+      if (bRes.error) return [];
+      var bundles = bRes.data || [];
+      if (bundles.length === 0) return [];
+      var ids = bundles.map(function (b) { return b.id; });
+      return supabase
+        .from('customer_signature_bundle_docs')
+        .select('id, bundle_id, title, sort_order')
+        .in('bundle_id', ids)
+        .order('sort_order', { ascending: true })
+        .then(function (dRes) {
+          if (dRes.error) return [];
+          var docs = dRes.data || [];
+          var byBundle = {};
+          docs.forEach(function (d) {
+            if (!byBundle[d.bundle_id]) byBundle[d.bundle_id] = [];
+            byBundle[d.bundle_id].push({ id: d.id, title: d.title });
+          });
+          return bundles
+            .map(function (b) {
+              return {
+                id: b.id,
+                bundle_key: b.bundle_key,
+                label: bundleSignatureLabel(b.bundle_key),
+                documents: byBundle[b.id] || []
+              };
+            })
+            .filter(function (x) { return x.documents.length > 0; });
+        });
+    });
+}
+
+function verifyPaymentBodyCustomer(body, customer) {
+  var name = (body.name || '').trim();
+  var email = (body.email || '').trim();
+  var phone = phoneLast10((body.phone || '').trim());
+  if (!name || !normalizeNameCompare(name, customer.name)) return false;
+  if (email) return String(customer.email || '').trim().toLowerCase() === email.toLowerCase();
+  if (phone) return phoneLast10(customer.phone || '') === phone;
+  return false;
 }
 
 function getOrCreateShopAccount() {
@@ -478,6 +544,9 @@ app.post('/api/payment-lookup', function (req, res) {
       });
     })
     .then(function (_) {
+      if (!normalizeNameCompare(name, _.customer.name)) {
+        return Promise.reject(new Error('Name does not match our records for this email or phone.'));
+      }
       var customerId = _.customer.id;
       var srvQ = supabase.from('services').select('*').eq('customer_id', customerId).order('created_at', { ascending: false });
       if (referenceNumber) srvQ = srvQ.eq('reference_number', referenceNumber);
@@ -487,12 +556,24 @@ app.post('/api/payment-lookup', function (req, res) {
           if (serviceIds.length === 0) {
             var cust = _.customer;
             if (cust && cust.phone) cust.phone = phoneLast10(cust.phone) || cust.phone;
-            return res.json({
-              ok: true,
-              customer: cust,
-              vehicles: [],
-              services: [],
-              balance: 0
+            return Promise.all([
+              supabase.from('service_invoices').select('id, service_id, invoice_number, pdf_url, created_at').eq('customer_id', customerId).order('created_at', { ascending: false }),
+              supabase.from('customer_documents').select('id, title, pdf_url, created_at').eq('customer_id', customerId).order('created_at', { ascending: false })
+            ]).then(function (docRes) {
+              var inv = (docRes[0] && !docRes[0].error && docRes[0].data) ? docRes[0].data : [];
+              var docs = (docRes[1] && !docRes[1].error && docRes[1].data) ? docRes[1].data : [];
+              return fetchPendingSignatureBundlesForCustomer(customerId).then(function (pendingSignatureBundles) {
+                return res.json({
+                  ok: true,
+                  customer: cust,
+                  vehicles: [],
+                  services: [],
+                  balance: 0,
+                  invoices: inv,
+                  documents: docs,
+                  pendingSignatureBundles: pendingSignatureBundles
+                });
+              });
             });
           }
           return Promise.all([
@@ -541,21 +622,277 @@ app.post('/api/payment-lookup', function (req, res) {
             return supabase.from('vehicles').select('*').eq('customer_id', customerId).then(function (vRes) {
               var cust = _.customer;
               if (cust && cust.phone) cust.phone = phoneLast10(cust.phone) || cust.phone;
-              res.json({
-                ok: true,
-                customer: cust,
-                vehicles: vRes.data || [],
-                services: servicesWithParts,
-                balance: Math.round(balance * 100) / 100
+              return Promise.all([
+                supabase.from('service_invoices').select('id, service_id, invoice_number, pdf_url, created_at').eq('customer_id', customerId).order('created_at', { ascending: false }),
+                supabase.from('customer_documents').select('id, title, pdf_url, created_at').eq('customer_id', customerId).order('created_at', { ascending: false })
+              ]).then(function (docRes) {
+                var inv = (docRes[0] && !docRes[0].error && docRes[0].data) ? docRes[0].data : [];
+                var docs = (docRes[1] && !docRes[1].error && docRes[1].data) ? docRes[1].data : [];
+                return fetchPendingSignatureBundlesForCustomer(customerId).then(function (pendingSignatureBundles) {
+                  res.json({
+                    ok: true,
+                    customer: cust,
+                    vehicles: vRes.data || [],
+                    services: servicesWithParts,
+                    balance: Math.round(balance * 100) / 100,
+                    invoices: inv,
+                    documents: docs,
+                    pendingSignatureBundles: pendingSignatureBundles
+                  });
+                });
               });
             });
           });
         });
       }).catch(function (err) {
         console.error('Payment lookup error:', err.message || err);
-        var isNotFound = err.message && err.message.indexOf('No customer found') === 0;
+        var isNotFound = err.message && (err.message.indexOf('No customer found') === 0 || err.message.indexOf('Name does not match') === 0);
         sendError(isNotFound ? 404 : 500, err.message || 'Lookup failed');
       });
+});
+
+app.post('/api/signable-pdf', function (req, res) {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  var body = req.body || {};
+  var documentId = String(body.documentId || '').trim();
+  if (!documentId) return res.status(400).json({ error: 'documentId required' });
+  getOrCreateShopAccount()
+    .then(function (accountId) {
+      if (!accountId) throw new Error('Account not ready');
+      return supabase.from('customer_signature_bundle_docs').select('id, pdf_url, bundle_id').eq('id', documentId).maybeSingle()
+        .then(function (dr) {
+          if (dr.error || !dr.data) {
+            var e = new Error('Not found');
+            e.status = 404;
+            throw e;
+          }
+          var row = dr.data;
+          return supabase.from('customer_signature_bundles').select('id, customer_id, status, account_id').eq('id', row.bundle_id).eq('account_id', accountId).maybeSingle()
+            .then(function (br) {
+              if (br.error || !br.data || br.data.status !== 'pending') {
+                var e2 = new Error('Not found');
+                e2.status = 404;
+                throw e2;
+              }
+              return supabase.from('customers').select('*').eq('id', br.data.customer_id).single().then(function (cr) {
+                if (cr.error || !cr.data) {
+                  var e3 = new Error('Not found');
+                  e3.status = 404;
+                  throw e3;
+                }
+                if (!verifyPaymentBodyCustomer(body, cr.data)) {
+                  var e4 = new Error('Unauthorized');
+                  e4.status = 403;
+                  throw e4;
+                }
+                return row.pdf_url;
+              });
+            });
+        });
+    })
+    .then(function (pdfUrl) {
+      return fetch(pdfUrl).then(function (r) {
+        if (!r.ok) throw new Error('PDF unavailable');
+        return r.arrayBuffer();
+      });
+    })
+    .then(function (ab) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.send(Buffer.from(ab));
+    })
+    .catch(function (err) {
+      var st = err.status || 500;
+      if (st !== 403 && st !== 404) st = 500;
+      if (st === 500) console.error('signable-pdf:', err.message || err);
+      res.status(st).json({ error: err.message || 'Failed' });
+    });
+});
+
+function finalizeSignedAgreementPdf(accountId, customerId, bundleId, bundleKey, customerName, mode, payloadStr) {
+  if (!supabase) return Promise.resolve();
+  var signedAtLabel = new Date().toISOString();
+  var dateLabel = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+  return Promise.all([
+    supabase
+      .from('customer_signature_bundle_docs')
+      .select('pdf_url')
+      .eq('bundle_id', bundleId)
+      .order('sort_order', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    supabase.from('customer_signature_bundles').select('release_fields').eq('id', bundleId).maybeSingle(),
+    supabase.from('customers').select('*').eq('id', customerId).single(),
+    supabase
+      .from('vehicles')
+      .select('*')
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+  ])
+    .then(function (rows) {
+      var dr = rows[0];
+      var br = rows[1];
+      var cr = rows[2];
+      var vr = rows[3];
+      var pdfUrl = dr.data && dr.data.pdf_url;
+      if (!pdfUrl || cr.error || !cr.data) return;
+      var rf = (br.data && br.data.release_fields) || {};
+      var missing = agreementPdf.validateAgreementReleaseFieldsComplete(rf);
+      var buildSignedBuf = function (baseBuf) {
+        return signedAgreementPdf
+          .buildSignedAgreementPdf(baseBuf, {
+            mode: mode,
+            payload: payloadStr,
+            customerName: customerName,
+            signedAtLabel: signedAtLabel
+          })
+          .then(function (uint8) {
+            return Buffer.from(uint8);
+          });
+      };
+      var uploadSigned = function (buf) {
+        var pathKey = 'signed-agreements/' + customerId + '/' + bundleId + '-' + Date.now() + '.pdf';
+        return supabase.storage
+          .from('invoices')
+          .upload(pathKey, buf, { contentType: 'application/pdf', upsert: false })
+          .then(function (up) {
+            if (up.error) {
+              console.error('Signed PDF upload:', up.error.message);
+              return;
+            }
+            var pub = supabase.storage.from('invoices').getPublicUrl(pathKey);
+            var url = pub && pub.data && pub.data.publicUrl;
+            if (!url) return;
+            return supabase
+              .from('customer_signature_bundles')
+              .update({ signed_pdf_url: url })
+              .eq('id', bundleId)
+              .then(function () {
+                return supabase.from('customer_documents').insert({
+                  account_id: accountId,
+                  customer_id: customerId,
+                  title: 'Signed agreement (' + String(bundleKey || 'packet') + ')',
+                  pdf_url: url
+                });
+              })
+              .then(function (ins) {
+                if (ins.error) {
+                  console.error('customer_documents insert after sign:', ins.error.message || ins.error);
+                }
+              });
+          });
+      };
+      if (missing.length === 0) {
+        return agreementPdf
+          .buildAgreementPdfBuffer(cr.data, vr.data && !vr.error ? vr.data : null, {
+            releaseFields: rf,
+            customerSignature: { mode: mode, payload: payloadStr },
+            signedDateStr: dateLabel
+          })
+          .then(buildSignedBuf)
+          .then(uploadSigned);
+      }
+      return fetch(pdfUrl)
+        .then(function (r) {
+          if (!r.ok) throw new Error('Could not fetch agreement PDF');
+          return r.arrayBuffer();
+        })
+        .then(function (ab) {
+          return buildSignedBuf(Buffer.from(ab));
+        })
+        .then(uploadSigned);
+    })
+    .catch(function (e) {
+      console.error('finalizeSignedAgreementPdf:', e.message || e);
+    });
+}
+
+app.post('/api/complete-signature-bundle', function (req, res) {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  var body = req.body || {};
+  var bundleId = String(body.bundleId || '').trim();
+  var mode = String(body.signatureMode || '').toLowerCase();
+  var payload = body.signaturePayload;
+  if (!bundleId || (mode !== 'typed' && mode !== 'drawn')) {
+    return res.status(400).json({ error: 'bundleId and signatureMode (typed|drawn) required' });
+  }
+  if (mode === 'typed' && (!payload || String(payload).trim().length < 2)) {
+    return res.status(400).json({ error: 'Please type your full name' });
+  }
+  if (mode === 'drawn' && (!payload || String(payload).length < 80)) {
+    return res.status(400).json({ error: 'Please draw your signature' });
+  }
+  var payloadStr = typeof payload === 'string' ? payload : String(payload);
+  if (payloadStr.length > 1200000) return res.status(400).json({ error: 'Payload too large' });
+  var accountIdForSign = null;
+  var customerIdForSign = null;
+  var bundleKeyForSign = null;
+  var customerNameForSign = '';
+  getOrCreateShopAccount()
+    .then(function (accountId) {
+      if (!accountId) throw new Error('Account not ready');
+      accountIdForSign = accountId;
+      return supabase.from('customer_signature_bundles').select('*').eq('id', bundleId).eq('account_id', accountId).maybeSingle()
+        .then(function (br) {
+          if (br.error || !br.data || br.data.status !== 'pending') {
+            var e = new Error('Not found');
+            e.status = 404;
+            throw e;
+          }
+          customerIdForSign = br.data.customer_id;
+          bundleKeyForSign = br.data.bundle_key;
+          return supabase.from('customers').select('*').eq('id', br.data.customer_id).single().then(function (cr) {
+            if (cr.error || !cr.data) {
+              var e2 = new Error('Not found');
+              e2.status = 404;
+              throw e2;
+            }
+            if (!verifyPaymentBodyCustomer(body, cr.data)) {
+              var e3 = new Error('Unauthorized');
+              e3.status = 403;
+              throw e3;
+            }
+            customerNameForSign = cr.data.name || '';
+            return supabase.from('customer_signature_bundles').update({
+              status: 'completed',
+              signature_mode: mode,
+              signature_payload: payloadStr,
+              signed_at: new Date().toISOString()
+            }).eq('id', bundleId).eq('status', 'pending').select('id').maybeSingle();
+          });
+        });
+    })
+    .then(function (up) {
+      if (up.error) throw new Error(up.error.message);
+      if (!up.data) {
+        var e = new Error('Already completed or invalid');
+        e.status = 409;
+        throw e;
+      }
+      return finalizeSignedAgreementPdf(
+        accountIdForSign,
+        customerIdForSign,
+        bundleId,
+        bundleKeyForSign,
+        customerNameForSign,
+        mode,
+        payloadStr
+      ).then(function () {
+        res.json({ ok: true });
+      });
+    })
+    .catch(function (err) {
+      var st = err.status || 500;
+      if (st !== 403 && st !== 404 && st !== 409) st = 500;
+      if (st === 500) console.error('complete-signature-bundle:', err.message || err);
+      res.status(st).json({ error: err.message || 'Failed' });
+    });
 });
 
 // Create Stripe Checkout Session for Pay Now (redirect to Stripe, then back to payment page)
@@ -727,70 +1064,121 @@ app.get('/supplecontrols/api/customers', controlsApiAuth, function (req, res) {
   });
 });
 
-// Get one customer full (vehicles, services with parts + payments, contacts)
+function fetchCustomerPortalPdfs(customerId) {
+  return Promise.all([
+    supabase
+      .from('service_invoices')
+      .select('id, service_id, invoice_number, pdf_url, created_at')
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('customer_documents')
+      .select('id, title, pdf_url, created_at')
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false })
+  ]).then(function (rr) {
+    return {
+      invoices: rr[0].error ? [] : rr[0].data || [],
+      documents: rr[1].error ? [] : rr[1].data || []
+    };
+  });
+}
+
+// Get one customer full (vehicles, services with parts + payments, contacts, portal PDFs)
 app.get('/supplecontrols/api/customers/:id', controlsApiAuth, function (req, res) {
   var customerId = req.params.id;
   getAccountThen(req, res, function (accountId) {
-    supabase.from('customers').select('*').eq('id', customerId).eq('account_id', accountId).single().then(function (cRes) {
-      if (cRes.error || !cRes.data) return res.status(404).json({ error: 'Customer not found' });
-      var customer = cRes.data;
-      Promise.all([
-        supabase.from('vehicles').select('*').eq('customer_id', customerId).order('created_at', { ascending: true }),
-        supabase.from('customer_contacts').select('*').eq('customer_id', customerId)
-      ]).then(function (results) {
-        var vehicles = (results[0].data || []);
-        var contacts = (results[1].data || []);
-        supabase.from('services').select('*').eq('customer_id', customerId).order('created_at', { ascending: false }).then(function (sRes) {
-          var services = sRes.data || [];
-          if (services.length === 0) {
-            return res.json({ customer: customer, vehicles: vehicles, contacts: contacts, services: [] });
-          }
-          var serviceIds = services.map(function (s) { return s.id; });
-          Promise.all([
-            supabase.from('service_parts').select('*').in('service_id', serviceIds),
-            supabase.from('service_payments').select('*').in('service_id', serviceIds),
-            supabase.from('service_images').select('*').in('service_id', serviceIds)
-          ]).then(function (partsPaymentsImages) {
-            var parts = partsPaymentsImages[0].data || [];
-            var payments = partsPaymentsImages[1].data || [];
-            var images = partsPaymentsImages[2].data || [];
-            var partsBySvc = {};
-            parts.forEach(function (p) {
-              if (!partsBySvc[p.service_id]) partsBySvc[p.service_id] = [];
-              partsBySvc[p.service_id].push(p);
-            });
-            var paymentsBySvc = {};
-            payments.forEach(function (p) {
-              if (!paymentsBySvc[p.service_id]) paymentsBySvc[p.service_id] = [];
-              paymentsBySvc[p.service_id].push(p);
-            });
-            var imagesBySvc = {};
-            images.forEach(function (img) {
-              if (!imagesBySvc[img.service_id]) imagesBySvc[img.service_id] = [];
-              imagesBySvc[img.service_id].push(img);
-            });
-            var servicesWithExtra = services.map(function (s) {
-              var serviceParts = partsBySvc[s.id] || [];
-              var partsTotal = serviceParts.reduce(function (sum, p) { return sum + Number(p.total_price || 0); }, 0);
-              var total = Number(s.service_price || 0) + partsTotal;
-              var paidTotal = (paymentsBySvc[s.id] || []).reduce(function (sum, p) { return sum + Number(p.amount || 0); }, 0);
-              var balance = Math.round((total - paidTotal) * 100) / 100;
-              var paymentStatus = balance <= 0 ? 'paid' : (paidTotal > 0 ? 'partial' : 'unpaid');
-              return Object.assign({}, s, {
-                parts: serviceParts,
-                payments: paymentsBySvc[s.id] || [],
-                images: imagesBySvc[s.id] || [],
-                total: total,
-                paidTotal: paidTotal,
-                balance: balance,
-                paymentStatus: paymentStatus
+    supabase
+      .from('customers')
+      .select('*')
+      .eq('id', customerId)
+      .eq('account_id', accountId)
+      .single()
+      .then(function (cRes) {
+        if (cRes.error || !cRes.data) return res.status(404).json({ error: 'Customer not found' });
+        var customer = cRes.data;
+        Promise.all([
+          supabase.from('vehicles').select('*').eq('customer_id', customerId).order('created_at', { ascending: true }),
+          supabase.from('customer_contacts').select('*').eq('customer_id', customerId)
+        ]).then(function (results) {
+          var vehicles = results[0].data || [];
+          var contacts = results[1].data || [];
+          supabase
+            .from('services')
+            .select('*')
+            .eq('customer_id', customerId)
+            .order('created_at', { ascending: false })
+            .then(function (sRes) {
+              var services = sRes.data || [];
+              function respond(servicesPayload) {
+                fetchCustomerPortalPdfs(customerId).then(function (pdfs) {
+                  res.json({
+                    customer: customer,
+                    vehicles: vehicles,
+                    contacts: contacts,
+                    services: servicesPayload,
+                    invoices: pdfs.invoices,
+                    documents: pdfs.documents
+                  });
+                });
+              }
+              if (services.length === 0) {
+                return respond([]);
+              }
+              var serviceIds = services.map(function (s) {
+                return s.id;
+              });
+              Promise.all([
+                supabase.from('service_parts').select('*').in('service_id', serviceIds),
+                supabase.from('service_payments').select('*').in('service_id', serviceIds),
+                supabase.from('service_images').select('*').in('service_id', serviceIds)
+              ]).then(function (partsPaymentsImages) {
+                var parts = partsPaymentsImages[0].data || [];
+                var payments = partsPaymentsImages[1].data || [];
+                var images = partsPaymentsImages[2].data || [];
+                var partsBySvc = {};
+                parts.forEach(function (p) {
+                  if (!partsBySvc[p.service_id]) partsBySvc[p.service_id] = [];
+                  partsBySvc[p.service_id].push(p);
+                });
+                var paymentsBySvc = {};
+                payments.forEach(function (p) {
+                  if (!paymentsBySvc[p.service_id]) paymentsBySvc[p.service_id] = [];
+                  paymentsBySvc[p.service_id].push(p);
+                });
+                var imagesBySvc = {};
+                images.forEach(function (img) {
+                  if (!imagesBySvc[img.service_id]) imagesBySvc[img.service_id] = [];
+                  imagesBySvc[img.service_id].push(img);
+                });
+                var servicesWithExtra = services.map(function (s) {
+                  var serviceParts = partsBySvc[s.id] || [];
+                  var partsTotal = serviceParts.reduce(function (sum, p) {
+                    return sum + Number(p.total_price || 0);
+                  }, 0);
+                  var total = Number(s.service_price || 0) + partsTotal;
+                  var paidTotal = (paymentsBySvc[s.id] || []).reduce(function (sum, p) {
+                    return sum + Number(p.amount || 0);
+                  }, 0);
+                  var balance = Math.round((total - paidTotal) * 100) / 100;
+                  var paymentStatus = balance <= 0 ? 'paid' : paidTotal > 0 ? 'partial' : 'unpaid';
+                  return Object.assign({}, s, {
+                    parts: serviceParts,
+                    payments: paymentsBySvc[s.id] || [],
+                    images: imagesBySvc[s.id] || [],
+                    total: total,
+                    paidTotal: paidTotal,
+                    balance: balance,
+                    paymentStatus: paymentStatus
+                  });
+                });
+                respond(servicesWithExtra);
               });
             });
-            res.json({ customer: customer, vehicles: vehicles, contacts: contacts, services: servicesWithExtra });
-          });
         });
+      }).catch(function (err) {
+        controlsJson(err, res);
       });
-    }).catch(function (err) { controlsJson(err, res); });
   });
 });
 
@@ -1091,6 +1479,298 @@ app.post('/supplecontrols/api/services/:id/images', controlsApiAuth, upload.arra
         res.status(201).json({ images: ins.data || [] });
       })
       .catch(function (err) {
+        controlsJson(err, res);
+      });
+  });
+});
+
+function loadServiceInvoiceBundle(serviceId, accountId) {
+  return supabase.from('services').select('*').eq('id', serviceId).eq('account_id', accountId).single()
+    .then(function (sr) {
+      if (sr.error || !sr.data) throw new Error('Service not found');
+      var s = sr.data;
+      return Promise.all([
+        supabase.from('customers').select('*').eq('id', s.customer_id).single(),
+        s.vehicle_id ? supabase.from('vehicles').select('*').eq('id', s.vehicle_id).maybeSingle() : Promise.resolve({ data: null }),
+        supabase.from('service_parts').select('*').eq('service_id', serviceId)
+      ]).then(function (r) {
+        if (r[0].error || !r[0].data) throw new Error('Customer not found');
+        return {
+          service: s,
+          customer: r[0].data,
+          vehicle: r[1].data,
+          parts: r[2].data || []
+        };
+      });
+    });
+}
+
+app.get('/supplecontrols/api/services/:id/invoice.pdf', controlsApiAuth, function (req, res) {
+  var serviceId = req.params.id;
+  if (!supabase) return res.status(503).send('Database not configured');
+  getAccountThen(req, res, function (accountId) {
+    loadServiceInvoiceBundle(serviceId, accountId)
+      .then(function (bundle) {
+        var invNo = 'PREVIEW-' + String(serviceId).replace(/-/g, '').slice(0, 8).toUpperCase();
+        return buildInvoicePdfBuffer(Object.assign({ invoiceNumber: invNo }, bundle));
+      })
+      .then(function (buf) {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline; filename="invoice-preview.pdf"');
+        res.send(buf);
+      })
+      .catch(function (err) {
+        res.status(err.message === 'Service not found' ? 404 : 500).send(err.message || 'Error');
+      });
+  });
+});
+
+app.post('/supplecontrols/api/services/:id/invoices/submit', controlsApiAuth, function (req, res) {
+  var serviceId = req.params.id;
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  getAccountThen(req, res, function (accountId) {
+    loadServiceInvoiceBundle(serviceId, accountId)
+      .then(function (bundle) {
+        var d = new Date();
+        var mo = d.getMonth() + 1;
+        var dy = d.getDate();
+        var invNo = 'INV-' + d.getFullYear() + (mo < 10 ? '0' : '') + mo + (dy < 10 ? '0' : '') + dy + '-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+        return buildInvoicePdfBuffer(Object.assign({ invoiceNumber: invNo }, bundle))
+          .then(function (buf) {
+            var bucket = 'invoices';
+            var pathKey = 'customer-' + bundle.customer.id + '/' + invNo.replace(/[^a-zA-Z0-9.\-_]/g, '_') + '.pdf';
+            return supabase.storage.from(bucket).upload(pathKey, buf, {
+              contentType: 'application/pdf',
+              upsert: false
+            }).then(function (up) {
+              if (up.error) throw new Error(up.error.message || 'Upload failed');
+              var pub = supabase.storage.from(bucket).getPublicUrl(pathKey);
+              var url = (pub && pub.data && pub.data.publicUrl) ? pub.data.publicUrl : null;
+              if (!url) throw new Error('Could not get public URL');
+              return supabase.from('service_invoices').insert({
+                account_id: accountId,
+                customer_id: bundle.customer.id,
+                service_id: serviceId,
+                invoice_number: invNo,
+                pdf_url: url
+              }).select().single().then(function (ins) {
+                if (ins.error) throw new Error(ins.error.message || 'Save failed');
+                res.status(201).json(ins.data);
+              });
+            });
+          });
+      })
+      .catch(function (err) {
+        controlsJson(err, res);
+      });
+  });
+});
+
+app.get('/supplecontrols/api/signature-release-options', controlsApiAuth, function (req, res) {
+  var pdfFolder = String(process.env.SIGNATURE_RELEASE_MODE || '').trim() === 'pdf-folder';
+  res.json({
+    requiresAgreementFields: !pdfFolder,
+    fieldSpec: agreementPdf.AGREEMENT_RELEASE_FIELD_SPEC
+  });
+});
+
+app.post(
+  '/supplecontrols/api/customers/:customerId/signature-bundles/preview-agreement',
+  controlsApiAuth,
+  function (req, res) {
+    var customerId = req.params.customerId;
+    var fields = (req.body && req.body.fields) || {};
+    var missing = agreementPdf.validateAgreementReleaseFieldsComplete(fields);
+    if (missing.length) {
+      return res.status(400).json({
+        error: 'Every field is required before generating the document.',
+        missing: missing
+      });
+    }
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    getAccountThen(req, res, function (accountId) {
+      supabase
+        .from('customers')
+        .select('*')
+        .eq('id', customerId)
+        .eq('account_id', accountId)
+        .single()
+        .then(function (c) {
+          if (c.error || !c.data) {
+            res.status(404).json({ error: 'Customer not found' });
+            return null;
+          }
+          return supabase
+            .from('vehicles')
+            .select('*')
+            .eq('customer_id', customerId)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+            .then(function (vr) {
+              return agreementPdf.buildAgreementPdfBuffer(c.data, vr.data && !vr.error ? vr.data : null, {
+                releaseFields: agreementPdf.normalizeAgreementReleaseFields(fields)
+              });
+            });
+        })
+        .then(function (pdfBuf) {
+          if (!Buffer.isBuffer(pdfBuf)) return;
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Cache-Control', 'private, no-store');
+          res.send(pdfBuf);
+        })
+        .catch(function (err) {
+          if (!res.headersSent) controlsJson(err, res);
+        });
+    });
+  }
+);
+
+app.post('/supplecontrols/api/customers/:customerId/signature-bundles/release', controlsApiAuth, function (req, res) {
+  var customerId = req.params.customerId;
+  var bundleKey = String((req.body && req.body.bundleKey) || 'Starter').trim();
+  if (!/^[A-Za-z0-9 _-]+$/.test(bundleKey)) return res.status(400).json({ error: 'Invalid bundle key' });
+  var safeKey = bundleKey.replace(/[^A-Za-z0-9 _-]/g, '') || 'Starter';
+  var usePdfFolder = String(process.env.SIGNATURE_RELEASE_MODE || '').trim() === 'pdf-folder';
+  var bodyFields = (req.body && req.body.fields) || {};
+  var normalizedFields = agreementPdf.normalizeAgreementReleaseFields(bodyFields);
+  if (!usePdfFolder) {
+    var miss = agreementPdf.validateAgreementReleaseFieldsComplete(bodyFields);
+    if (miss.length) {
+      return res.status(400).json({
+        error: 'Fill in every agreement field, preview the document, then submit for signing.',
+        missing: miss
+      });
+    }
+  }
+  var dir = path.join(__dirname, 'blank-docs', safeKey);
+  var files = [];
+  if (usePdfFolder) {
+    if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+      return res.status(400).json({
+        error:
+          'SIGNATURE_RELEASE_MODE=pdf-folder requires folder blank-docs/' +
+          safeKey +
+          ' with PDF files. Otherwise omit that env to use doc/agreement.md (or built-in default) with pdfkit.'
+      });
+    }
+    files = fs.readdirSync(dir).filter(function (f) { return f.toLowerCase().endsWith('.pdf'); }).sort();
+    if (files.length === 0) {
+      return res.status(400).json({ error: 'No PDF files in blank-docs/' + safeKey });
+    }
+  }
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  var bucket = 'invoices';
+  var releaseCustomerRow = null;
+  getAccountThen(req, res, function (accountId) {
+    supabase
+      .from('customers')
+      .select('*')
+      .eq('id', customerId)
+      .eq('account_id', accountId)
+      .single()
+      .then(function (c) {
+        if (c.error || !c.data) {
+          res.status(404).json({ error: 'Customer not found' });
+          return Promise.reject(new Error('__abort_release'));
+        }
+        releaseCustomerRow = c.data;
+        return supabase
+          .from('customer_signature_bundles')
+          .delete()
+          .eq('customer_id', customerId)
+          .eq('bundle_key', safeKey)
+          .eq('status', 'pending');
+      })
+      .then(function () {
+        return supabase
+          .from('customer_signature_bundles')
+          .insert({
+            account_id: accountId,
+            customer_id: customerId,
+            bundle_key: safeKey,
+            status: 'pending',
+            release_fields: usePdfFolder ? {} : normalizedFields
+          })
+          .select('id')
+          .single();
+      })
+      .then(function (ins) {
+        if (ins.error) throw new Error(ins.error.message);
+        var bundleId = ins.data.id;
+        if (!usePdfFolder) {
+          return supabase
+            .from('vehicles')
+            .select('*')
+            .eq('customer_id', customerId)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+            .then(function (vr) {
+              return agreementPdf.buildAgreementPdfBuffer(releaseCustomerRow, vr.data || null, {
+                releaseFields: normalizedFields
+              });
+            })
+            .then(function (pdfBuf) {
+              var pathKey =
+                'signable/' + customerId + '/' + bundleId + '/' + Date.now() + '-agreement.pdf';
+              return supabase.storage
+                .from(bucket)
+                .upload(pathKey, pdfBuf, { contentType: 'application/pdf', upsert: false })
+                .then(function (up) {
+                  if (up.error) throw new Error(up.error.message || 'Upload failed');
+                  var pub = supabase.storage.from(bucket).getPublicUrl(pathKey);
+                  var url = pub && pub.data && pub.data.publicUrl;
+                  if (!url) throw new Error('Could not get public URL');
+                  return supabase.from('customer_signature_bundle_docs').insert([
+                    { bundle_id: bundleId, title: 'Agreement', pdf_url: url, sort_order: 0 }
+                  ]);
+                })
+                .then(function (docIns) {
+                  if (docIns.error) throw new Error(docIns.error.message);
+                  res.status(201).json({
+                    ok: true,
+                    bundleKey: safeKey,
+                    documentCount: 1,
+                    source: agreementPdf.hasAgreementMarkdown() ? 'agreement-md' : 'agreement-default'
+                  });
+                });
+            });
+        }
+        var uploads = files.map(function (file, idx) {
+          var buf = fs.readFileSync(path.join(dir, file));
+          var pathKey =
+            'signable/' +
+            customerId +
+            '/' +
+            bundleId +
+            '/' +
+            Date.now() +
+            '-' +
+            idx +
+            '-' +
+            file.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+          return supabase.storage
+            .from(bucket)
+            .upload(pathKey, buf, { contentType: 'application/pdf', upsert: false })
+            .then(function (up) {
+              if (up.error) throw new Error(up.error.message || 'Upload failed');
+              var pub = supabase.storage.from(bucket).getPublicUrl(pathKey);
+              var url = pub && pub.data && pub.data.publicUrl;
+              if (!url) throw new Error('Could not get public URL');
+              var title = file.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ');
+              return { bundle_id: bundleId, title: title, pdf_url: url, sort_order: idx };
+            });
+        });
+        return Promise.all(uploads).then(function (rows) {
+          return supabase.from('customer_signature_bundle_docs').insert(rows);
+        }).then(function (docIns) {
+          if (docIns.error) throw new Error(docIns.error.message);
+          res.status(201).json({ ok: true, bundleKey: safeKey, documentCount: files.length, source: 'pdf' });
+        });
+      })
+      .catch(function (err) {
+        if (err.message === '__abort_release') return;
         controlsJson(err, res);
       });
   });

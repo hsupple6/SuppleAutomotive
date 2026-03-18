@@ -11,7 +11,7 @@ This document lists all configurable values used across the website. Edit `confi
 | `email` | Primary contact email; form submissions are emailed here | `"info@suppleautomotive.com"` |
 | `address` | Street address (line 1) | `"123 Main St, City, CA 93001"` |
 | `addressLine2` | Optional suite/unit/floor | `""` or `"Suite 100"` |
-| `tagline` | Short tagline for hero/footer | `"Professional auto care you can trust."` |
+| `tagline` | Short tagline for hero/footer | `"Professional Mobile Auto Repair You Can Trust."` |
 | `services` | Array of `{ id, title, description }` for Services section | See `config.js` |
 | `hours` | Array of `{ days, time }` for business hours | `[{ days: "Mon–Fri", time: "8am–6pm" }]` |
 | `social.facebook` | Facebook profile URL | `"https://facebook.com/..."` |
@@ -44,7 +44,13 @@ The project includes a Supabase schema in `supabase/migrations/`. Tables: **acco
 | `SUPABASE_URL` | Project URL (e.g. `https://xxxxx.supabase.co`). |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Service role** key (Project Settings → API → "service_role" secret). Use only on the server; never expose in the browser. Do **not** use the "anon" or "public" key here — that causes "row violates row-level security" errors. |
 
-**Apply the schema:** Run all migrations in order (e.g. Supabase Dashboard → SQL Editor, or `supabase db push`). Include the RLS policy migration `20250303200000_rls_service_role_policies.sql` and `20250303400000_service_payments_and_contacts.sql` (adds `service_payments` and `customer_contacts` for the controls panel and payment tracking).
+**Apply the schema:** Run all migrations in order (e.g. Supabase Dashboard → SQL Editor, or `supabase db push`). Include later migrations for service images, invoices (`service_invoices`, `customer_documents`), signature packets (`customer_signature_bundles`, `customer_signature_bundle_docs`), etc.
+
+**Document release (Supple Controls → Document release):** Edit **`doc/agreement.md`** (Markdown). Use section headings `## 1. Title`, `## 2. Title`, … after a cover block starting with `# Title`. Customer/vehicle tokens (`__CUSTOMER_NAME__`, etc.) plus release-time fields (`__LABOR_RATE__`, `__DIAGNOSTIC_FEE__`, `__AUTHORIZED_REPAIR_AMOUNT__`, `__LATE_INTEREST_PCT__`, `__WARRANTY_DAYS__`, `__REQUESTED_SERVICE__`) and `[[CUSTOMER_SIG]]` markers per section are documented in **`lib/default-agreement.md`**. Before releasing Starter Docs (markdown mode), the panel requires every required field, a PDF preview, then submit. An **optional addendum** (custom notes) is appended after the last customer signature block. Values are stored on the bundle as **`release_fields`**. After the customer signs, the final PDF repeats their signature on every customer line and still appends the electronic-record page. If **`SIGNATURE_RELEASE_MODE=pdf-folder`**, static PDFs in **`blank-docs/Starter/`** skip the field form.
+
+Apply migrations through **`20250317160000_signature_release_fields.sql`** (`release_fields` on bundles) and **`20250317140000_signature_signed_pdf.sql`** (`signed_pdf_url`).
+
+**Supabase Storage (public buckets):** Create **`service-images`** (service photos from controls) and **`invoices`** (submitted invoice PDFs). Set each bucket to public so generated URLs work for customers opening PDFs from the payment portal.
 
 ## Supple Controls panel
 
