@@ -80,10 +80,65 @@
   var slashOverlay = byId('slashOverlay');
   var slashLine = byId('slashOverlayLine');
   var slashLineBg = byId('slashOverlayLineBg');
-  if (requestServiceLinks.length && slashOverlay && slashLine) {
+  function runMobileHamburgerSlashNavigate(href) {
+    if (!window.matchMedia('(max-width: 900px)').matches) return false;
+    var mobileNavSlash = byId('mobileNavSlash');
+    var mobileNavSlashFill = mobileNavSlash ? mobileNavSlash.querySelector('.mobile-nav-slash-fill') : null;
+    var mobileNavOverlayContent = byId('mobileNavOverlayContent');
+    var topBarForNav = document.querySelector('.top-bar');
+    var navToggleForNav = byId('navToggle');
+    var navMenuContentForNav = byId('navMenuContent');
+    if (!mobileNavSlash || !mobileNavSlashFill) return false;
+
+    if (topBarForNav) {
+      topBarForNav.classList.remove('nav-open', 'nav-with-slash');
+    }
+    if (navToggleForNav) {
+      navToggleForNav.setAttribute('aria-expanded', 'false');
+      navToggleForNav.setAttribute('aria-label', 'Open menu');
+    }
+    if (navMenuContentForNav) navMenuContentForNav.classList.remove('is-visible');
+    if (mobileNavOverlayContent) mobileNavOverlayContent.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+
+    mobileNavSlash.setAttribute('aria-hidden', 'false');
+    mobileNavSlash.classList.add('mobile-nav-slash-active', 'mobile-nav-slash-open');
+    mobileNavSlash.classList.remove('mobile-nav-slash-close', 'mobile-nav-slash-behind');
+
+    var done = false;
+    function navigate() {
+      if (done) return;
+      done = true;
+      window.location.href = href;
+    }
+    var fallback = setTimeout(navigate, 2200);
+    function onCloseEnd() {
+      clearTimeout(fallback);
+      navigate();
+    }
+    function onOpenEnd() {
+      mobileNavSlash.classList.remove('mobile-nav-slash-open', 'mobile-nav-slash-behind');
+      mobileNavSlash.classList.add('mobile-nav-slash-close');
+      mobileNavSlashFill.addEventListener('animationend', onCloseEnd, { once: true });
+    }
+    mobileNavSlashFill.addEventListener('animationend', onOpenEnd, { once: true });
+    return true;
+  }
+
+  if (requestServiceLinks.length) {
     function goToRequestService(e) {
       var href = e.currentTarget.getAttribute('href');
       if (!href || href.indexOf('request-service') === -1) return;
+      if (runMobileHamburgerSlashNavigate('request-service.html')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      if (!slashOverlay || !slashLine) {
+        e.preventDefault();
+        window.location.href = 'request-service.html';
+        return;
+      }
       e.preventDefault();
       slashOverlay.classList.remove('slash-overlay-white');
       slashOverlay.setAttribute('aria-hidden', 'false');
@@ -106,10 +161,20 @@
 
   // Payment Portal: same slash animation but WHITE strip, then navigate to payment.html
   var paymentPortalLinks = document.querySelectorAll('.js-payment-portal-link');
-  if (paymentPortalLinks.length && slashOverlay && slashLine) {
+  if (paymentPortalLinks.length) {
     function goToPayment(e) {
       var href = e.currentTarget.getAttribute('href');
       if (!href || href.indexOf('payment') === -1) return;
+      if (runMobileHamburgerSlashNavigate('payment.html')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      if (!slashOverlay || !slashLine) {
+        e.preventDefault();
+        window.location.href = 'payment.html';
+        return;
+      }
       e.preventDefault();
       slashOverlay.classList.add('slash-overlay-white');
       slashOverlay.setAttribute('aria-hidden', 'false');
@@ -133,10 +198,19 @@
   // Top bar background on scroll
   var topBar = document.querySelector('.top-bar');
   if (topBar) {
+    var forceScrolledHeader =
+      document.body.classList.contains('page-payment') ||
+      document.body.classList.contains('page-request');
     function onScroll() {
+      if (forceScrolledHeader) {
+        topBar.classList.add('scrolled');
+        return;
+      }
       topBar.classList.toggle('scrolled', window.scrollY > 80);
     }
-    window.addEventListener('scroll', onScroll, { passive: true });
+    if (!forceScrolledHeader) {
+      window.addEventListener('scroll', onScroll, { passive: true });
+    }
     onScroll();
   }
 
