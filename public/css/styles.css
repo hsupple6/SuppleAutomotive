@@ -2322,6 +2322,65 @@ body {
   color: var(--text-muted);
 }
 
+/* Contact: regular button for call CTA */
+.contact-call-btn {
+  display: inline-block;
+  padding: 0.65rem 1.1rem;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.contact-call-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Contact: cool animated underline on email line */
+.contact-email-underline {
+  position: relative;
+  display: inline-block;
+  margin-top: 0.8rem;
+  padding-bottom: 0.2rem;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--link-underline);
+  transition: border-color 0.35s ease, color 0.35s ease, text-shadow 0.35s ease;
+}
+
+.contact-email-underline:link,
+.contact-email-underline:visited,
+.contact-email-underline:active {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.contact-email-underline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--accent-light);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 0 10px var(--accent-light-dim), 0 0 20px rgba(56, 189, 248, 0.2);
+}
+
+.contact-email-underline:hover {
+  border-bottom-color: transparent;
+  color: var(--text);
+  text-shadow: 0 0 12px var(--accent-light-dim), 0 0 24px rgba(56, 189, 248, 0.15);
+}
+
+.contact-email-underline:hover::after {
+  transform: scaleX(1);
+}
+
 /* ========== Footer strip ========== */
 .block-footer-strip {
   min-height: 40vh;
