@@ -2633,6 +2633,10 @@ body {
     height: 2rem;
   }
 
+  .top-bar.nav-open .site-logo .site-logo-img {
+    height: 3rem;
+  }
+
   .header-brand-chrome {
     margin-left: 0.4rem;
     margin-right: 0;
@@ -2642,14 +2646,21 @@ body {
   }
 
   .header-brand-chrome-top {
-    font-size: 1rem;
+    font-size: 0.88rem;
     letter-spacing: 0.18em;
   }
 
   .header-brand-chrome-bottom {
-    font-size: 1.12rem;
+    font-size: 0.98rem;
     letter-spacing: 0.12em;
     margin-top: 0.1rem;
+  }
+
+  .top-bar.nav-open .header-brand-chrome-top,
+  .top-bar.nav-open .header-brand-chrome-bottom {
+    font-size: 1.25rem;
+    letter-spacing: 0.08em;
+    line-height: 0.95;
   }
 
   .hero-img {
@@ -2725,6 +2736,7 @@ body {
     flex-direction: column;
     align-items: flex-start;
     gap: 0;
+    padding-top: 1rem;
     padding-bottom: 0;
     width: 100%;
     max-width: 100%;
