@@ -1825,11 +1825,11 @@ body {
   }
 
   .mobile-nav-slash-open .mobile-nav-slash-fill {
-    animation: mobile-slash-open 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: mobile-slash-open 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 
   .mobile-nav-slash-close .mobile-nav-slash-fill {
-    animation: mobile-slash-close 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: mobile-slash-close 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 
   @keyframes mobile-slash-open {

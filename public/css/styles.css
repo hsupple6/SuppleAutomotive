@@ -2875,7 +2875,7 @@ body {
     display: none;
   }
 
-  /* Mobile nav: slash from top-left 45° (open = fill screen, close = reverse) */
+  /* Mobile nav: quick 45deg slash, aligned higher like desktop feel */
   .mobile-nav-slash {
     display: block;
     position: fixed;
@@ -2895,60 +2895,57 @@ body {
 
   .mobile-nav-slash-fill {
     position: absolute;
-    top: 0%;
-    left: -250%;
-    width: 200vmax;
-    height: 200vmax;
+    top: -32vh;
+    left: -140vw;
+    width: 170vmax;
+    height: 170vmax;
     transform-origin: 0 0;
     transform: rotate(-45deg) scale(0);
     background: var(--accent-light);
     box-shadow: 0 0 80px 20px rgba(56, 189, 248, 0.25);
+    will-change: transform, top, left, right, bottom;
   }
 
   .mobile-nav-slash-open .mobile-nav-slash-fill {
-    animation: mobile-slash-open 1.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: mobile-slash-open 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 
   .mobile-nav-slash-close .mobile-nav-slash-fill {
-    animation: mobile-slash-close 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: mobile-slash-close 0.14s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 
   @keyframes mobile-slash-open {
     0% {
       transform: rotate(-45deg) scale(0);
     }
-
-    80% {
-      transform: rotate(-45deg) scale(1.4);
-    }
     100% {
-      transform: rotate(-45deg) scale(1.6);
+      transform: rotate(-45deg) scale(1.2);
     }
   }
 
   @keyframes mobile-slash-close {
     0% {
-      top: 0;
-      left: -250%;
+      top: -32vh;
+      left: -140vw;
       right: auto;
       bottom: auto;
       transform-origin: 0 0;
-      transform: rotate(-45deg) scale(1.6);
+      transform: rotate(-45deg) scale(1.2);
     }
-    35% {
-      top: auto;
+    75% {
+      top: -34vh;
       left: auto;
-      right: -250vw;
-      bottom: 0;
-      transform-origin: 100% 100%;
-      transform: rotate(-45deg) scale(1.6);
+      right: -140vw;
+      bottom: auto;
+      transform-origin: 100% 0;
+      transform: rotate(-45deg) scale(1.2);
     }
     100% {
-      top: auto;
+      top: -34vh;
       left: auto;
-      right: -250vw;
-      bottom: 0;
-      transform-origin: 100% 100%;
+      right: -140vw;
+      bottom: auto;
+      transform-origin: 100% 0;
       transform: rotate(-45deg) scale(0);
     }
   }

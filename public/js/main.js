@@ -111,17 +111,22 @@
       done = true;
       window.location.href = href;
     }
-    var fallback = setTimeout(navigate, 2200);
+    var fallback = setTimeout(navigate, 1400);
     function onCloseEnd() {
       clearTimeout(fallback);
       navigate();
     }
-    function onOpenEnd() {
+    var closeStarted = false;
+    function startClose() {
+      if (closeStarted) return;
+      closeStarted = true;
       mobileNavSlash.classList.remove('mobile-nav-slash-open', 'mobile-nav-slash-behind');
       mobileNavSlash.classList.add('mobile-nav-slash-close');
       mobileNavSlashFill.addEventListener('animationend', onCloseEnd, { once: true });
     }
-    mobileNavSlashFill.addEventListener('animationend', onOpenEnd, { once: true });
+    mobileNavSlashFill.addEventListener('animationend', startClose, { once: true });
+    // Kick close a bit early so mobile does not sit on a blue full-screen hold.
+    setTimeout(startClose, 260);
     return true;
   }
 
