@@ -586,7 +586,7 @@
     window.addEventListener('resize', updateProcessUnderline);
   }
 
-  // Contact switch (Email / Phone) with animation
+  // Contact switch: service request (Email / SMS) uses #contactPreference; payment portal (Email / Phone) uses #paymentForm
   var contactSwitch = document.querySelector('.contact-switch');
   if (contactSwitch) {
     var options = contactSwitch.querySelectorAll('.contact-switch-option');
@@ -595,50 +595,87 @@
     var contactPreference = byId('contactPreference');
     var contactViaConsentLabel = byId('contactViaConsentLabel');
     var smsOption = contactSwitch.querySelector('.contact-switch-option[data-mode="sms"]');
+    var paymentForm = byId('paymentForm');
 
-    function phoneHasTenChars() {
-      var value = inputPhone && inputPhone.value ? String(inputPhone.value).trim() : '';
-      return value.length >= 10;
-    }
-
-    function refreshSmsAvailability() {
-      var smsAvailable = phoneHasTenChars();
-      if (smsOption) {
-        smsOption.disabled = !smsAvailable;
-        smsOption.setAttribute('aria-disabled', smsAvailable ? 'false' : 'true');
+    if (contactPreference) {
+      function phoneHasTenChars() {
+        var value = inputPhone && inputPhone.value ? String(inputPhone.value).trim() : '';
+        return value.length >= 10;
       }
-      if (!smsAvailable && contactPreference && contactPreference.value === 'sms') {
-        setMode('email');
-      }
-    }
 
-    function setMode(mode) {
-      if (mode === 'sms' && !phoneHasTenChars()) mode = 'email';
-      var isEmail = mode === 'email';
-      options.forEach(function (opt) {
-        opt.classList.toggle('active', opt.getAttribute('data-mode') === mode);
-        opt.setAttribute('aria-pressed', opt.getAttribute('data-mode') === mode);
+      function refreshSmsAvailability() {
+        var smsAvailable = phoneHasTenChars();
+        if (smsOption) {
+          smsOption.disabled = !smsAvailable;
+          smsOption.setAttribute('aria-disabled', smsAvailable ? 'false' : 'true');
+        }
+        if (!smsAvailable && contactPreference && contactPreference.value === 'sms') {
+          setMode('email');
+        }
+      }
+
+      function setMode(mode) {
+        if (mode === 'sms' && !phoneHasTenChars()) mode = 'email';
+        var isEmail = mode === 'email';
+        options.forEach(function (opt) {
+          opt.classList.toggle('active', opt.getAttribute('data-mode') === mode);
+          opt.setAttribute('aria-pressed', opt.getAttribute('data-mode') === mode);
+        });
+        contactPreference.value = isEmail ? 'email' : 'sms';
+        if (contactViaConsentLabel) {
+          contactViaConsentLabel.textContent = isEmail
+            ? 'It is okay to contact me via Email regarding this request.'
+            : 'It is okay to contact me via SMS regarding this request.';
+        }
+        if (inputEmail) inputEmail.setAttribute('required', 'required');
+        if (inputPhone) {
+          if (isEmail) inputPhone.removeAttribute('required');
+          else inputPhone.setAttribute('required', 'required');
+        }
+      }
+
+      options.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          setMode(btn.getAttribute('data-mode'));
+        });
       });
-      if (contactPreference) contactPreference.value = isEmail ? 'email' : 'sms';
-      if (contactViaConsentLabel) {
-        contactViaConsentLabel.textContent = isEmail
-          ? 'It is okay to contact me via Email regarding this request.'
-          : 'It is okay to contact me via SMS regarding this request.';
+      if (inputPhone) {
+        inputPhone.addEventListener('input', refreshSmsAvailability);
       }
-      if (inputEmail) inputEmail.setAttribute('required', 'required');
-      if (inputPhone) inputPhone.removeAttribute('required');
-    }
+      refreshSmsAvailability();
+      setMode('email');
+    } else if (paymentForm) {
+      var detailEmail = paymentForm.querySelector('.contact-detail-email');
+      var detailPhone = paymentForm.querySelector('.contact-detail-phone');
 
-    options.forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        setMode(btn.getAttribute('data-mode'));
+      function setPaymentContactMode(mode) {
+        var isEmail = mode === 'email';
+        options.forEach(function (opt) {
+          var m = opt.getAttribute('data-mode');
+          opt.classList.toggle('active', m === mode);
+          opt.setAttribute('aria-pressed', String(m === mode));
+        });
+        if (detailEmail) detailEmail.classList.toggle('is-hidden', !isEmail);
+        if (detailPhone) detailPhone.classList.toggle('is-hidden', isEmail);
+        if (inputEmail) {
+          inputEmail.disabled = !isEmail;
+          inputEmail.removeAttribute('required');
+          if (!isEmail) inputEmail.value = '';
+        }
+        if (inputPhone) {
+          inputPhone.disabled = isEmail;
+          inputPhone.removeAttribute('required');
+          if (isEmail) inputPhone.value = '';
+        }
+      }
+
+      options.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          setPaymentContactMode(btn.getAttribute('data-mode') || 'email');
+        });
       });
-    });
-    if (inputPhone) {
-      inputPhone.addEventListener('input', refreshSmsAvailability);
+      setPaymentContactMode('email');
     }
-    refreshSmsAvailability();
-    setMode('email');
   }
 
   function showFormMessage(form, text, isError) {

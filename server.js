@@ -236,6 +236,14 @@ function phoneLast10(str) {
   return digits.slice(-10);
 }
 
+/** Customers whose stored `phone` matches the given last-10 string after normalizing (ignores (), dashes, spaces, leading 1). */
+function customersMatchingPhoneLast10(rows, phoneDigits10) {
+  if (!phoneDigits10 || !rows || !rows.length) return [];
+  return rows.filter(function (row) {
+    return phoneLast10(String(row.phone || '')) === phoneDigits10;
+  });
+}
+
 function normalizeNameCompare(submitted, stored) {
   function norm(s) {
     return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -544,13 +552,38 @@ app.post('/api/payment-lookup', function (req, res) {
   getOrCreateShopAccount()
     .then(function (accountId) {
       if (!accountId) return Promise.reject(new Error('Database not ready'));
-      var q = supabase.from('customers').select('*').eq('account_id', accountId);
-      if (email) q = q.eq('email', email);
-      else q = q.eq('phone', phone);
-      return q.maybeSingle().then(function (c) {
-        if (!c.data) return Promise.reject(new Error('No customer found for that email or phone. Submit a request service first to create your account.'));
-        return { accountId: accountId, customer: c.data };
-      });
+      if (email) {
+        return supabase
+          .from('customers')
+          .select('*')
+          .eq('account_id', accountId)
+          .eq('email', email)
+          .maybeSingle()
+          .then(function (c) {
+            if (!c.data) {
+              return Promise.reject(new Error('No customer found for that email or phone. Submit a request service first to create your account.'));
+            }
+            return { accountId: accountId, customer: c.data };
+          });
+      }
+      if (!phone || String(phone).length < 10) {
+        return Promise.reject(new Error('Enter a valid 10-digit phone number.'));
+      }
+      return supabase
+        .from('customers')
+        .select('*')
+        .eq('account_id', accountId)
+        .then(function (cres) {
+          if (cres.error) return Promise.reject(new Error(cres.error.message || 'Lookup failed'));
+          var matches = customersMatchingPhoneLast10(cres.data || [], phone);
+          if (matches.length === 0) {
+            return Promise.reject(new Error('No customer found for that email or phone. Submit a request service first to create your account.'));
+          }
+          if (matches.length > 1) {
+            return Promise.reject(new Error('Multiple records match this phone. Please use email for lookup or contact the shop.'));
+          }
+          return { accountId: accountId, customer: matches[0] };
+        });
     })
     .then(function (_) {
       if (!normalizeNameCompare(name, _.customer.name)) {

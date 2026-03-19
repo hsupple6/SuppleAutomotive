@@ -551,8 +551,17 @@
         var phoneRaw = (!isEmail && phoneEl) ? phoneEl.value.trim() : '';
         var phone = phoneRaw ? phoneLast10(phoneRaw) : '';
         if (!email && !phone) {
-          var msgEl = document.getElementById('paymentFormMessage');
-          if (msgEl) { msgEl.textContent = 'Please enter your email or phone number.'; msgEl.hidden = false; msgEl.className = 'form-message form-message-error'; }
+          var msgEl0 = document.getElementById('paymentFormMessage');
+          if (msgEl0) { msgEl0.textContent = 'Please enter your email or phone number.'; msgEl0.hidden = false; msgEl0.className = 'form-message form-message-error'; }
+          return;
+        }
+        if (!isEmail && phone && phone.length < 10) {
+          var msgElShort = document.getElementById('paymentFormMessage');
+          if (msgElShort) {
+            msgElShort.textContent = 'Enter a full 10-digit phone number. Dashes, spaces, and parentheses are fine.';
+            msgElShort.hidden = false;
+            msgElShort.className = 'form-message form-message-error';
+          }
           return;
         }
         var msgEl = document.getElementById('paymentFormMessage');
