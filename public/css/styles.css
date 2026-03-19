@@ -146,6 +146,7 @@ body {
   width: auto;
   display: block;
   object-fit: contain;
+  transition: height 0.6s ease;
 }
 
 .site-logo-img-main { opacity: 1; transition: opacity 0.6s ease; }
@@ -2550,10 +2551,14 @@ body {
   .nav-toggle {
     display: flex;
     order: 2;
+    margin-left: auto;
   }
 
   .top-bar {
     flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 0;
     padding: 1rem 1.25rem;
   }
 
@@ -2561,22 +2566,28 @@ body {
     font-size: 1.5rem;
   }
   .top-bar .site-logo .site-logo-img {
+    height: 4rem;
+  }
+
+  .top-bar.scrolled .site-logo .site-logo-img {
     height: 2rem;
   }
 
   .header-brand-chrome {
-    margin-left: 0.6rem;
-    margin-right: 0.5rem;
+    margin-left: 0.4rem;
+    margin-right: 0;
     transform: translateY(1px);
+    align-items: flex-start;
+    text-align: left;
   }
 
   .header-brand-chrome-top {
-    font-size: 0.85rem;
+    font-size: 1rem;
     letter-spacing: 0.18em;
   }
 
   .header-brand-chrome-bottom {
-    font-size: 0.95rem;
+    font-size: 1.12rem;
     letter-spacing: 0.12em;
     margin-top: 0.1rem;
   }
