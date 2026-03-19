@@ -19,6 +19,8 @@
     .search-row button:hover { background: #444; }
     .btn-doc-release { padding: 0.6rem 1rem; background: #2a3d2a; color: #c8e6c9; border: 1px solid #3d5c3d; font: inherit; font-weight: 500; cursor: pointer; border-radius: 4px; white-space: nowrap; }
     .btn-doc-release:hover { background: #354f35; }
+    .btn-email-template { padding: 0.6rem 1rem; background: #243347; color: #cfe3ff; border: 1px solid #355074; font: inherit; font-weight: 500; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+    .btn-email-template:hover { background: #2d4260; }
     #customerList { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
     .customer-card { background: #1a1a1a; border: 1px solid #333; border-radius: 6px; padding: 1rem 1.25rem; cursor: pointer; transition: border-color 0.2s; }
     .customer-card:hover { border-color: #555; }
@@ -106,6 +108,7 @@
     .starter-field-label-text { display: block; font-size: 0.85rem; color: #bbb; margin-bottom: 0.35rem; }
     .starter-field-input { width: 100%; max-width: 100%; }
     .starter-field-input-text { max-width: 420px; }
+    .email-template-editor { width: 100%; min-height: 360px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.8rem; line-height: 1.4; }
     @media (max-width: 480px) {
       body { padding: 0.75rem; }
       .customer-card { padding: 0.9rem 1rem; }
@@ -130,6 +133,7 @@
       <button type="button" id="searchBtn">Search</button>
     </div>
     <button type="button" class="btn-doc-release" id="documentReleaseBtn">Document release</button>
+    <button type="button" class="btn-email-template" id="emailTemplateBtn">Email template</button>
   </div>
   <div id="customerList"></div>
 
@@ -185,6 +189,40 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="customerEmailBackdrop" style="display: none;"></div>
+  <div class="modal-box" id="customerEmailBox" style="display: none; max-width: 680px;">
+    <button type="button" class="modal-close" id="customerEmailClose" aria-label="Close">&times;</button>
+    <h2 style="margin:0 0 0.75rem;font-size:1.1rem;">Email customer</h2>
+    <div class="form-row one">
+      <div>
+        <label for="customerEmailSubject">Subject</label>
+        <input type="text" id="customerEmailSubject" placeholder="Subject">
+      </div>
+    </div>
+    <div class="form-row one" style="margin-top:0.75rem;">
+      <div>
+        <label for="customerEmailMessage">Message</label>
+        <textarea id="customerEmailMessage" rows="8" placeholder="Write your message..."></textarea>
+      </div>
+    </div>
+    <div style="margin-top:0.85rem;display:flex;gap:0.5rem;justify-content:flex-end;">
+      <button type="button" class="btn btn-ghost" id="customerEmailCancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="customerEmailSubmit">Submit</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="emailTemplateBackdrop" style="display: none;"></div>
+  <div class="modal-box" id="emailTemplateBox" style="display: none; max-width: 900px;">
+    <button type="button" class="modal-close" id="emailTemplateClose" aria-label="Close">&times;</button>
+    <h2 style="margin:0 0 0.5rem;font-size:1.1rem;">Email template editor</h2>
+    <p style="font-size:0.82rem;color:#999;margin:0 0 0.75rem;">Edit the HTML template used for outgoing emails. Keep placeholders like <code>{{HEADING}}</code>, <code>{{INTRO}}</code>, <code>{{BODY_HTML}}</code>, <code>{{ACTION_BLOCK}}</code>, <code>{{LOGO_URL}}</code>, <code>{{HEADER_TOP}}</code>, <code>{{HEADER_BOTTOM}}</code>, <code>{{OWNER_NAME}}</code>, and <code>{{SIGNATURE_BLOCK}}</code>.</p>
+    <textarea id="emailTemplateEditor" class="email-template-editor" spellcheck="false"></textarea>
+    <div style="margin-top:0.75rem;display:flex;gap:0.5rem;align-items:center;">
+      <button type="button" class="btn btn-primary" id="emailTemplateSaveBtn">Save template</button>
+      <button type="button" class="btn btn-ghost" id="emailTemplateReloadBtn">Reload</button>
+    </div>
+  </div>
+
   <script>
   (function () {
     var customerList = document.getElementById('customerList');
@@ -202,6 +240,21 @@
     var invoiceSubmitCustomer = document.getElementById('invoiceSubmitCustomer');
     var invoiceContextServiceId = null;
     var invoiceContextCustomerId = null;
+    var customerEmailBackdrop = document.getElementById('customerEmailBackdrop');
+    var customerEmailBox = document.getElementById('customerEmailBox');
+    var customerEmailClose = document.getElementById('customerEmailClose');
+    var customerEmailCancel = document.getElementById('customerEmailCancel');
+    var customerEmailSubmit = document.getElementById('customerEmailSubmit');
+    var customerEmailSubject = document.getElementById('customerEmailSubject');
+    var customerEmailMessage = document.getElementById('customerEmailMessage');
+    var customerEmailTargetId = null;
+    var emailTemplateBtn = document.getElementById('emailTemplateBtn');
+    var emailTemplateBackdrop = document.getElementById('emailTemplateBackdrop');
+    var emailTemplateBox = document.getElementById('emailTemplateBox');
+    var emailTemplateClose = document.getElementById('emailTemplateClose');
+    var emailTemplateEditor = document.getElementById('emailTemplateEditor');
+    var emailTemplateSaveBtn = document.getElementById('emailTemplateSaveBtn');
+    var emailTemplateReloadBtn = document.getElementById('emailTemplateReloadBtn');
 
     function api(path, opts) {
       opts = opts || {};
@@ -213,8 +266,21 @@
         credentials: 'same-origin'
       }).then(function (r) {
         if (r.status === 204) return null;
-        return r.json().then(function (d) {
-          if (!r.ok) throw new Error(d.error || 'Request failed');
+        return r.text().then(function (raw) {
+          var contentType = r.headers.get('content-type') || '';
+          var isJson = contentType.indexOf('application/json') !== -1;
+          var d = null;
+          if (isJson && raw) {
+            try {
+              d = JSON.parse(raw);
+            } catch (e) {
+              d = null;
+            }
+          }
+          if (!r.ok) {
+            var detail = d && d.error ? d.error : (raw ? raw.slice(0, 120) : 'Request failed');
+            throw new Error(detail);
+          }
           return d;
         });
       });
@@ -320,6 +386,22 @@
       modalBackdrop.classList.remove('open');
     }
 
+    function openCustomerEmailModal(customerId, customerName) {
+      customerEmailTargetId = customerId;
+      if (customerEmailSubject) customerEmailSubject.value = '';
+      if (customerEmailMessage) customerEmailMessage.value = '';
+      if (customerEmailBackdrop) { customerEmailBackdrop.style.display = 'block'; customerEmailBackdrop.classList.add('open'); }
+      if (customerEmailBox) customerEmailBox.style.display = 'block';
+      if (customerEmailSubject) customerEmailSubject.focus();
+      showToast('Composing email to ' + (customerName || 'customer'));
+    }
+
+    function closeCustomerEmailModal() {
+      customerEmailTargetId = null;
+      if (customerEmailBackdrop) { customerEmailBackdrop.style.display = 'none'; customerEmailBackdrop.classList.remove('open'); }
+      if (customerEmailBox) customerEmailBox.style.display = 'none';
+    }
+
     function renderModal(data) {
       var c = data.customer || {};
       var vehicles = data.vehicles || [];
@@ -332,7 +414,7 @@
       html += '<div class="form-row"><div><label>Phone</label><input type="tel" id="editPhone" value="' + formatPhone(c.phone) + '"></div><div><label>Address</label><input type="text" id="editAddress" value="' + esc(c.address_line1 || '') + '" placeholder="Street"></div></div>';
       html += '<div class="form-row"><div><label>City</label><input type="text" id="editCity" value="' + esc(c.city || '') + '"></div><div><label>State / ZIP</label><input type="text" id="editStateZip" value="' + esc([c.state, c.postal_code].filter(Boolean).join(' ')) + '"></div></div>';
       html += '<div class="form-row one"><div><label>Notes</label><textarea id="editNotes" rows="2">' + esc(c.notes || '') + '</textarea></div></div>';
-      html += '<button type="button" class="btn btn-primary" id="saveDetails">Save details</button></div>';
+      html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;"><button type="button" class="btn btn-primary" id="saveDetails">Save details</button><button type="button" class="btn btn-ghost" id="emailCustomerBtn">Email customer</button></div></div>';
 
       html += '<div class="section"><div class="section-title">Vehicles</div>';
       vehicles.forEach(function (v) {
@@ -436,6 +518,12 @@
           openCustomer(customerId);
         }).catch(function (e) { showToast(e.message, true); });
       });
+      var emailCustomerBtn = document.getElementById('emailCustomerBtn');
+      if (emailCustomerBtn) {
+        emailCustomerBtn.addEventListener('click', function () {
+          openCustomerEmailModal(customerId, c.name);
+        });
+      }
 
       document.getElementById('addVehicle').addEventListener('click', function () {
         showPrompt('Year', new Date().getFullYear()).then(function (y) {
@@ -670,6 +758,23 @@
       invoiceContextServiceId = null;
     }
 
+    function openEmailTemplateModal() {
+      if (emailTemplateBackdrop) { emailTemplateBackdrop.style.display = 'block'; emailTemplateBackdrop.classList.add('open'); }
+      if (emailTemplateBox) emailTemplateBox.style.display = 'block';
+      loadEmailTemplate();
+    }
+
+    function closeEmailTemplateModal() {
+      if (emailTemplateBackdrop) { emailTemplateBackdrop.style.display = 'none'; emailTemplateBackdrop.classList.remove('open'); }
+      if (emailTemplateBox) emailTemplateBox.style.display = 'none';
+    }
+
+    function loadEmailTemplate() {
+      api('/email-template').then(function (data) {
+        if (emailTemplateEditor) emailTemplateEditor.value = (data && data.template) ? data.template : '';
+      }).catch(function (err) { showToast(err.message || 'Could not load email template', true); });
+    }
+
     if (invoiceModalClose) invoiceModalClose.addEventListener('click', closeInvoiceModal);
     if (invoiceModalBackdrop) invoiceModalBackdrop.addEventListener('click', closeInvoiceModal);
 
@@ -692,6 +797,47 @@
           })
           .catch(function (e) { showToast(e.message || 'Submit failed', true); })
           .finally(function () { invoiceSubmitCustomer.disabled = false; });
+      });
+    }
+    if (customerEmailClose) customerEmailClose.addEventListener('click', closeCustomerEmailModal);
+    if (customerEmailCancel) customerEmailCancel.addEventListener('click', closeCustomerEmailModal);
+    if (customerEmailBackdrop) customerEmailBackdrop.addEventListener('click', closeCustomerEmailModal);
+    if (customerEmailSubmit) {
+      customerEmailSubmit.addEventListener('click', function () {
+        if (!customerEmailTargetId) return;
+        var subject = customerEmailSubject ? customerEmailSubject.value.trim() : '';
+        var message = customerEmailMessage ? customerEmailMessage.value.trim() : '';
+        if (!subject) { showToast('Subject is required', true); return; }
+        if (!message) { showToast('Message is required', true); return; }
+        customerEmailSubmit.disabled = true;
+        api('/customers/' + encodeURIComponent(customerEmailTargetId) + '/send-email', {
+          method: 'POST',
+          body: { subject: subject, message: message }
+        })
+          .then(function () {
+            showToast('Email sent.');
+            closeCustomerEmailModal();
+          })
+          .catch(function (err) {
+            showToast(err.message || 'Could not send email', true);
+          })
+          .finally(function () {
+            customerEmailSubmit.disabled = false;
+          });
+      });
+    }
+    if (emailTemplateBtn) emailTemplateBtn.addEventListener('click', openEmailTemplateModal);
+    if (emailTemplateClose) emailTemplateClose.addEventListener('click', closeEmailTemplateModal);
+    if (emailTemplateBackdrop) emailTemplateBackdrop.addEventListener('click', closeEmailTemplateModal);
+    if (emailTemplateReloadBtn) emailTemplateReloadBtn.addEventListener('click', loadEmailTemplate);
+    if (emailTemplateSaveBtn) {
+      emailTemplateSaveBtn.addEventListener('click', function () {
+        var nextTemplate = emailTemplateEditor ? emailTemplateEditor.value : '';
+        emailTemplateSaveBtn.disabled = true;
+        api('/email-template', { method: 'PUT', body: { template: nextTemplate } })
+          .then(function () { showToast('Email template saved.'); })
+          .catch(function (err) { showToast(err.message || 'Could not save template', true); })
+          .finally(function () { emailTemplateSaveBtn.disabled = false; });
       });
     }
 

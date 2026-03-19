@@ -9,6 +9,7 @@ var fs = require('fs');
 var buildInvoicePdfBuffer = require(path.join(__dirname, 'lib', 'invoice-pdf')).buildInvoicePdfBuffer;
 var agreementPdf = require(path.join(__dirname, 'lib', 'agreement-pdf'));
 var signedAgreementPdf = require(path.join(__dirname, 'lib', 'signed-agreement-pdf'));
+var emailNotifications = require(path.join(__dirname, 'lib', 'email-notifications'));
 var express = require('express');
 var session = require('express-session');
 var multer = require('multer');
@@ -343,6 +344,32 @@ function formatSmsBody(data) {
   return 'Service request:\n' + text;
 }
 
+function trySend(promiseFactory, label) {
+  try {
+    return Promise.resolve()
+      .then(promiseFactory)
+      .catch(function (err) {
+        console.warn(label + ':', err && err.message ? err.message : err);
+      });
+  } catch (err) {
+    console.warn(label + ':', err && err.message ? err.message : err);
+    return Promise.resolve();
+  }
+}
+
+function sendAccountUpdateByCustomerId(customerId, updateSummary) {
+  if (!customerId) return Promise.resolve();
+  return supabase.from('customers').select('email').eq('id', customerId).maybeSingle().then(function (cRes) {
+    var customerEmail = cRes && cRes.data ? cRes.data.email : '';
+    return trySend(function () {
+      return emailNotifications.sendAccountUpdatedAlert({
+        email: customerEmail,
+        updateSummary: updateSummary
+      });
+    }, 'Account update email failed');
+  });
+}
+
 app.post('/api/submit-service-request', function (req, res) {
   function sendError(status, message) {
     res.status(status).json({ ok: false, error: message });
@@ -350,16 +377,17 @@ app.post('/api/submit-service-request', function (req, res) {
 
   try {
     var body = req.body || {};
-    var toEmail = body.toEmail;
-    var toPhone = body.toPhone;
-    if (!toEmail || !toPhone) {
-      return sendError(400, 'Missing toEmail or toPhone');
+    var toEmail = body.toEmail || body.email;
+    if (!toEmail) {
+      return sendError(400, 'Missing toEmail');
     }
 
     var formData = {
       name: body.name,
       email: body.email,
       phone: body.phone,
+      contact_preference: String(body.contact_preference || 'email').toLowerCase() === 'sms' ? 'sms' : 'email',
+      contact_via_ok: !!body.contact_via_ok,
       vehicle_year: body.vehicle_year,
       vehicle_make: body.vehicle_make,
       vehicle_model: body.vehicle_model,
@@ -369,6 +397,19 @@ app.post('/api/submit-service-request', function (req, res) {
       preferred_time: body.preferred_time,
       notes: body.notes
     };
+
+    if (!formData.name || !String(formData.name).trim()) {
+      return sendError(400, 'Name is required');
+    }
+    if (!formData.email || !String(formData.email).trim()) {
+      return sendError(400, 'Email is required');
+    }
+    if (!formData.contact_via_ok) {
+      return sendError(400, 'Please confirm contact permission');
+    }
+    if (formData.contact_preference === 'sms' && (!formData.phone || String(formData.phone).trim().length < 10)) {
+      return sendError(400, 'Phone number must be at least 10 characters when SMS is selected');
+    }
 
     var dbPromise;
     if (!supabase) {
@@ -455,48 +496,16 @@ app.post('/api/submit-service-request', function (req, res) {
       })();
     }
 
-    var emailHtml = '<pre style="font-family:sans-serif;white-space:pre-wrap;">' +
-      formatFormBody(formData).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
-    var smsBody = formatSmsBody(formData);
+    var ownerAlertPromise = trySend(function () {
+      return emailNotifications.sendOwnerServiceRequestAlert(
+        Object.assign({}, formData, { toEmail: toEmail })
+      );
+    }, 'Owner service-request email failed');
+    var customerConfirmationPromise = trySend(function () {
+      return emailNotifications.sendServiceRequestConfirmation(formData);
+    }, 'Customer confirmation email failed');
 
-    var hasEmail = false;
-    var hasSms = false;
-    // Re-enable: set hasEmail = !!(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL); hasSms = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER);
-
-    var emailPromise = Promise.resolve();
-    if (hasEmail) {
-      var Resend = require('resend').Resend || require('resend');
-      var resend = new Resend(process.env.RESEND_API_KEY);
-      emailPromise = resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL,
-        to: toEmail,
-        subject: 'Service request — ' + (formData.name || 'Unknown'),
-        html: emailHtml
-      }).then(function (r) {
-        if (r && r.error) {
-          var msg = (r.error.message || r.error) || 'Resend error';
-          throw new Error('Email: ' + (typeof msg === 'string' ? msg : JSON.stringify(msg)));
-        }
-        return r;
-      });
-    }
-
-    var smsPromise = Promise.resolve();
-    if (hasSms) {
-      var twilio = require('twilio');
-      var twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-      var toE164 = toPhone.replace(/\s/g, '').replace(/[^\d+]/g, '');
-      if (!toE164.match(/^\+/)) toE164 = '+' + toE164;
-      smsPromise = twilioClient.messages.create({
-        from: process.env.TWILIO_FROM_NUMBER,
-        to: toE164,
-        body: smsBody
-      }).then(function () {}, function (err) {
-        throw new Error('SMS: ' + (err.message || 'Twilio error'));
-      });
-    }
-
-    Promise.all([dbPromise, emailPromise, smsPromise])
+    Promise.all([dbPromise, ownerAlertPromise, customerConfirmationPromise])
       .then(function () {
         res.json({ ok: true });
       })
@@ -1032,6 +1041,61 @@ function getAccountThen(req, res, fn) {
     });
 }
 
+app.get('/supplecontrols/api/email-template', controlsApiAuth, function (req, res) {
+  try {
+    res.json({ template: emailNotifications.getEmailTemplate() });
+  } catch (err) {
+    controlsJson(err, res);
+  }
+});
+
+app.put('/supplecontrols/api/email-template', controlsApiAuth, function (req, res) {
+  try {
+    var body = req.body || {};
+    var template = body.template;
+    if (typeof template !== 'string') return res.status(400).json({ error: 'template is required' });
+    var saved = emailNotifications.saveEmailTemplate(template);
+    res.json({ ok: true, template: saved });
+  } catch (err) {
+    controlsJson(err, res);
+  }
+});
+
+app.post('/supplecontrols/api/customers/:id/send-email', controlsApiAuth, function (req, res) {
+  var customerId = req.params.id;
+  var body = req.body || {};
+  var subject = String(body.subject || '').trim();
+  var message = String(body.message || '').trim();
+  if (!subject) return res.status(400).json({ error: 'Subject is required' });
+  if (!message) return res.status(400).json({ error: 'Message is required' });
+
+  getAccountThen(req, res, function (accountId) {
+    supabase
+      .from('customers')
+      .select('id, name, email')
+      .eq('id', customerId)
+      .eq('account_id', accountId)
+      .single()
+      .then(function (cRes) {
+        if (cRes.error || !cRes.data) return res.status(404).json({ error: 'Customer not found' });
+        var customer = cRes.data;
+        if (!customer.email) return res.status(400).json({ error: 'Customer has no email on file' });
+        return emailNotifications.sendManualCustomerEmail({
+          email: customer.email,
+          subject: subject,
+          message: message,
+          heading: subject,
+          intro: 'Hello ' + (customer.name || 'there') + ','
+        }).then(function () {
+          res.json({ ok: true });
+        });
+      })
+      .catch(function (err) {
+        controlsJson(err, res);
+      });
+  });
+});
+
 // List customers (search by name/email/phone), sort by updated_at desc
 app.get('/supplecontrols/api/customers', controlsApiAuth, function (req, res) {
   getAccountThen(req, res, function (accountId) {
@@ -1211,6 +1275,7 @@ app.patch('/supplecontrols/api/customers/:id', controlsApiAuth, function (req, r
       if (Object.keys(upd).length === 0) return res.json({ ok: true });
       supabase.from('customers').update(upd).eq('id', customerId).select().single().then(function (u) {
         if (u.error) return controlsJson(new Error(u.error.message), res);
+        sendAccountUpdateByCustomerId(customerId, 'Your customer profile details were updated.');
         res.json(u.data);
       });
     });
@@ -1240,6 +1305,7 @@ app.post('/supplecontrols/api/customers/:id/vehicles', controlsApiAuth, function
         notes: body.notes ? String(body.notes).trim() : null
       }).select().single().then(function (v) {
         if (v.error) return controlsJson(new Error(v.error.message), res);
+        sendAccountUpdateByCustomerId(customerId, 'A vehicle was added to your account.');
         res.status(201).json(v.data);
       });
     });
@@ -1251,7 +1317,7 @@ app.patch('/supplecontrols/api/vehicles/:id', controlsApiAuth, function (req, re
   var vehicleId = req.params.id;
   var body = req.body || {};
   getAccountThen(req, res, function (accountId) {
-    supabase.from('vehicles').select('id').eq('id', vehicleId).eq('account_id', accountId).single().then(function (r) {
+    supabase.from('vehicles').select('id, customer_id').eq('id', vehicleId).eq('account_id', accountId).single().then(function (r) {
       if (r.error || !r.data) return res.status(404).json({ error: 'Vehicle not found' });
       var upd = {};
       ['year', 'make', 'model', 'trim', 'vin', 'license_plate', 'mileage', 'color', 'notes'].forEach(function (k) {
@@ -1262,6 +1328,7 @@ app.patch('/supplecontrols/api/vehicles/:id', controlsApiAuth, function (req, re
       if (Object.keys(upd).length === 0) return res.json(r.data);
       supabase.from('vehicles').update(upd).eq('id', vehicleId).select().single().then(function (u) {
         if (u.error) return controlsJson(new Error(u.error.message), res);
+        sendAccountUpdateByCustomerId(r.data.customer_id, 'A vehicle record on your account was updated.');
         res.json(u.data);
       });
     });
@@ -1272,10 +1339,11 @@ app.patch('/supplecontrols/api/vehicles/:id', controlsApiAuth, function (req, re
 app.delete('/supplecontrols/api/vehicles/:id', controlsApiAuth, function (req, res) {
   var vehicleId = req.params.id;
   getAccountThen(req, res, function (accountId) {
-    supabase.from('vehicles').select('id').eq('id', vehicleId).eq('account_id', accountId).single().then(function (r) {
+    supabase.from('vehicles').select('id, customer_id').eq('id', vehicleId).eq('account_id', accountId).single().then(function (r) {
       if (r.error || !r.data) return res.status(404).json({ error: 'Vehicle not found' });
       supabase.from('vehicles').delete().eq('id', vehicleId).then(function (d) {
         if (d.error) return controlsJson(new Error(d.error.message), res);
+        sendAccountUpdateByCustomerId(r.data.customer_id, 'A vehicle was removed from your account.');
         res.status(204).send();
       });
     });
@@ -1301,6 +1369,7 @@ app.post('/supplecontrols/api/customers/:id/services', controlsApiAuth, function
         bill_status: (body.bill_status === 'posted' ? 'posted' : 'pending')
       }).select().single().then(function (s) {
         if (s.error) return controlsJson(new Error(s.error.message), res);
+        sendAccountUpdateByCustomerId(customerId, 'A service record was added to your account.');
         var billStatus = s.data.bill_status || 'pending';
         res.status(201).json(Object.assign({}, s.data, { parts: [], payments: [], total: s.data.service_price, paidTotal: 0, balance: billStatus === 'posted' ? s.data.service_price : 0, paymentStatus: 'unpaid', bill_status: billStatus }));
       });
@@ -1313,7 +1382,7 @@ app.patch('/supplecontrols/api/services/:id', controlsApiAuth, function (req, re
   var serviceId = req.params.id;
   var body = req.body || {};
   getAccountThen(req, res, function (accountId) {
-    supabase.from('services').select('id').eq('id', serviceId).eq('account_id', accountId).single().then(function (r) {
+    supabase.from('services').select('id, customer_id').eq('id', serviceId).eq('account_id', accountId).single().then(function (r) {
       if (r.error || !r.data) return res.status(404).json({ error: 'Service not found' });
       var upd = {};
       ['vehicle_id', 'status', 'service_name', 'service_price', 'notes', 'reference_number', 'scheduled_at', 'completed_at', 'bill_status'].forEach(function (k) {
@@ -1322,6 +1391,7 @@ app.patch('/supplecontrols/api/services/:id', controlsApiAuth, function (req, re
       if (Object.keys(upd).length === 0) return res.json(r.data);
       supabase.from('services').update(upd).eq('id', serviceId).select().single().then(function (u) {
         if (u.error) return controlsJson(new Error(u.error.message), res);
+        sendAccountUpdateByCustomerId(r.data.customer_id, 'A service record on your account was updated.');
         res.json(u.data);
       });
     });
@@ -1332,10 +1402,11 @@ app.patch('/supplecontrols/api/services/:id', controlsApiAuth, function (req, re
 app.delete('/supplecontrols/api/services/:id', controlsApiAuth, function (req, res) {
   var serviceId = req.params.id;
   getAccountThen(req, res, function (accountId) {
-    supabase.from('services').select('id').eq('id', serviceId).eq('account_id', accountId).single().then(function (r) {
+    supabase.from('services').select('id, customer_id').eq('id', serviceId).eq('account_id', accountId).single().then(function (r) {
       if (r.error || !r.data) return res.status(404).json({ error: 'Service not found' });
       supabase.from('services').delete().eq('id', serviceId).then(function (d) {
         if (d.error) return controlsJson(new Error(d.error.message), res);
+        sendAccountUpdateByCustomerId(r.data.customer_id, 'A service record was removed from your account.');
         res.status(204).send();
       });
     });
@@ -1347,7 +1418,7 @@ app.post('/supplecontrols/api/services/:id/parts', controlsApiAuth, function (re
   var serviceId = req.params.id;
   var body = req.body || {};
   getAccountThen(req, res, function (accountId) {
-    supabase.from('services').select('id').eq('id', serviceId).eq('account_id', accountId).single().then(function (r) {
+    supabase.from('services').select('id, customer_id').eq('id', serviceId).eq('account_id', accountId).single().then(function (r) {
       if (r.error || !r.data) return res.status(404).json({ error: 'Service not found' });
       supabase.from('service_parts').insert({
         service_id: serviceId,
@@ -1358,6 +1429,7 @@ app.post('/supplecontrols/api/services/:id/parts', controlsApiAuth, function (re
         notes: body.notes ? String(body.notes).trim() : null
       }).select().single().then(function (p) {
         if (p.error) return controlsJson(new Error(p.error.message), res);
+        sendAccountUpdateByCustomerId(r.data.customer_id, 'Parts were added to a service on your account.');
         res.status(201).json(p.data);
       });
     });
@@ -1372,7 +1444,7 @@ app.patch('/supplecontrols/api/service-parts/:id', controlsApiAuth, function (re
     supabase.from('service_parts').select('id, service_id').eq('id', partId).then(function (r) {
       if (!r.data || r.data.length === 0) return res.status(404).json({ error: 'Part not found' });
       var part = r.data[0];
-      supabase.from('services').select('id').eq('id', part.service_id).eq('account_id', accountId).single().then(function (s) {
+      supabase.from('services').select('id, customer_id').eq('id', part.service_id).eq('account_id', accountId).single().then(function (s) {
         if (s.error || !s.data) return res.status(404).json({ error: 'Service not found' });
         var upd = {};
         ['part_name', 'part_number', 'quantity', 'unit_price', 'notes'].forEach(function (k) {
@@ -1381,6 +1453,7 @@ app.patch('/supplecontrols/api/service-parts/:id', controlsApiAuth, function (re
         if (Object.keys(upd).length === 0) return res.json(part);
         supabase.from('service_parts').update(upd).eq('id', partId).select().single().then(function (u) {
           if (u.error) return controlsJson(new Error(u.error.message), res);
+          sendAccountUpdateByCustomerId(s.data.customer_id, 'Parts were updated for a service on your account.');
           res.json(u.data);
         });
       });
@@ -1395,10 +1468,11 @@ app.delete('/supplecontrols/api/service-parts/:id', controlsApiAuth, function (r
     supabase.from('service_parts').select('id, service_id').eq('id', partId).then(function (r) {
       if (!r.data || r.data.length === 0) return res.status(404).json({ error: 'Part not found' });
       var serviceId = r.data[0].service_id;
-      supabase.from('services').select('id').eq('id', serviceId).eq('account_id', accountId).single().then(function (s) {
+      supabase.from('services').select('id, customer_id').eq('id', serviceId).eq('account_id', accountId).single().then(function (s) {
         if (s.error || !s.data) return res.status(404).json({ error: 'Service not found' });
         supabase.from('service_parts').delete().eq('id', partId).then(function (d) {
           if (d.error) return controlsJson(new Error(d.error.message), res);
+          sendAccountUpdateByCustomerId(s.data.customer_id, 'Parts were removed from a service on your account.');
           res.status(204).send();
         });
       });
@@ -1415,7 +1489,7 @@ app.post('/supplecontrols/api/services/:id/payments', controlsApiAuth, function 
   var amount = parseFloat(body.amount);
   if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
   getAccountThen(req, res, function (accountId) {
-    supabase.from('services').select('id').eq('id', serviceId).eq('account_id', accountId).single().then(function (r) {
+    supabase.from('services').select('id, customer_id').eq('id', serviceId).eq('account_id', accountId).single().then(function (r) {
       if (r.error || !r.data) return res.status(404).json({ error: 'Service not found' });
       supabase.from('service_payments').insert({
         service_id: serviceId,
@@ -1425,6 +1499,7 @@ app.post('/supplecontrols/api/services/:id/payments', controlsApiAuth, function 
       }).select().single().then(function (p) {
         if (p.error) return controlsJson(new Error(p.error.message), res);
         updateServicePaymentStatus(serviceId).then(function () {
+          sendAccountUpdateByCustomerId(r.data.customer_id, 'A payment was posted to your account.');
           res.status(201).json(p.data);
         });
       });
@@ -1728,6 +1803,11 @@ app.post('/supplecontrols/api/customers/:customerId/signature-bundles/release', 
                 })
                 .then(function (docIns) {
                   if (docIns.error) throw new Error(docIns.error.message);
+                  trySend(function () {
+                    return emailNotifications.sendDocumentsAssignedAlert({
+                      email: releaseCustomerRow && releaseCustomerRow.email
+                    });
+                  }, 'Documents assigned alert email failed');
                   res.status(201).json({
                     ok: true,
                     bundleKey: safeKey,
@@ -1766,6 +1846,11 @@ app.post('/supplecontrols/api/customers/:customerId/signature-bundles/release', 
           return supabase.from('customer_signature_bundle_docs').insert(rows);
         }).then(function (docIns) {
           if (docIns.error) throw new Error(docIns.error.message);
+          trySend(function () {
+            return emailNotifications.sendDocumentsAssignedAlert({
+              email: releaseCustomerRow && releaseCustomerRow.email
+            });
+          }, 'Documents assigned alert email failed');
           res.status(201).json({ ok: true, bundleKey: safeKey, documentCount: files.length, source: 'pdf' });
         });
       })

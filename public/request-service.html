@@ -75,26 +75,32 @@
             <input type="text" name="name" required placeholder="Your full name" autocomplete="name" class="form-input">
           </label>
 
+          <label class="form-field">
+            <span class="form-label">Email <em>required</em></span>
+            <input type="email" name="email" required placeholder="you@example.com" autocomplete="email" class="form-input" id="formEmail">
+          </label>
+
+          <label class="form-field">
+            <span class="form-label">Phone</span>
+            <input type="tel" name="phone" placeholder="(805) 555-0000" autocomplete="tel" class="form-input" id="formPhone">
+          </label>
+
           <div class="form-field form-field-contact">
-            <span class="form-label">Contact</span>
-            <div class="contact-switch" role="group" aria-label="Contact by email or phone">
+            <span class="form-label">Preferred follow-up method</span>
+            <div class="contact-switch" role="group" aria-label="Preferred follow-up method">
               <button type="button" class="contact-switch-option contact-switch-email active" data-mode="email" aria-pressed="true">
                 <span class="contact-switch-text">Email</span>
               </button>
-              <button type="button" class="contact-switch-option contact-switch-phone" data-mode="phone" aria-pressed="false">
-                <span class="contact-switch-text">Phone</span>
+              <button type="button" class="contact-switch-option contact-switch-phone" data-mode="sms" aria-pressed="false" disabled>
+                <span class="contact-switch-text">SMS</span>
               </button>
             </div>
-            <div class="contact-detail-wrap">
-              <label class="form-field contact-detail contact-detail-email">
-                <span class="form-label visually-hidden">Email</span>
-                <input type="email" name="email" placeholder="you@example.com" autocomplete="email" class="form-input" id="formEmail">
-              </label>
-              <label class="form-field contact-detail contact-detail-phone is-hidden">
-                <span class="form-label visually-hidden">Phone</span>
-                <input type="tel" name="phone" placeholder="(805) 555-0000" autocomplete="tel" class="form-input" id="formPhone">
-              </label>
-            </div>
+            <input type="hidden" name="contact_preference" id="contactPreference" value="email">
+            <label class="form-checkbox">
+              <input type="checkbox" name="contact_via_ok" id="contactViaOk" required>
+              <span class="form-checkbox-indicator" aria-hidden="true"></span>
+              <span id="contactViaConsentLabel" class="form-checkbox-label">It is okay to contact me via Email regarding this request.</span>
+            </label>
           </div>
 
           <div class="form-row form-row-3">

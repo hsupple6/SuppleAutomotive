@@ -4,7 +4,7 @@
   var CONFIG = window.SUPPLE_CONFIG || {};
   var phoneDisplay = '+1 (805) 443-4181';
   var businessName = 'Supple Automotive';
-  var tagline = 'Professional auto care you can trust.';
+  var tagline = 'Professional Mobile Auto Repair You Can Trust.';
 
   if (CONFIG.phone) phoneDisplay = CONFIG.phone;
   if (CONFIG.businessName) businessName = CONFIG.businessName;
@@ -411,11 +411,11 @@
       }
       var submitBtn = serviceForm.querySelector('.form-submit');
       var apiBase = (CONFIG.apiBaseUrl != null && CONFIG.apiBaseUrl !== '') ? CONFIG.apiBaseUrl.replace(/\/$/, '') : '';
+      var enteredEmail = (serviceForm.querySelector('[name="email"]') || {}).value || '';
       var payload = {
-        toEmail: CONFIG.email && CONFIG.email.trim() ? CONFIG.email.trim() : '',
-        toPhone: CONFIG.phone && CONFIG.phone.trim() ? CONFIG.phone.trim() : '',
+        toEmail: enteredEmail,
         name: (serviceForm.querySelector('[name="name"]') || {}).value || '',
-        email: (serviceForm.querySelector('[name="email"]') || {}).value || '',
+        email: enteredEmail,
         phone: (serviceForm.querySelector('[name="phone"]') || {}).value || '',
         vehicle_year: (serviceForm.querySelector('[name="vehicle_year"]') || {}).value || '',
         vehicle_make: (serviceForm.querySelector('[name="vehicle_make"]') || {}).value || '',
@@ -426,8 +426,8 @@
         preferred_time: (serviceForm.querySelector('[name="preferred_time"]') || {}).value || '',
         notes: (serviceForm.querySelector('[name="notes"]') || {}).value || ''
       };
-      if (!payload.toEmail || !payload.toPhone) {
-        showFormMessage(serviceForm, 'Contact email and phone are not set in config.', true);
+      if (!payload.toEmail) {
+        showFormMessage(serviceForm, 'Email is required.', true);
         return;
       }
       var btnText = submitBtn ? submitBtn.textContent : '';

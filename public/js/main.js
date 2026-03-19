@@ -590,23 +590,43 @@
   var contactSwitch = document.querySelector('.contact-switch');
   if (contactSwitch) {
     var options = contactSwitch.querySelectorAll('.contact-switch-option');
-    var detailEmail = document.querySelector('.contact-detail-email');
-    var detailPhone = document.querySelector('.contact-detail-phone');
     var inputEmail = byId('formEmail');
     var inputPhone = byId('formPhone');
+    var contactPreference = byId('contactPreference');
+    var contactViaConsentLabel = byId('contactViaConsentLabel');
+    var smsOption = contactSwitch.querySelector('.contact-switch-option[data-mode="sms"]');
+
+    function phoneHasTenChars() {
+      var value = inputPhone && inputPhone.value ? String(inputPhone.value).trim() : '';
+      return value.length >= 10;
+    }
+
+    function refreshSmsAvailability() {
+      var smsAvailable = phoneHasTenChars();
+      if (smsOption) {
+        smsOption.disabled = !smsAvailable;
+        smsOption.setAttribute('aria-disabled', smsAvailable ? 'false' : 'true');
+      }
+      if (!smsAvailable && contactPreference && contactPreference.value === 'sms') {
+        setMode('email');
+      }
+    }
 
     function setMode(mode) {
+      if (mode === 'sms' && !phoneHasTenChars()) mode = 'email';
       var isEmail = mode === 'email';
       options.forEach(function (opt) {
         opt.classList.toggle('active', opt.getAttribute('data-mode') === mode);
         opt.setAttribute('aria-pressed', opt.getAttribute('data-mode') === mode);
       });
-      if (detailEmail) detailEmail.classList.toggle('is-hidden', !isEmail);
-      if (detailPhone) detailPhone.classList.toggle('is-hidden', isEmail);
-      if (inputEmail) inputEmail.removeAttribute('required');
+      if (contactPreference) contactPreference.value = isEmail ? 'email' : 'sms';
+      if (contactViaConsentLabel) {
+        contactViaConsentLabel.textContent = isEmail
+          ? 'It is okay to contact me via Email regarding this request.'
+          : 'It is okay to contact me via SMS regarding this request.';
+      }
+      if (inputEmail) inputEmail.setAttribute('required', 'required');
       if (inputPhone) inputPhone.removeAttribute('required');
-      if (isEmail && inputEmail) inputEmail.setAttribute('required', 'required');
-      if (!isEmail && inputPhone) inputPhone.setAttribute('required', 'required');
     }
 
     options.forEach(function (btn) {
@@ -614,6 +634,10 @@
         setMode(btn.getAttribute('data-mode'));
       });
     });
+    if (inputPhone) {
+      inputPhone.addEventListener('input', refreshSmsAvailability);
+    }
+    refreshSmsAvailability();
     setMode('email');
   }
 
@@ -643,12 +667,14 @@
       }
       var submitBtn = serviceForm.querySelector('.form-submit');
       var apiBase = (CONFIG.apiBaseUrl != null && CONFIG.apiBaseUrl !== '') ? CONFIG.apiBaseUrl.replace(/\/$/, '') : '';
+      var enteredEmail = (serviceForm.querySelector('[name="email"]') || {}).value || '';
       var payload = {
-        toEmail: CONFIG.email && CONFIG.email.trim() ? CONFIG.email.trim() : '',
-        toPhone: CONFIG.phone && CONFIG.phone.trim() ? CONFIG.phone.trim() : '',
+        toEmail: enteredEmail,
         name: (serviceForm.querySelector('[name="name"]') || {}).value || '',
-        email: (serviceForm.querySelector('[name="email"]') || {}).value || '',
+        email: enteredEmail,
         phone: (serviceForm.querySelector('[name="phone"]') || {}).value || '',
+        contact_preference: (serviceForm.querySelector('[name="contact_preference"]') || {}).value || 'email',
+        contact_via_ok: !!((serviceForm.querySelector('[name="contact_via_ok"]') || {}).checked),
         vehicle_year: (serviceForm.querySelector('[name="vehicle_year"]') || {}).value || '',
         vehicle_make: (serviceForm.querySelector('[name="vehicle_make"]') || {}).value || '',
         vehicle_model: (serviceForm.querySelector('[name="vehicle_model"]') || {}).value || '',
@@ -658,8 +684,8 @@
         preferred_time: (serviceForm.querySelector('[name="preferred_time"]') || {}).value || '',
         notes: (serviceForm.querySelector('[name="notes"]') || {}).value || ''
       };
-      if (!payload.toEmail || !payload.toPhone) {
-        showFormMessage(serviceForm, 'Contact email and phone are not set in config.', true);
+      if (!payload.toEmail) {
+        showFormMessage(serviceForm, 'Email is required.', true);
         return;
       }
       var btnText = submitBtn ? submitBtn.textContent : '';

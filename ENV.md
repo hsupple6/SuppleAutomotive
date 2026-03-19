@@ -20,20 +20,43 @@ This document lists all configurable values used across the website. Edit `confi
 
 After changing `config.js`, refresh the page. No build step required.
 
-## Server env (form → email + SMS)
+## Server env (Resend email notifications)
 
-When you run `npm start` (or `node server.js`), the request-service form is sent to the config `email` (via Resend) and config `phone` (via Twilio). Set these in a `.env` file in the project root (see `.env.example`).
+When you run `npm start` (or `node server.js`), email notifications are sent through Resend for:
+- service request confirmation to customers,
+- service request alerts to your business inbox,
+- document-assigned alerts (without attachments),
+- account update alerts.
+
+Set these in `.env` at the project root.
 
 | Variable | Description |
 |----------|-------------|
 | `RESEND_API_KEY` | Resend API key (resend.com). Required for email. |
-| `RESEND_FROM_EMAIL` | Sender address (e.g. `onboarding@resend.dev` or your verified domain). |
-| `TWILIO_ACCOUNT_SID` | Twilio account SID. Required for SMS. |
-| `TWILIO_AUTH_TOKEN` | Twilio auth token. |
-| `TWILIO_FROM_NUMBER` | Twilio phone number used to send SMS (e.g. `+15551234567`). |
+| `RESEND_FROM_EMAIL` | Sender address (recommended: `hlsbusiness@suppleautomotive.com` from a verified domain). |
+| `APP_BASE_URL` | Public base URL used in email links/images (example: `https://suppleautomotive.com`). |
+| `PAYMENT_PORTAL_URL` | Optional override for the payment portal link in emails. Defaults to `${APP_BASE_URL}/payment.html`. |
+| `EMAIL_LOGO_URL` | Optional override for the email logo URL. Defaults to `${APP_BASE_URL}/logo/logo.png`. |
+| `EMAIL_FROM_NAME` | Optional display name for sender identity. |
+| `EMAIL_OWNER_NAME` | Name shown in email sign-off. |
+| `EMAIL_SIGNATURE_TITLE` | Signature title line (for example: `Owner, Supple Automotive`). |
+| `EMAIL_SIGNATURE_PHONE` | Signature phone line. |
+| `EMAIL_SIGNATURE_EMAIL` | Signature email line. |
 | `PORT` | Optional. Server port (default `3000`). |
 
-At least one of email (Resend) or SMS (Twilio) must be configured or the submit endpoint returns 503.
+### Signature image pool
+
+You can place transparent PNG signature files in:
+
+- `public/signatures/`
+
+Use filenames:
+
+- `Signature1.png` through `Signature9.png`
+
+For each outgoing email, the server picks a random existing file from that set and places it below:
+
+- `Regards, Supple Automotive`
 
 ## Supabase (database)
 
