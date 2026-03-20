@@ -2939,7 +2939,7 @@ body {
     display: none;
   }
 
-  /* Mobile nav: quick 45deg slash, aligned higher like desktop feel */
+  /* Mobile nav: quick 45deg slash (anchor lowered so blue reads lower on screen) */
   .mobile-nav-slash {
     display: block;
     position: fixed;
@@ -2959,7 +2959,7 @@ body {
 
   .mobile-nav-slash-fill {
     position: absolute;
-    top: -32vh;
+    top: 38vh;
     left: -140vw;
     width: 170vmax;
     height: 170vmax;
@@ -2989,7 +2989,7 @@ body {
 
   @keyframes mobile-slash-close {
     0% {
-      top: -32vh;
+      top: 38vh;
       left: -140vw;
       right: auto;
       bottom: auto;
@@ -2997,7 +2997,7 @@ body {
       transform: rotate(-45deg) scale(1.2);
     }
     75% {
-      top: -34vh;
+      top: 36vh;
       left: auto;
       right: -140vw;
       bottom: auto;
@@ -3005,7 +3005,7 @@ body {
       transform: rotate(-45deg) scale(1.2);
     }
     100% {
-      top: -34vh;
+      top: 36vh;
       left: auto;
       right: -140vw;
       bottom: auto;

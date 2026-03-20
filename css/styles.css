@@ -1815,9 +1815,9 @@ body {
   .mobile-nav-slash-fill {
     position: absolute;
     top: 28vh;
-    left: 0;
+    left: -140vw;
     width: 200vmax;
-    height: 200vmax;
+    height: 240vmax;
     transform-origin: 0 0;
     transform: rotate(-45deg) scale(0);
     background: var(--accent-light);
