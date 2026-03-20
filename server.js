@@ -814,7 +814,7 @@ function finalizeSignedAgreementPdf(accountId, customerId, bundleId, bundleKey, 
             }
             var pub = supabase.storage.from('invoices').getPublicUrl(pathKey);
             var url = pub && pub.data && pub.data.publicUrl;
-            if (!url) return;
+            if (!url) return null;
             return supabase
               .from('customer_signature_bundles')
               .update({ signed_pdf_url: url })
@@ -834,6 +834,7 @@ function finalizeSignedAgreementPdf(accountId, customerId, bundleId, bundleKey, 
                 if (ins.error) {
                   console.error('customer_documents insert after sign:', ins.error.message || ins.error);
                 }
+                return url;
               });
           });
       };
@@ -883,6 +884,7 @@ app.post('/api/complete-signature-bundle', function (req, res) {
   var customerIdForSign = null;
   var bundleKeyForSign = null;
   var customerNameForSign = '';
+  var customerEmailForSign = '';
   getOrCreateShopAccount()
     .then(function (accountId) {
       if (!accountId) throw new Error('Account not ready');
@@ -908,6 +910,7 @@ app.post('/api/complete-signature-bundle', function (req, res) {
               throw e3;
             }
             customerNameForSign = cr.data.name || '';
+            customerEmailForSign = cr.data.email || '';
             return supabase.from('customer_signature_bundles').update({
               status: 'completed',
               signature_mode: mode,
@@ -932,7 +935,14 @@ app.post('/api/complete-signature-bundle', function (req, res) {
         customerNameForSign,
         mode,
         payloadStr
-      ).then(function () {
+      ).then(function (signedPdfUrl) {
+        trySend(function () {
+          return emailNotifications.sendSignedDocumentAlert({
+            email: customerEmailForSign,
+            documentType: String(bundleKeyForSign || '').toLowerCase() === 'estimate' ? 'estimate' : 'agreement',
+            documentUrl: signedPdfUrl || ''
+          });
+        }, 'Signed document email failed');
         res.json({ ok: true });
       });
     })
