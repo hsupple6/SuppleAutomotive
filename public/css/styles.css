@@ -1125,6 +1125,71 @@ body {
   background: var(--bg);
 }
 
+.block-car-washing {
+  min-height: auto;
+  padding: 0 2rem 5rem;
+  background: var(--bg);
+}
+
+.car-washing-inner {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.car-washing-title {
+  font-size: clamp(1.7rem, 3.8vw, 2.35rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0.4rem 0 1.8rem;
+}
+
+.car-washing-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  max-width: 760px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.car-washing-card {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.35rem 1.45rem;
+}
+
+.car-washing-card-tier {
+  display: block;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.car-washing-card-price {
+  display: block;
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.65rem;
+}
+
+.car-washing-card-services {
+  margin: 0;
+  padding-left: 1.05rem;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.car-washing-card-services li + li {
+  margin-top: 0.2rem;
+}
+
 .services-grid-inner {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
