@@ -953,7 +953,11 @@
             var valVal = valEl ? valEl.value.trim() : '';
             if (nameVal || valVal) {
               if (f.collectionType === 'service') rows.push({ name: nameVal, labor_hours: valVal });
-              else rows.push({ name: nameVal, cost: valVal });
+              else {
+                var laborHoursEl = rowEl.querySelector('[data-role="labor-hours"]');
+                var laborHoursVal = laborHoursEl ? laborHoursEl.value.trim() : '';
+                rows.push({ name: nameVal, cost: valVal, labor_hours: laborHoursVal });
+              }
             }
           });
           fields[f.key] = rows;
@@ -981,6 +985,7 @@
         var nameLabel = collectionType === 'service' ? 'Service name' : 'Part name';
         var valueLabel = collectionType === 'service' ? 'Labor hours' : 'Cost';
         var valuePlaceholder = collectionType === 'service' ? '1.5' : '125';
+        var hasPartLaborField = collectionType === 'part';
         var html = '' +
           '<div data-collection-key="' + esc(key) + '" class="starter-collection-wrap">' +
           '<div class="starter-collection-rows"></div>' +
@@ -993,22 +998,27 @@
             if (!wrap) return;
             var rowsWrap = wrap.querySelector('.starter-collection-rows');
             var addBtn = wrap.querySelector('.starter-collection-add');
-            function addRow(initialName, initialValue) {
+            function addRow(initialName, initialValue, initialLaborHours) {
               var row = document.createElement('div');
               row.className = 'starter-collection-row';
               row.style.display = 'grid';
-              row.style.gridTemplateColumns = '1fr 140px auto';
+              row.style.gridTemplateColumns = hasPartLaborField ? '1fr 110px 110px auto' : '1fr 140px auto';
               row.style.gap = '0.5rem';
               row.style.marginBottom = '0.5rem';
               row.innerHTML =
                 '<input type="text" data-role="name" aria-label="' + esc(nameLabel) + '" placeholder="' + esc(nameLabel) + '" value="' + esc(initialName || '').replace(/"/g, '&quot;') + '" />' +
                 '<input type="text" data-role="value" aria-label="' + esc(valueLabel) + '" placeholder="' + esc(valuePlaceholder) + '" value="' + esc(initialValue || '').replace(/"/g, '&quot;') + '" />' +
+                (hasPartLaborField
+                  ? '<input type="text" data-role="labor-hours" aria-label="Labor hours" placeholder="Labor hrs" value="' + esc(initialLaborHours || '').replace(/"/g, '&quot;') + '" />'
+                  : '') +
                 '<button type="button" class="btn btn-ghost" data-role="remove">Remove</button>';
               var nameInput = row.querySelector('[data-role="name"]');
               var valueInput = row.querySelector('[data-role="value"]');
+              var laborHoursInput = row.querySelector('[data-role="labor-hours"]');
               var removeBtn = row.querySelector('[data-role="remove"]');
               if (nameInput) nameInput.addEventListener('input', invalidateStarterPreview);
               if (valueInput) valueInput.addEventListener('input', invalidateStarterPreview);
+              if (laborHoursInput) laborHoursInput.addEventListener('input', invalidateStarterPreview);
               if (removeBtn) {
                 removeBtn.addEventListener('click', function () {
                   row.remove();
@@ -1017,10 +1027,10 @@
               }
               rowsWrap.appendChild(row);
             }
-            addRow('', '');
+            addRow('', '', '');
             if (addBtn) {
               addBtn.addEventListener('click', function () {
-                addRow('', '');
+                addRow('', '', '');
                 invalidateStarterPreview();
               });
             }
