@@ -168,13 +168,18 @@
       <div class="payment-sign-modal-content">
         <h2 class="payment-sign-modal-title" id="paymentSignModalTitle">Documents</h2>
         <p class="payment-sign-progress" id="paymentSignProgress"></p>
+        <p class="payment-sign-open-pdf-wrap" id="paymentSignOpenPdfWrap" hidden>
+          <a class="payment-sign-open-pdf" id="paymentSignOpenPdfTab" target="_blank" rel="noopener noreferrer">Open PDF in new tab</a>
+        </p>
         <div class="payment-sign-pdf-wrap" id="paymentSignPdfWrap">
           <div class="payment-sign-pdf-scroll" id="paymentSignPdfScroll">
             <div class="payment-sign-pdf-pages" id="paymentSignPdfPages"></div>
           </div>
           <p class="payment-sign-scroll-hint" id="paymentSignScrollHint">Scroll to the end of this document to continue.</p>
+
         </div>
         <div class="payment-sign-step-agree" id="paymentSignStepAgree" hidden>
+
           <p class="payment-sign-agree-lead">By signing below, you confirm that you have read each document in this packet in full and agree to all applicable terms and provisions.</p>
           <div class="payment-sign-mode-tabs" role="tablist">
             <button type="button" class="payment-sign-tab active" id="paymentSignTabType" role="tab" aria-selected="true">Type</button>
@@ -517,15 +522,31 @@
       var invoices = dashboard._customerInvoices || [];
       var docs = dashboard._customerDocuments || [];
       var svcs = dashboard._paymentServices || [];
+      function docsRowOpenPdf(url, titleHtml, metaHtml) {
+        var u = String(url || '').trim();
+        if (!u) {
+          return '<div class="payment-docs-row payment-docs-row--disabled"><div class="payment-docs-row-main"><span class="payment-docs-row-title">' + titleHtml + '</span><span class="payment-docs-row-meta">' + metaHtml + '</span></div><span class="payment-docs-row-link">PDF unavailable</span></div>';
+        }
+        return (
+          '<a class="payment-docs-row payment-docs-row--link" href="' +
+          escapeHtml(u) +
+          '" target="_blank" rel="noopener noreferrer">' +
+          '<div class="payment-docs-row-main"><span class="payment-docs-row-title">' +
+          titleHtml +
+          '</span><span class="payment-docs-row-meta">' +
+          metaHtml +
+          '</span></div><span class="payment-docs-row-link">Open PDF</span></a>'
+        );
+      }
       var invHtml = invoices.length ? invoices.map(function (inv) {
         var svc = escapeHtml(serviceNameForInvoice(inv.service_id, svcs));
         var num = escapeHtml(inv.invoice_number || 'Invoice');
         var when = inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '—';
-        return '<div class="payment-docs-row"><div class="payment-docs-row-main"><span class="payment-docs-row-title">' + num + '</span><span class="payment-docs-row-meta">' + svc + ' · ' + escapeHtml(when) + '</span></div><a class="payment-docs-row-link" href="' + escapeHtml(inv.pdf_url) + '" target="_blank" rel="noopener">View PDF</a></div>';
+        return docsRowOpenPdf(inv.pdf_url, num, svc + ' · ' + escapeHtml(when));
       }).join('') : '<p class="payment-docs-empty">No invoices yet.</p>';
       var docHtml = docs.length ? docs.map(function (d) {
         var when = d.created_at ? new Date(d.created_at).toLocaleDateString() : '—';
-        return '<div class="payment-docs-row"><div class="payment-docs-row-main"><span class="payment-docs-row-title">' + escapeHtml(d.title || 'Document') + '</span><span class="payment-docs-row-meta">' + escapeHtml(when) + '</span></div><a class="payment-docs-row-link" href="' + escapeHtml(d.pdf_url) + '" target="_blank" rel="noopener">View PDF</a></div>';
+        return docsRowOpenPdf(d.pdf_url, escapeHtml(d.title || 'Document'), escapeHtml(when));
       }).join('') : '<p class="payment-docs-empty">No documents yet.</p>';
       documentsModalBody.innerHTML =
         '<details class="payment-docs-fold" open>' +
@@ -647,11 +668,42 @@
         return { name: c.name, email: c.email || '', phone: c.phone || '' };
       }
 
+      function safePdfTabUrl(u) {
+        u = String(u || '').trim();
+        if (!u) return '';
+        var lower = u.toLowerCase();
+        if (lower.indexOf('https://') === 0 || lower.indexOf('http://') === 0) return u;
+        return '';
+      }
+
+      /** phase: 'read' = above/below viewer; 'agree' = signature step only; omit/'hidden' = all off */
+      function updateSignOpenPdfLink(doc, phase) {
+        var url = doc && doc.pdf_url ? safePdfTabUrl(doc.pdf_url) : '';
+        var readVisible = !!url && phase === 'read';
+        var agreeVisible = !!url && phase === 'agree';
+        var pairs = [
+          { wrap: document.getElementById('paymentSignOpenPdfWrap'), a: document.getElementById('paymentSignOpenPdfTab'), show: readVisible },
+          { wrap: document.getElementById('paymentSignOpenPdfWrapUnder'), a: document.getElementById('paymentSignOpenPdfTabUnder'), show: readVisible },
+          { wrap: document.getElementById('paymentSignOpenPdfWrapAgree'), a: document.getElementById('paymentSignOpenPdfTabAgree'), show: agreeVisible }
+        ];
+        pairs.forEach(function (p) {
+          if (!p.wrap || !p.a) return;
+          if (p.show) {
+            p.a.setAttribute('href', url);
+            p.wrap.removeAttribute('hidden');
+          } else {
+            p.wrap.setAttribute('hidden', '');
+            p.a.removeAttribute('href');
+          }
+        });
+      }
+
       function closeSignModal() {
         if (signModal) signModal.setAttribute('hidden', '');
         signState.bundle = null;
         if (signPdfPages) signPdfPages.innerHTML = '';
         if (signError) { signError.hidden = true; signError.textContent = ''; }
+        updateSignOpenPdfLink(null, 'hidden');
       }
 
       function setReadStep() {
@@ -695,6 +747,9 @@
         if (signScrollHint) signScrollHint.hidden = true;
         if (signProgress) signProgress.textContent = 'Add your signature below to complete.';
         if (signModalTitle) signModalTitle.textContent = 'Sign agreement';
+        var agreeDocs = (signState.bundle && signState.bundle.documents) || [];
+        var lastDoc = agreeDocs.length ? agreeDocs[agreeDocs.length - 1] : null;
+        updateSignOpenPdfLink(lastDoc, 'agree');
       }
 
       function updateSignFooter() {
@@ -743,14 +798,22 @@
                   var base = page.getViewport({ scale: 1 });
                   var scale = Math.min(1.35, w / base.width);
                   var viewport = page.getViewport({ scale: scale });
+                  var outputScale = Math.min(window.devicePixelRatio || 1, 3);
                   var canvas = document.createElement('canvas');
                   var ctx = canvas.getContext('2d');
-                  canvas.height = viewport.height;
-                  canvas.width = viewport.width;
+                  canvas.width = Math.floor(viewport.width * outputScale);
+                  canvas.height = Math.floor(viewport.height * outputScale);
+                  canvas.style.width = Math.floor(viewport.width) + 'px';
+                  canvas.style.height = Math.floor(viewport.height) + 'px';
                   canvas.style.display = 'block';
                   canvas.style.margin = '0 auto 14px';
                   canvas.style.maxWidth = '100%';
-                  return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
+                  var transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+                  return page.render({
+                    canvasContext: ctx,
+                    viewport: viewport,
+                    transform: transform
+                  }).promise.then(function () {
                     wrap.appendChild(canvas);
                   });
                 });
@@ -781,6 +844,7 @@
         if (signProgress) {
           signProgress.textContent = 'Document ' + (index + 1) + ' of ' + docs.length + (doc.title ? ' — ' + doc.title : '');
         }
+        updateSignOpenPdfLink(doc, 'read');
         updateSignFooter();
         return fetch(apiBase + '/api/signable-pdf', {
           method: 'POST',

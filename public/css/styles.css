@@ -3471,8 +3471,27 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem 1rem;
-  padding: 0.65rem 0;
+  padding: 0.85rem 0;
+  min-height: 48px;
   border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: rgba(56, 189, 248, 0.15);
+  touch-action: manipulation;
+}
+
+a.payment-docs-row--link {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+a.payment-docs-row--link:active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.payment-docs-row--disabled {
+  opacity: 0.65;
+  cursor: default;
 }
 
 .payment-docs-row:last-child {
@@ -3504,10 +3523,34 @@ body {
   color: var(--accent, #c9a227);
   text-decoration: none;
   white-space: nowrap;
+  flex-shrink: 0;
+  align-self: center;
 }
 
-.payment-docs-row-link:hover {
+a.payment-docs-row--link .payment-docs-row-link {
   text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.payment-docs-row-link:hover,
+a.payment-docs-row--link:hover .payment-docs-row-link {
+  text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  a.payment-docs-row--link {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+  }
+
+  a.payment-docs-row--link .payment-docs-row-main {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  a.payment-docs-row--link .payment-docs-row-link {
+    margin-top: 0.15rem;
+  }
 }
 
 .payment-docs-empty {
@@ -3634,7 +3677,38 @@ body {
 .payment-sign-progress {
   font-size: 0.8rem;
   color: var(--text-muted);
+  margin: 0 0 0.35rem;
+}
+
+.payment-sign-open-pdf-wrap {
   margin: 0 0 0.75rem;
+}
+
+.payment-sign-open-pdf-wrap--under {
+  margin: 0.65rem 0 0;
+  padding-top: 0.25rem;
+}
+
+.payment-sign-open-pdf-wrap--agree {
+  margin: 0 0 1rem;
+}
+
+.payment-sign-open-pdf {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.35rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--accent, #38bdf8);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  -webkit-tap-highlight-color: rgba(56, 189, 248, 0.2);
+  touch-action: manipulation;
+}
+
+.payment-sign-open-pdf:hover {
+  opacity: 0.92;
 }
 
 .payment-sign-pdf-wrap {

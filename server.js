@@ -271,7 +271,7 @@ function fetchPendingSignatureBundlesForCustomer(customerId) {
       var ids = bundles.map(function (b) { return b.id; });
       return supabase
         .from('customer_signature_bundle_docs')
-        .select('id, bundle_id, title, sort_order')
+        .select('id, bundle_id, title, sort_order, pdf_url')
         .in('bundle_id', ids)
         .order('sort_order', { ascending: true })
         .then(function (dRes) {
@@ -280,7 +280,7 @@ function fetchPendingSignatureBundlesForCustomer(customerId) {
           var byBundle = {};
           docs.forEach(function (d) {
             if (!byBundle[d.bundle_id]) byBundle[d.bundle_id] = [];
-            byBundle[d.bundle_id].push({ id: d.id, title: d.title });
+            byBundle[d.bundle_id].push({ id: d.id, title: d.title, pdf_url: d.pdf_url || '' });
           });
           return bundles
             .map(function (b) {
