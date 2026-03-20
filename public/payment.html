@@ -120,6 +120,7 @@
           <p class="payment-pending-signatures-text">You have paperwork awaiting your electronic signature. Please review and sign to complete your file.</p>
           <button type="button" class="payment-pending-signatures-cta" id="paymentPendingSignaturesBtn">Sign now</button>
         </div>
+        <p id="paymentSignNowHint" class="payment-pending-signatures-hint" role="status" aria-live="polite" hidden></p>
       </div>
       <div class="payment-dashboard-inner">
         <aside class="payment-vehicles-block" id="paymentVehiclesBlock">
@@ -327,6 +328,11 @@
       dashboard._customerDocuments = data.documents || [];
       dashboard._pendingSignatureBundles = data.pendingSignatureBundles || [];
       var sigB = document.getElementById('paymentPendingSignaturesBanner');
+      var signHint = document.getElementById('paymentSignNowHint');
+      if (signHint) {
+        signHint.textContent = '';
+        signHint.hidden = true;
+      }
       if (sigB) {
         if (dashboard._pendingSignatureBundles.length) sigB.removeAttribute('hidden');
         else sigB.setAttribute('hidden', '');
@@ -789,9 +795,22 @@
       }
 
       function openSignWizard() {
+        var hintEl = document.getElementById('paymentSignNowHint');
+        if (hintEl) {
+          hintEl.textContent = '';
+          hintEl.hidden = true;
+        }
         var d = document.getElementById('paymentDashboard');
         var bundles = (d && d._pendingSignatureBundles) || [];
-        if (!bundles.length || !signModal) return;
+        if (!signModal) return;
+        if (!bundles.length) {
+          if (hintEl) {
+            hintEl.textContent =
+              'Nothing to open — try looking up your account again, or refresh the page if you already finished signing.';
+            hintEl.hidden = false;
+          }
+          return;
+        }
         signState.bundle = bundles[0];
         setReadStep();
         if (signTypeInput) signTypeInput.value = '';

@@ -1041,8 +1041,16 @@
         )
           .then(function (r) {
             if (!r.ok) {
-              return r.json().then(function (d) {
-                throw new Error(d.error || 'Preview failed');
+              return r.text().then(function (raw) {
+                var d = null;
+                if (raw) {
+                  try {
+                    d = JSON.parse(raw);
+                  } catch (e) {
+                    d = null;
+                  }
+                }
+                throw new Error((d && d.error) || (raw ? raw.slice(0, 200) : '') || 'Preview failed');
               });
             }
             return r.blob();
@@ -1064,7 +1072,16 @@
 
     if (starterWizardSubmitBtn) {
       starterWizardSubmitBtn.addEventListener('click', function () {
-        if (!starterWizardCustomerId || starterWizardSubmitBtn.disabled) return;
+        if (!starterWizardCustomerId) {
+          showToast('Session expired — close this window and pick the customer again in Document release.', true);
+          return;
+        }
+        if (starterWizardSubmitBtn.disabled) {
+          showStarterErr(
+            'Click “Generate doc (preview)” first. If you changed any field after previewing, generate the preview again before submitting.'
+          );
+          return;
+        }
         starterWizardSubmitBtn.disabled = true;
         fetch(
           '/supplecontrols/api/customers/' + encodeURIComponent(starterWizardCustomerId) + '/signature-bundles/release',
@@ -1076,13 +1093,23 @@
           }
         )
           .then(function (r) {
-            return r.json().then(function (d) {
-              if (!r.ok) throw new Error(d.error || 'Release failed');
+            return r.text().then(function (raw) {
+              var d = null;
+              if (raw) {
+                try {
+                  d = JSON.parse(raw);
+                } catch (parseErr) {
+                  d = null;
+                }
+              }
+              if (!r.ok) {
+                throw new Error((d && d.error) || (raw ? raw.slice(0, 200) : '') || 'Release failed');
+              }
               return d;
             });
           })
           .then(function (d) {
-            showToast('Released ' + (d.documentCount || 0) + ' document(s). Customer will see a notice in the payment portal.');
+            showToast('Released ' + (d && d.documentCount ? d.documentCount : 0) + ' document(s). Customer will see a notice in the payment portal.');
             closeStarterWizard();
             closeDocReleaseModal();
           })

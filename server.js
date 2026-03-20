@@ -1706,8 +1706,9 @@ app.post(
         .then(function (c) {
           if (c.error || !c.data) {
             res.status(404).json({ error: 'Customer not found' });
-            return null;
+            return;
           }
+          var cust = c.data;
           return supabase
             .from('vehicles')
             .select('*')
@@ -1716,16 +1717,18 @@ app.post(
             .limit(1)
             .maybeSingle()
             .then(function (vr) {
-              return agreementPdf.buildAgreementPdfBuffer(c.data, vr.data && !vr.error ? vr.data : null, {
+              return agreementPdf.buildAgreementPdfBuffer(cust, vr.data && !vr.error ? vr.data : null, {
                 releaseFields: agreementPdf.normalizeAgreementReleaseFields(fields)
               });
+            })
+            .then(function (pdfBuf) {
+              if (!Buffer.isBuffer(pdfBuf)) {
+                throw new Error('Agreement PDF could not be generated');
+              }
+              res.setHeader('Content-Type', 'application/pdf');
+              res.setHeader('Cache-Control', 'private, no-store');
+              res.send(pdfBuf);
             });
-        })
-        .then(function (pdfBuf) {
-          if (!Buffer.isBuffer(pdfBuf)) return;
-          res.setHeader('Content-Type', 'application/pdf');
-          res.setHeader('Cache-Control', 'private, no-store');
-          res.send(pdfBuf);
         })
         .catch(function (err) {
           if (!res.headersSent) controlsJson(err, res);
