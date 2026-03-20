@@ -156,14 +156,15 @@
     <div class="doc-release-actions" id="docReleaseActions" style="display: none;">
       <div style="font-size:0.85rem;margin-bottom:0.5rem;">Selected: <strong id="docReleaseSelectedName"></strong></div>
       <button type="button" class="btn-starter" id="docReleaseStarterBtn">Starter Docs</button>
+      <button type="button" class="btn-starter" id="docReleaseEstimateBtn">Create &amp; Send Estimate</button>
     </div>
   </div>
 
   <div class="modal-backdrop" id="starterWizardBackdrop" style="display: none; z-index: 10002;">
     <div class="modal-box" id="starterWizardBox" style="max-width: 720px; max-height: 92vh; overflow: auto;">
       <button type="button" class="modal-close" id="starterWizardClose" aria-label="Close">&times;</button>
-      <h2 style="margin: 0 0 0.5rem; font-size: 1.1rem;">Starter agreement</h2>
-      <p style="font-size: 0.8rem; color: #999; margin: 0 0 1rem;">Fill every required field (labor rate, diagnostic fee, warranty days, etc.). Addendum is optional. Generate a preview, review the PDF, then submit for signing. Release is blocked until all required fields are set and you have generated a preview.</p>
+      <h2 id="starterWizardTitle" style="margin: 0 0 0.5rem; font-size: 1.1rem;">Starter agreement</h2>
+      <p id="starterWizardIntro" style="font-size: 0.8rem; color: #999; margin: 0 0 1rem;">Fill every required field (labor rate, diagnostic fee, warranty days, etc.). Addendum is optional. Generate a preview, review the PDF, then submit for signing. Release is blocked until all required fields are set and you have generated a preview.</p>
       <div id="starterWizardFields"></div>
       <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
         <button type="button" class="btn" id="starterWizardPreviewBtn" style="background: #333; color: #e5e5e5;">Generate doc (preview)</button>
@@ -172,7 +173,7 @@
       <p id="starterWizardErr" style="color: #f66; font-size: 0.85rem; margin: 0.75rem 0 0; display: none;"></p>
       <div id="starterWizardPreviewWrap" style="display: none; margin-top: 1rem;">
         <p style="font-size: 0.85rem; margin: 0 0 0.5rem;">Preview</p>
-        <iframe id="starterWizardPdfFrame" title="Agreement preview" style="width: 100%; height: 480px; border: 1px solid #333; background: #1a1a1a;"></iframe>
+        <iframe id="starterWizardPdfFrame" title="Document preview" style="width: 100%; height: 480px; border: 1px solid #333; background: #1a1a1a;"></iframe>
       </div>
     </div>
   </div>
@@ -856,6 +857,7 @@
     var docReleaseActions = document.getElementById('docReleaseActions');
     var docReleaseSelectedName = document.getElementById('docReleaseSelectedName');
     var docReleaseStarterBtn = document.getElementById('docReleaseStarterBtn');
+    var docReleaseEstimateBtn = document.getElementById('docReleaseEstimateBtn');
     var docReleaseSelectedId = null;
 
     function openDocReleaseModal() {
@@ -915,9 +917,13 @@
     var starterWizardPdfFrame = document.getElementById('starterWizardPdfFrame');
     var starterWizardPreviewWrap = document.getElementById('starterWizardPreviewWrap');
     var starterWizardErr = document.getElementById('starterWizardErr');
+    var starterWizardTitle = document.getElementById('starterWizardTitle');
+    var starterWizardIntro = document.getElementById('starterWizardIntro');
     var releaseFieldSpec = [];
     var previewBlobUrl = null;
     var starterWizardCustomerId = null;
+    var starterWizardBundleKey = 'Starter';
+    var starterWizardPreviewPath = '/supplecontrols/api/customers/:customerId/signature-bundles/preview-agreement';
 
     function closeStarterWizard() {
       if (starterWizardBackdrop) {
@@ -930,13 +936,31 @@
       }
       if (starterWizardPdfFrame) starterWizardPdfFrame.src = '';
       starterWizardCustomerId = null;
+      starterWizardBundleKey = 'Starter';
+      starterWizardPreviewPath = '/supplecontrols/api/customers/:customerId/signature-bundles/preview-agreement';
     }
 
     function collectStarterFields() {
       var fields = {};
       releaseFieldSpec.forEach(function (f) {
-        var el = document.getElementById('starter-field-' + f.key);
-        fields[f.key] = el ? el.value : '';
+        if (f.isCollection) {
+          var rows = [];
+          var rowNodes = starterWizardFields ? starterWizardFields.querySelectorAll('[data-collection-key="' + f.key + '"] .starter-collection-row') : [];
+          rowNodes.forEach(function (rowEl) {
+            var nameEl = rowEl.querySelector('[data-role="name"]');
+            var valEl = rowEl.querySelector('[data-role="value"]');
+            var nameVal = nameEl ? nameEl.value.trim() : '';
+            var valVal = valEl ? valEl.value.trim() : '';
+            if (nameVal || valVal) {
+              if (f.collectionType === 'service') rows.push({ name: nameVal, labor_hours: valVal });
+              else rows.push({ name: nameVal, cost: valVal });
+            }
+          });
+          fields[f.key] = rows;
+        } else {
+          var el = document.getElementById('starter-field-' + f.key);
+          fields[f.key] = el ? el.value : '';
+        }
       });
       return fields;
     }
@@ -953,15 +977,73 @@
 
     function renderStarterFieldForm() {
       if (!starterWizardFields) return;
+      function renderCollectionRows(key, collectionType) {
+        var nameLabel = collectionType === 'service' ? 'Service name' : 'Part name';
+        var valueLabel = collectionType === 'service' ? 'Labor hours' : 'Cost';
+        var valuePlaceholder = collectionType === 'service' ? '1.5' : '125';
+        var html = '' +
+          '<div data-collection-key="' + esc(key) + '" class="starter-collection-wrap">' +
+          '<div class="starter-collection-rows"></div>' +
+          '<button type="button" class="btn btn-ghost starter-collection-add">Add ' + (collectionType === 'service' ? 'service' : 'part') + '</button>' +
+          '</div>';
+        return {
+          html: html,
+          mount: function () {
+            var wrap = starterWizardFields.querySelector('[data-collection-key="' + key + '"]');
+            if (!wrap) return;
+            var rowsWrap = wrap.querySelector('.starter-collection-rows');
+            var addBtn = wrap.querySelector('.starter-collection-add');
+            function addRow(initialName, initialValue) {
+              var row = document.createElement('div');
+              row.className = 'starter-collection-row';
+              row.style.display = 'grid';
+              row.style.gridTemplateColumns = '1fr 140px auto';
+              row.style.gap = '0.5rem';
+              row.style.marginBottom = '0.5rem';
+              row.innerHTML =
+                '<input type="text" data-role="name" aria-label="' + esc(nameLabel) + '" placeholder="' + esc(nameLabel) + '" value="' + esc(initialName || '').replace(/"/g, '&quot;') + '" />' +
+                '<input type="text" data-role="value" aria-label="' + esc(valueLabel) + '" placeholder="' + esc(valuePlaceholder) + '" value="' + esc(initialValue || '').replace(/"/g, '&quot;') + '" />' +
+                '<button type="button" class="btn btn-ghost" data-role="remove">Remove</button>';
+              var nameInput = row.querySelector('[data-role="name"]');
+              var valueInput = row.querySelector('[data-role="value"]');
+              var removeBtn = row.querySelector('[data-role="remove"]');
+              if (nameInput) nameInput.addEventListener('input', invalidateStarterPreview);
+              if (valueInput) valueInput.addEventListener('input', invalidateStarterPreview);
+              if (removeBtn) {
+                removeBtn.addEventListener('click', function () {
+                  row.remove();
+                  invalidateStarterPreview();
+                });
+              }
+              rowsWrap.appendChild(row);
+            }
+            addRow('', '');
+            if (addBtn) {
+              addBtn.addEventListener('click', function () {
+                addRow('', '');
+                invalidateStarterPreview();
+              });
+            }
+          }
+        };
+      }
+      var mounts = [];
       starterWizardFields.innerHTML = releaseFieldSpec.map(function (f) {
         var id = 'starter-field-' + f.key;
         var defVal = f.defaultValue != null && f.defaultValue !== '' ? String(f.defaultValue) : '';
+        if (f.isCollection) {
+          var coll = renderCollectionRows(f.key, f.collectionType || 'part');
+          mounts.push(coll.mount);
+          return '<label class="starter-field-label"><span class="starter-field-label-text">' + esc(f.label) + '</span>' + coll.html + '</label>';
+        }
         if (f.multiline) {
           return '<label class="starter-field-label"><span class="starter-field-label-text">' + esc(f.label) + '</span><textarea id="' + esc(id) + '" class="starter-field-input" rows="3" aria-label="' + esc(f.label) + '">' + esc(defVal) + '</textarea></label>';
         }
         return '<label class="starter-field-label"><span class="starter-field-label-text">' + esc(f.label) + '</span><input type="text" id="' + esc(id) + '" class="starter-field-input starter-field-input-text" aria-label="' + esc(f.label) + '" value="' + esc(defVal).replace(/"/g, '&quot;') + '" /></label>';
       }).join('');
+      mounts.forEach(function (fn) { fn(); });
       releaseFieldSpec.forEach(function (f) {
+        if (f.isCollection) return;
         var el = document.getElementById('starter-field-' + f.key);
         if (el) el.addEventListener('input', invalidateStarterPreview);
       });
@@ -973,12 +1055,12 @@
       starterWizardErr.style.display = msg ? 'block' : 'none';
     }
 
-    if (docReleaseStarterBtn) {
-      docReleaseStarterBtn.addEventListener('click', function () {
-        if (!docReleaseSelectedId) return;
-        showStarterErr('');
-        docReleaseStarterBtn.disabled = true;
-        fetch('/supplecontrols/api/signature-release-options', { credentials: 'same-origin' })
+    function openStarterDocsRelease() {
+      if (!docReleaseSelectedId) return;
+      showStarterErr('');
+      if (docReleaseStarterBtn) docReleaseStarterBtn.disabled = true;
+      if (docReleaseEstimateBtn) docReleaseEstimateBtn.disabled = true;
+      fetch('/supplecontrols/api/signature-release-options', { credentials: 'same-origin' })
           .then(function (r) {
             return r.json().then(function (d) {
               if (!r.ok) throw new Error(d.error || 'Options failed');
@@ -1006,6 +1088,13 @@
             }
             releaseFieldSpec = opts.fieldSpec || [];
             starterWizardCustomerId = docReleaseSelectedId;
+            starterWizardBundleKey = 'Starter';
+            starterWizardPreviewPath = '/supplecontrols/api/customers/:customerId/signature-bundles/preview-agreement';
+            if (starterWizardTitle) starterWizardTitle.textContent = 'Starter agreement';
+            if (starterWizardIntro) {
+              starterWizardIntro.textContent = 'Fill every required field (labor rate, diagnostic fee, warranty days, etc.). Addendum is optional. Generate a preview, review the PDF, then submit for signing. Release is blocked until all required fields are set and you have generated a preview.';
+            }
+            if (starterWizardSubmitBtn) starterWizardSubmitBtn.textContent = 'Submit document for signing';
             renderStarterFieldForm();
             invalidateStarterPreview();
             if (starterWizardBackdrop) {
@@ -1014,9 +1103,48 @@
             }
           })
           .catch(function (e) { showToast(e.message || 'Failed', true); })
-          .finally(function () { docReleaseStarterBtn.disabled = false; });
-      });
+          .finally(function () {
+            if (docReleaseStarterBtn) docReleaseStarterBtn.disabled = false;
+            if (docReleaseEstimateBtn) docReleaseEstimateBtn.disabled = false;
+          });
     }
+    function openCreateAndSendEstimateWizard() {
+      if (!docReleaseSelectedId) return;
+      showStarterErr('');
+      if (docReleaseStarterBtn) docReleaseStarterBtn.disabled = true;
+      if (docReleaseEstimateBtn) docReleaseEstimateBtn.disabled = true;
+      fetch('/supplecontrols/api/estimate-release-options', { credentials: 'same-origin' })
+        .then(function (r) {
+          return r.json().then(function (d) {
+            if (!r.ok) throw new Error(d.error || 'Options failed');
+            return d;
+          });
+        })
+        .then(function (opts) {
+          releaseFieldSpec = opts.fieldSpec || [];
+          starterWizardCustomerId = docReleaseSelectedId;
+          starterWizardBundleKey = 'Estimate';
+          starterWizardPreviewPath = '/supplecontrols/api/customers/:customerId/signature-bundles/preview-estimate';
+          if (starterWizardTitle) starterWizardTitle.textContent = 'Create & Send Estimate';
+          if (starterWizardIntro) {
+            starterWizardIntro.textContent = 'Add services with labor time and parts with costs. Generate a preview, review the invoice-style estimate, then submit for customer signature.';
+          }
+          if (starterWizardSubmitBtn) starterWizardSubmitBtn.textContent = 'Send estimate for signing';
+          renderStarterFieldForm();
+          invalidateStarterPreview();
+          if (starterWizardBackdrop) {
+            starterWizardBackdrop.style.display = 'block';
+            starterWizardBackdrop.classList.add('open');
+          }
+        })
+        .catch(function (e) { showToast(e.message || 'Failed', true); })
+        .finally(function () {
+          if (docReleaseStarterBtn) docReleaseStarterBtn.disabled = false;
+          if (docReleaseEstimateBtn) docReleaseEstimateBtn.disabled = false;
+        });
+    }
+    if (docReleaseStarterBtn) docReleaseStarterBtn.addEventListener('click', openStarterDocsRelease);
+    if (docReleaseEstimateBtn) docReleaseEstimateBtn.addEventListener('click', openCreateAndSendEstimateWizard);
 
     if (starterWizardClose) starterWizardClose.addEventListener('click', closeStarterWizard);
     if (starterWizardBackdrop) {
@@ -1030,8 +1158,10 @@
         if (!starterWizardCustomerId) return;
         showStarterErr('');
         starterWizardPreviewBtn.disabled = true;
+        var previewPath = String(starterWizardPreviewPath || '/supplecontrols/api/customers/:customerId/signature-bundles/preview-agreement')
+          .replace(':customerId', encodeURIComponent(starterWizardCustomerId));
         fetch(
-          '/supplecontrols/api/customers/' + encodeURIComponent(starterWizardCustomerId) + '/signature-bundles/preview-agreement',
+          previewPath,
           {
             method: 'POST',
             credentials: 'same-origin',
@@ -1089,7 +1219,7 @@
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bundleKey: 'Starter', fields: collectStarterFields() })
+            body: JSON.stringify({ bundleKey: starterWizardBundleKey || 'Estimate', fields: collectStarterFields() })
           }
         )
           .then(function (r) {

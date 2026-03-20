@@ -8,6 +8,7 @@ var path = require('path');
 var fs = require('fs');
 var buildInvoicePdfBuffer = require(path.join(__dirname, 'lib', 'invoice-pdf')).buildInvoicePdfBuffer;
 var agreementPdf = require(path.join(__dirname, 'lib', 'agreement-pdf'));
+var estimatePdf = require(path.join(__dirname, 'lib', 'estimate-pdf'));
 var signedAgreementPdf = require(path.join(__dirname, 'lib', 'signed-agreement-pdf'));
 var emailNotifications = require(path.join(__dirname, 'lib', 'email-notifications'));
 var express = require('express');
@@ -785,7 +786,10 @@ function finalizeSignedAgreementPdf(accountId, customerId, bundleId, bundleKey, 
       var pdfUrl = dr.data && dr.data.pdf_url;
       if (!pdfUrl || cr.error || !cr.data) return;
       var rf = (br.data && br.data.release_fields) || {};
-      var missing = agreementPdf.validateAgreementReleaseFieldsComplete(rf);
+      var isEstimateBundle = String(bundleKey || '').toLowerCase() === 'estimate';
+      var missing = isEstimateBundle
+        ? estimatePdf.validateEstimateReleaseFieldsComplete(rf)
+        : agreementPdf.validateAgreementReleaseFieldsComplete(rf);
       var buildSignedBuf = function (baseBuf) {
         return signedAgreementPdf
           .buildSignedAgreementPdf(baseBuf, {
@@ -819,7 +823,10 @@ function finalizeSignedAgreementPdf(accountId, customerId, bundleId, bundleKey, 
                 return supabase.from('customer_documents').insert({
                   account_id: accountId,
                   customer_id: customerId,
-                  title: 'Signed agreement (' + String(bundleKey || 'packet') + ')',
+                  title:
+                    (isEstimateBundle ? 'Signed estimate (' : 'Signed agreement (') +
+                    String(bundleKey || 'packet') +
+                    ')',
                   pdf_url: url
                 });
               })
@@ -831,8 +838,8 @@ function finalizeSignedAgreementPdf(accountId, customerId, bundleId, bundleKey, 
           });
       };
       if (missing.length === 0) {
-        return agreementPdf
-          .buildAgreementPdfBuffer(cr.data, vr.data && !vr.error ? vr.data : null, {
+        var builder = isEstimateBundle ? estimatePdf.buildEstimatePdfBuffer : agreementPdf.buildAgreementPdfBuffer;
+        return builder(cr.data, vr.data && !vr.error ? vr.data : null, {
             releaseFields: rf,
             customerSignature: { mode: mode, payload: payloadStr },
             signedDateStr: dateLabel
@@ -842,7 +849,7 @@ function finalizeSignedAgreementPdf(accountId, customerId, bundleId, bundleKey, 
       }
       return fetch(pdfUrl)
         .then(function (r) {
-          if (!r.ok) throw new Error('Could not fetch agreement PDF');
+          if (!r.ok) throw new Error('Could not fetch signed source PDF');
           return r.arrayBuffer();
         })
         .then(function (ab) {
@@ -1682,6 +1689,13 @@ app.get('/supplecontrols/api/signature-release-options', controlsApiAuth, functi
   });
 });
 
+app.get('/supplecontrols/api/estimate-release-options', controlsApiAuth, function (req, res) {
+  res.json({
+    requiresEstimateFields: true,
+    fieldSpec: estimatePdf.ESTIMATE_RELEASE_FIELD_SPEC
+  });
+});
+
 app.post(
   '/supplecontrols/api/customers/:customerId/signature-bundles/preview-agreement',
   controlsApiAuth,
@@ -1737,19 +1751,81 @@ app.post(
   }
 );
 
+app.post(
+  '/supplecontrols/api/customers/:customerId/signature-bundles/preview-estimate',
+  controlsApiAuth,
+  function (req, res) {
+    var customerId = req.params.customerId;
+    var fields = (req.body && req.body.fields) || {};
+    var missing = estimatePdf.validateEstimateReleaseFieldsComplete(fields);
+    if (missing.length) {
+      return res.status(400).json({
+        error: 'Every estimate field is required before generating the document.',
+        missing: missing
+      });
+    }
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    getAccountThen(req, res, function (accountId) {
+      supabase
+        .from('customers')
+        .select('*')
+        .eq('id', customerId)
+        .eq('account_id', accountId)
+        .single()
+        .then(function (c) {
+          if (c.error || !c.data) {
+            res.status(404).json({ error: 'Customer not found' });
+            return;
+          }
+          var cust = c.data;
+          return supabase
+            .from('vehicles')
+            .select('*')
+            .eq('customer_id', customerId)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+            .then(function (vr) {
+              return estimatePdf.buildEstimatePdfBuffer(cust, vr.data && !vr.error ? vr.data : null, {
+                releaseFields: estimatePdf.normalizeEstimateReleaseFields(fields)
+              });
+            })
+            .then(function (pdfBuf) {
+              if (!Buffer.isBuffer(pdfBuf)) {
+                throw new Error('Estimate PDF could not be generated');
+              }
+              res.setHeader('Content-Type', 'application/pdf');
+              res.setHeader('Cache-Control', 'private, no-store');
+              res.send(pdfBuf);
+            });
+        })
+        .catch(function (err) {
+          if (!res.headersSent) controlsJson(err, res);
+        });
+    });
+  }
+);
+
 app.post('/supplecontrols/api/customers/:customerId/signature-bundles/release', controlsApiAuth, function (req, res) {
   var customerId = req.params.customerId;
   var bundleKey = String((req.body && req.body.bundleKey) || 'Starter').trim();
   if (!/^[A-Za-z0-9 _-]+$/.test(bundleKey)) return res.status(400).json({ error: 'Invalid bundle key' });
   var safeKey = bundleKey.replace(/[^A-Za-z0-9 _-]/g, '') || 'Starter';
   var usePdfFolder = String(process.env.SIGNATURE_RELEASE_MODE || '').trim() === 'pdf-folder';
+  var isEstimateBundle = safeKey.toLowerCase() === 'estimate';
   var bodyFields = (req.body && req.body.fields) || {};
-  var normalizedFields = agreementPdf.normalizeAgreementReleaseFields(bodyFields);
+  var normalizedFields = isEstimateBundle
+    ? estimatePdf.normalizeEstimateReleaseFields(bodyFields)
+    : agreementPdf.normalizeAgreementReleaseFields(bodyFields);
   if (!usePdfFolder) {
-    var miss = agreementPdf.validateAgreementReleaseFieldsComplete(bodyFields);
+    var miss = isEstimateBundle
+      ? estimatePdf.validateEstimateReleaseFieldsComplete(bodyFields)
+      : agreementPdf.validateAgreementReleaseFieldsComplete(bodyFields);
     if (miss.length) {
       return res.status(400).json({
-        error: 'Fill in every agreement field, preview the document, then submit for signing.',
+        error: isEstimateBundle
+          ? 'Fill in every estimate field, preview the document, then submit for signing.'
+          : 'Fill in every agreement field, preview the document, then submit for signing.',
         missing: miss
       });
     }
@@ -1762,7 +1838,7 @@ app.post('/supplecontrols/api/customers/:customerId/signature-bundles/release', 
         error:
           'SIGNATURE_RELEASE_MODE=pdf-folder requires folder blank-docs/' +
           safeKey +
-          ' with PDF files. Otherwise omit that env to use doc/agreement.md (or built-in default) with pdfkit.'
+          ' with PDF files. Otherwise omit that env to use built-in document generation.'
       });
     }
     files = fs.readdirSync(dir).filter(function (f) { return f.toLowerCase().endsWith('.pdf'); }).sort();
@@ -1818,13 +1894,20 @@ app.post('/supplecontrols/api/customers/:customerId/signature-bundles/release', 
             .limit(1)
             .maybeSingle()
             .then(function (vr) {
-              return agreementPdf.buildAgreementPdfBuffer(releaseCustomerRow, vr.data || null, {
+              var builder = isEstimateBundle ? estimatePdf.buildEstimatePdfBuffer : agreementPdf.buildAgreementPdfBuffer;
+              return builder(releaseCustomerRow, vr.data || null, {
                 releaseFields: normalizedFields
               });
             })
             .then(function (pdfBuf) {
               var pathKey =
-                'signable/' + customerId + '/' + bundleId + '/' + Date.now() + '-agreement.pdf';
+                'signable/' +
+                customerId +
+                '/' +
+                bundleId +
+                '/' +
+                Date.now() +
+                (isEstimateBundle ? '-estimate.pdf' : '-agreement.pdf');
               return supabase.storage
                 .from(bucket)
                 .upload(pathKey, pdfBuf, { contentType: 'application/pdf', upsert: false })
@@ -1834,7 +1917,7 @@ app.post('/supplecontrols/api/customers/:customerId/signature-bundles/release', 
                   var url = pub && pub.data && pub.data.publicUrl;
                   if (!url) throw new Error('Could not get public URL');
                   return supabase.from('customer_signature_bundle_docs').insert([
-                    { bundle_id: bundleId, title: 'Agreement', pdf_url: url, sort_order: 0 }
+                    { bundle_id: bundleId, title: isEstimateBundle ? 'Estimate' : 'Agreement', pdf_url: url, sort_order: 0 }
                   ]);
                 })
                 .then(function (docIns) {
@@ -1848,7 +1931,7 @@ app.post('/supplecontrols/api/customers/:customerId/signature-bundles/release', 
                     ok: true,
                     bundleKey: safeKey,
                     documentCount: 1,
-                    source: agreementPdf.hasAgreementMarkdown() ? 'agreement-md' : 'agreement-default'
+                    source: isEstimateBundle ? 'estimate-generated' : (agreementPdf.hasAgreementMarkdown() ? 'agreement-md' : 'agreement-default')
                   });
                 });
             });
