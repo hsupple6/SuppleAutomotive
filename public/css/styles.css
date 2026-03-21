@@ -52,8 +52,8 @@ body {
   background: transparent;
 }
 
-/* Header over light hero: dark text and outlined buttons */
-.top-bar .logo,
+/* Header over light hero: dark text and outlined buttons (text logo only — not image .site-logo) */
+.top-bar .logo:not(.site-logo),
 .top-bar .logo-main,
 .top-bar .logo-accent {
   color: transparent;
@@ -96,7 +96,7 @@ body {
 }
 
 /* Scrolled: top bar content turns bright white over dark content */
-.top-bar.scrolled .logo,
+.top-bar.scrolled .logo:not(.site-logo),
 .top-bar.scrolled .logo-main,
 .top-bar.scrolled .logo-accent {
   color: transparent;
@@ -146,13 +146,33 @@ body {
   width: auto;
   display: block;
   object-fit: contain;
-  transition: height 0.6s ease;
+  transition: height 0.6s ease, opacity 0.6s ease;
 }
 
-.site-logo-img-main { opacity: 1; transition: opacity 0.6s ease; }
-.site-logo-img-alt { position: absolute; top: 0; left: 0; opacity: 0; transition: opacity 0.6s ease; }
-.top-bar.scrolled .site-logo-img-main { opacity: 0; }
-.top-bar.scrolled .site-logo-img-alt { opacity: 1; }
+/* Crossfade like .header-brand-chrome-top (0.6s): main visible at top, alt when scrolled */
+.site-logo .site-logo-img-main {
+  position: relative;
+  z-index: 1;
+  opacity: 1;
+  transition: opacity 0.6s ease, height 0.6s ease;
+}
+.site-logo .site-logo-img-alt {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease, height 0.6s ease;
+}
+.top-bar.scrolled .site-logo .site-logo-img-main {
+  opacity: 0;
+  z-index: 0;
+}
+.top-bar.scrolled .site-logo .site-logo-img-alt {
+  opacity: 1;
+  pointer-events: auto;
+}
 
 .logo-main { color: var(--text); }
 .logo-accent { color: var(--text); }
@@ -1123,12 +1143,29 @@ body {
   min-height: auto;
   padding: 4rem 2rem 5rem;
   background: var(--bg);
+  justify-content: flex-start;
+  align-items: stretch;
+  overflow: visible;
+}
+
+.services-engine-disclaimer {
+  max-width: 640px;
+  width: 100%;
+  margin: 2rem auto 0;
+  padding: 0 2rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted, #888);
+  text-align: center;
+  flex-shrink: 0;
 }
 
 .block-car-washing {
   min-height: auto;
   padding: 0 2rem 5rem;
   background: var(--bg);
+  /* Auto detailing off for now — delete this line to show the section again */
+  display: none;
 }
 
 .car-washing-inner {
@@ -2751,7 +2788,7 @@ body {
     padding: 1rem 1.25rem;
   }
 
-  .top-bar .logo {
+  .top-bar .logo:not(.site-logo) {
     font-size: 1.5rem;
   }
   .top-bar .site-logo .site-logo-img {
@@ -3135,13 +3172,13 @@ body {
     font-weight: 1000;
   }
 
-  .top-bar .logo,
+  .top-bar .logo:not(.site-logo),
   .top-bar .logo-main,
   .top-bar .logo-accent {
     -webkit-text-stroke: 1px #111;
   }
 
-  .top-bar.scrolled .logo,
+  .top-bar.scrolled .logo:not(.site-logo),
   .top-bar.scrolled .logo-main,
   .top-bar.scrolled .logo-accent {
     -webkit-text-stroke: 1px #fff;
