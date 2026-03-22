@@ -2649,6 +2649,106 @@ body {
   }
 }
 
+/* Mobile Schedule CTA: one-shot draw (scroll into section) then erase (next section approaches) */
+@keyframes service-cta-mobile-t-draw {
+  from {
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+  to {
+    transform: scaleX(1);
+    transform-origin: left center;
+  }
+}
+
+@keyframes service-cta-mobile-t-out {
+  from {
+    transform: scaleX(1);
+    transform-origin: right center;
+  }
+  to {
+    transform: scaleX(0);
+    transform-origin: right center;
+  }
+}
+
+@keyframes service-cta-mobile-r-draw {
+  from {
+    transform: scaleY(0);
+    transform-origin: center top;
+  }
+  to {
+    transform: scaleY(1);
+    transform-origin: center top;
+  }
+}
+
+@keyframes service-cta-mobile-r-out {
+  from {
+    transform: scaleY(1);
+    transform-origin: center top;
+  }
+  to {
+    transform: scaleY(0);
+    transform-origin: center bottom;
+  }
+}
+
+@keyframes service-cta-mobile-b-draw {
+  from {
+    transform: scaleX(0);
+    transform-origin: right center;
+  }
+  to {
+    transform: scaleX(1);
+    transform-origin: right center;
+  }
+}
+
+@keyframes service-cta-mobile-b-out {
+  from {
+    transform: scaleX(1);
+    transform-origin: right center;
+  }
+  to {
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+}
+
+@keyframes service-cta-mobile-l-draw {
+  from {
+    transform: scaleY(0);
+    transform-origin: center bottom;
+  }
+  to {
+    transform: scaleY(1);
+    transform-origin: center bottom;
+  }
+}
+
+@keyframes service-cta-mobile-l-out {
+  from {
+    transform: scaleY(1);
+    transform-origin: center bottom;
+  }
+  to {
+    transform: scaleY(0);
+    transform-origin: center top;
+  }
+}
+
+@keyframes service-cta-mobile-label-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 639px) {
   .block.block-service-maintenance,
   .block.block-service-diagnostics,
@@ -2800,28 +2900,108 @@ body {
     transition: none !important;
   }
 
-  .block-service-maintenance .service-maintenance-request .link-cta-border-t,
-  .block-service-diagnostics .service-diagnostics-request .link-cta-border-t,
-  .block-service-inspection .service-inspection-request .link-cta-border-t {
-    animation: service-cta-mobile-border-t 4s linear infinite;
+  /* Idle: hidden strokes until scroll-triggered draw-in */
+  .block-service-maintenance .service-maintenance-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-border-t,
+  .block-service-diagnostics .service-diagnostics-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-border-t,
+  .block-service-inspection .service-inspection-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-border-t {
+    animation: none;
+    transform: scaleX(0);
+    transform-origin: left center;
   }
 
-  .block-service-maintenance .service-maintenance-request .link-cta-border-r,
-  .block-service-diagnostics .service-diagnostics-request .link-cta-border-r,
-  .block-service-inspection .service-inspection-request .link-cta-border-r {
-    animation: service-cta-mobile-border-r 4s linear infinite;
+  .block-service-maintenance .service-maintenance-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-border-r,
+  .block-service-diagnostics .service-diagnostics-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-border-r,
+  .block-service-inspection .service-inspection-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-border-r {
+    animation: none;
+    transform: scaleY(0);
+    transform-origin: center top;
   }
 
-  .block-service-maintenance .service-maintenance-request .link-cta-border-b,
-  .block-service-diagnostics .service-diagnostics-request .link-cta-border-b,
-  .block-service-inspection .service-inspection-request .link-cta-border-b {
-    animation: service-cta-mobile-border-b 4s linear infinite;
+  .block-service-maintenance .service-maintenance-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-border-b,
+  .block-service-diagnostics .service-diagnostics-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-border-b,
+  .block-service-inspection .service-inspection-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-border-b {
+    animation: none;
+    transform: scaleX(0);
+    transform-origin: right center;
   }
 
-  .block-service-maintenance .service-maintenance-request .link-cta-border-l,
-  .block-service-diagnostics .service-diagnostics-request .link-cta-border-l,
-  .block-service-inspection .service-inspection-request .link-cta-border-l {
-    animation: service-cta-mobile-border-l 4s linear infinite;
+  .block-service-maintenance .service-maintenance-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-border-l,
+  .block-service-diagnostics .service-diagnostics-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-border-l,
+  .block-service-inspection .service-inspection-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-border-l {
+    animation: none;
+    transform: scaleY(0);
+    transform-origin: center bottom;
+  }
+
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-t,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-t,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-t {
+    animation: service-cta-mobile-t-draw 0.5s linear forwards;
+  }
+
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-r,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-r,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-r {
+    animation: service-cta-mobile-r-draw 0.5s linear forwards;
+    animation-delay: 0.5s;
+  }
+
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-b,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-b,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-b {
+    animation: service-cta-mobile-b-draw 0.5s linear forwards;
+    animation-delay: 1s;
+  }
+
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-l,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-l,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-l {
+    animation: service-cta-mobile-l-draw 0.5s linear forwards;
+    animation-delay: 1.5s;
+  }
+
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-t,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-t,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-t {
+    animation: service-cta-mobile-t-out 0.5s linear forwards;
+  }
+
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-r,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-r,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-r {
+    animation: service-cta-mobile-r-out 0.5s linear forwards;
+    animation-delay: 0.5s;
+  }
+
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-b,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-b,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-b {
+    animation: service-cta-mobile-b-out 0.5s linear forwards;
+    animation-delay: 1s;
+  }
+
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-l,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-l,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-l {
+    animation: service-cta-mobile-l-out 0.5s linear forwards;
+    animation-delay: 1.5s;
+  }
+
+  #serviceMaintenanceCopyReveal.is-visible .service-maintenance-request.service-cta-mobile--draw-in:not(.service-cta-mobile--draw-out) .link-cta-label,
+  #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-request.service-cta-mobile--draw-in:not(.service-cta-mobile--draw-out) .link-cta-label,
+  #serviceInspectionCopyReveal.is-visible .service-inspection-request.service-cta-mobile--draw-in:not(.service-cta-mobile--draw-out) .link-cta-label {
+    opacity: 0;
+    animation: service-cta-mobile-label-pop 0.42s ease forwards, maintenance-cta-silver-shimmer 7.5s ease-in-out infinite;
+    animation-delay: 1.88s, 2.2s;
+  }
+
+  #serviceMaintenanceCopyReveal.is-visible .service-maintenance-request.service-cta-mobile--draw-out .link-cta-label,
+  #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-label,
+  #serviceInspectionCopyReveal.is-visible .service-inspection-request.service-cta-mobile--draw-out .link-cta-label {
+    animation: none !important;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.32s ease, transform 0.32s ease;
   }
 }
 
@@ -2859,6 +3039,52 @@ body {
   .block-service-inspection .service-inspection-request .link-cta-border-l {
     animation: none;
     transform: scaleY(1);
+  }
+
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-t,
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-r,
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-b,
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-l,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-t,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-r,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-b,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-l,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-t,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-r,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-b,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-l,
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-t,
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-r,
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-b,
+  .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-l,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-t,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-r,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-b,
+  .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-l,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-t,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-r,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-b,
+  .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-l {
+    animation: none !important;
+    animation-delay: 0s !important;
+  }
+
+  #serviceMaintenanceCopyReveal.is-visible .service-maintenance-request .link-cta-label,
+  #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-request .link-cta-label,
+  #serviceInspectionCopyReveal.is-visible .service-inspection-request .link-cta-label {
+    animation: maintenance-cta-silver-shimmer 7.5s ease-in-out infinite !important;
+    animation-delay: 0s !important;
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  #serviceMaintenanceCopyReveal.is-visible .service-maintenance-request.service-cta-mobile--draw-out .link-cta-label,
+  #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-label,
+  #serviceInspectionCopyReveal.is-visible .service-inspection-request.service-cta-mobile--draw-out .link-cta-label {
+    opacity: 1 !important;
+    animation: maintenance-cta-silver-shimmer 7.5s ease-in-out infinite !important;
+    transform: none !important;
   }
 }
 

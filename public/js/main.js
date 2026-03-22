@@ -539,6 +539,10 @@
       clearCopyAnimTimer();
       if (copyReveal) {
         copyReveal.classList.remove('is-visible');
+        var ctaReset = copyReveal.querySelector('a.js-request-service-link');
+        if (ctaReset) {
+          ctaReset.classList.remove('service-cta-mobile--draw-in', 'service-cta-mobile--draw-out');
+        }
       }
       if (title) {
         title.classList.remove(lettersInClass);
@@ -560,6 +564,14 @@
           copyEls[i].style.setProperty('--reveal-delay', i * copyStep + 's');
         }
         copyReveal.classList.add('is-visible');
+        if (window.matchMedia('(max-width: 639px)').matches) {
+          var ctaIn = copyReveal.querySelector('a.js-request-service-link');
+          if (ctaIn) {
+            ctaIn.classList.remove('service-cta-mobile--draw-out');
+            void ctaIn.offsetWidth;
+            ctaIn.classList.add('service-cta-mobile--draw-in');
+          }
+        }
       }, waitMs);
     }
 
@@ -666,6 +678,56 @@
     }
   }
 
+  function initServiceMobileCtaScrollExit() {
+    var mq = window.matchMedia('(max-width: 639px)');
+    var pairs = [
+      { cur: 'service-maintenance', next: 'service-diagnostics' },
+      { cur: 'service-diagnostics', next: 'service-inspection' },
+      { cur: 'service-inspection', next: 'services' }
+    ];
+    var wasNextPast = [false, false, false];
+
+    function tick() {
+      if (!mq.matches) return;
+      var exitY = window.innerHeight * 0.5;
+      for (var i = 0; i < pairs.length; i++) {
+        var p = pairs[i];
+        var curEl = document.getElementById(p.cur);
+        var nextEl = document.getElementById(p.next);
+        if (!curEl || !nextEl) continue;
+        var cta = curEl.querySelector('a.js-request-service-link');
+        if (!cta) continue;
+        var nextTop = nextEl.getBoundingClientRect().top;
+        var past = nextTop < exitY;
+        if (past && !wasNextPast[i]) {
+          if (cta.classList.contains('service-cta-mobile--draw-in')) {
+            cta.classList.remove('service-cta-mobile--draw-in');
+            void cta.offsetWidth;
+            cta.classList.add('service-cta-mobile--draw-out');
+          }
+        }
+        if (!past && wasNextPast[i]) {
+          cta.classList.remove('service-cta-mobile--draw-out');
+          var cr = document.getElementById(serviceSectionIdToCamel(p.cur) + 'CopyReveal');
+          if (cr && cr.classList.contains('is-visible')) {
+            void cta.offsetWidth;
+            cta.classList.add('service-cta-mobile--draw-in');
+          }
+        }
+        wasNextPast[i] = past;
+      }
+    }
+
+    window.addEventListener('scroll', tick, { passive: true });
+    window.addEventListener('resize', tick);
+    if (mq.addEventListener) {
+      mq.addEventListener('change', tick);
+    } else if (mq.addListener) {
+      mq.addListener(tick);
+    }
+    tick();
+  }
+
   function initReveal() {
     ['service-maintenance', 'service-diagnostics', 'service-inspection'].forEach(function (sectionId) {
       initServiceBlockTitleChars(sectionId);
@@ -675,6 +737,7 @@
     ['service-maintenance', 'service-diagnostics', 'service-inspection'].forEach(function (sectionId) {
       initServiceBlockScroll(sectionId);
     });
+    initServiceMobileCtaScrollExit();
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
