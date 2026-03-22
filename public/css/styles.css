@@ -1160,29 +1160,61 @@ body {
   flex-shrink: 0;
 }
 
-.block-car-washing {
+.block-car-washing,
+.block-prebuy-inspection {
   min-height: auto;
   padding: 0 2rem 5rem;
   background: var(--bg);
+}
+
+.block-car-washing {
   /* Auto detailing off for now — delete this line to show the section again */
   display: none;
 }
 
-.car-washing-inner {
+.car-washing-inner,
+.prebuy-inspection-inner {
   width: 100%;
   max-width: 1040px;
   margin: 0 auto;
   text-align: center;
 }
 
-.car-washing-title {
+.car-washing-title,
+.prebuy-inspection-title {
   font-size: clamp(1.7rem, 3.8vw, 2.35rem);
   font-weight: 600;
   letter-spacing: -0.01em;
   margin: 0.4rem 0 1.8rem;
 }
 
-.car-washing-cards {
+.prebuy-inspection-lead {
+  max-width: 640px;
+  margin: -1rem auto 1.5rem;
+  padding: 0 0.5rem;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.prebuy-inspection-lead strong,
+.prebuy-inspection-lead-strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.prebuy-inspection-footnote {
+  margin: 1rem 0 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.car-washing-cards,
+.prebuy-inspection-cards {
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
@@ -1191,14 +1223,16 @@ body {
   text-align: left;
 }
 
-.car-washing-card {
+.car-washing-card,
+.prebuy-inspection-card {
   background: var(--bg-alt);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 1.35rem 1.45rem;
 }
 
-.car-washing-card-tier {
+.car-washing-card-tier,
+.prebuy-inspection-card-tier {
   display: block;
   font-size: 0.95rem;
   letter-spacing: 0.06em;
@@ -1207,7 +1241,8 @@ body {
   margin-bottom: 0.35rem;
 }
 
-.car-washing-card-price {
+.car-washing-card-price,
+.prebuy-inspection-card-price {
   display: block;
   font-size: 2rem;
   font-weight: 600;
@@ -1215,7 +1250,27 @@ body {
   margin-bottom: 0.65rem;
 }
 
-.car-washing-card-services {
+.prebuy-inspection-card-price-note {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: -0.35rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.45;
+}
+
+.prebuy-inspection-card-headline {
+  display: block;
+  font-size: clamp(1.2rem, 2.5vw, 1.45rem);
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
+}
+
+.car-washing-card-services,
+.prebuy-inspection-card-services {
   margin: 0;
   padding-left: 1.05rem;
   color: var(--text-muted);
@@ -1223,8 +1278,14 @@ body {
   line-height: 1.6;
 }
 
-.car-washing-card-services li + li {
+.car-washing-card-services li + li,
+.prebuy-inspection-card-services li + li {
   margin-top: 0.2rem;
+}
+
+.prebuy-inspection-card-services strong {
+  color: var(--text);
+  font-weight: 600;
 }
 
 .services-grid-inner {
@@ -1509,15 +1570,257 @@ body {
 }
 
 #service-maintenance .block-bg {
+  background: var(--bg-alt);
+}
+
+#service-maintenance .service-maintenance-bg-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   background-image: url('/images/service-maintenance.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  transform-origin: right center;
+  transition: transform 0.4s ease;
 }
 
 #service-maintenance .block-bg .block-placeholder {
+  position: relative;
+  z-index: 0;
   background: transparent;
   color: transparent;
+}
+
+/* Routine maintenance: intro full-bleed, then scroll compacts image to 50% width (right) + copy left */
+.block-service-maintenance {
+  overflow: hidden;
+  align-items: stretch;
+  --maintenance-edge: clamp(1.25rem, 5vw, 3rem);
+  /* Extra horizontal shift (left) so scaled image reads more centered; scale unchanged */
+  --maintenance-image-nudge: clamp(2.25rem, 7vw, 6rem);
+}
+
+.block-service-maintenance .service-maintenance-content {
+  position: relative;
+  max-width: none;
+  width: 100%;
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-height: calc(100vh - 10rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.block-service-maintenance .service-maintenance-intro {
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.block-service-maintenance .service-maintenance-compact {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  padding: 2.35rem 0 3.25rem;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.block-service-maintenance.service-maintenance--compact .service-maintenance-intro {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.block-service-maintenance.service-maintenance--compact .service-maintenance-compact {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.block-service-maintenance.service-maintenance--compact .service-maintenance-bg-layer {
+  transform: translateX(calc(-1 * (var(--maintenance-edge) + var(--maintenance-image-nudge)))) scale(0.5);
+}
+
+.block-service-maintenance .service-maintenance-compact-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  min-height: 0;
+  padding-left: var(--maintenance-edge);
+  padding-right: var(--maintenance-edge);
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .block-service-maintenance .service-maintenance-compact-inner {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      '. title'
+      'copy image';
+    column-gap: clamp(1.25rem, 3.5vw, 2.5rem);
+    row-gap: 2rem;
+    align-items: stretch;
+  }
+
+  /* Title + spacer participate in parent grid (paragraph aligns to image row) */
+  .block-service-maintenance .service-maintenance-visual {
+    display: contents;
+  }
+
+  .block-service-maintenance .service-maintenance-copy {
+    grid-area: copy;
+    align-self: center;
+    justify-self: start;
+
+    position: absolute;
+    top: 17.5%;
+    left: 7.5%;
+
+  }
+
+  .block-service-maintenance .service-maintenance-title {
+    padding-right: 65px;
+    grid-area: title;
+    justify-self: end;
+    align-self: start;
+    width: min(50vw, 100%);
+    max-width: 50vw;
+    transform: translateY(-54%);
+  }
+
+  .block-service-maintenance .service-maintenance-img-spacer {
+    grid-area: image;
+    align-self: center;
+    justify-self: end;
+    width: min(50vw, 100%);
+  }
+}
+
+.block-service-maintenance .service-maintenance-copy {
+  text-align: left;
+  padding: 0;
+  background: none;
+  width: min(28rem, 42vw);
+  max-width: 100%;
+  min-width: 0;
+  justify-self: start;
+}
+
+.block-service-maintenance .service-maintenance-copy p {
+  font-size: clamp(0.95rem, 1.6vw, 1.1rem);
+  line-height: 1.65;
+  color: #ffffff;
+  margin: 0;
+}
+
+.block-service-maintenance .service-maintenance-title {
+  margin: -0.85rem 0 0 0;
+  font-family: Gustavo, sans-serif;
+  font-weight: 500;
+  line-height: 0.95;
+  text-transform: uppercase;
+  font-size: clamp(4rem, 6vw, 5rem);
+  letter-spacing: -0.02em;
+  text-align: right;
+  color: #ffffff;
+  order: 0;
+}
+
+.block-service-maintenance .service-maintenance-title br {
+  display: block;
+}
+
+.block-service-maintenance .service-maintenance-title-char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.block-service-maintenance .service-maintenance-title.service-maintenance-title--letters-in .service-maintenance-title-char {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  transition-delay: calc(var(--i, 0) * 38ms);
+}
+
+.block-service-maintenance .service-maintenance-img-spacer {
+  width: 100%;
+  order: 1;
+  min-height: min(28vh, 220px);
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 639px) {
+  .block-service-maintenance .service-maintenance-compact-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .block-service-maintenance .service-maintenance-copy {
+    padding: 0;
+    order: 2;
+    max-width: min(24rem, 100%);
+  }
+
+  .block-service-maintenance .service-maintenance-visual {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0.65rem;
+    order: 1;
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    padding-top: 0;
+  }
+
+  .block-service-maintenance .service-maintenance-title {
+    text-align: right;
+    margin-left: 0;
+    margin-right: 0;
+    width: 100%;
+    max-width: none;
+  }
+
+  .block-service-maintenance .service-maintenance-img-spacer {
+    width: 100%;
+    min-height: min(22vh, 180px);
+  }
+
+  .block-service-maintenance.service-maintenance--compact .service-maintenance-bg-layer {
+    transform: translateX(calc(-1 * (var(--maintenance-edge) + var(--maintenance-image-nudge)))) scale(0.5);
+    transform-origin: right center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .block-service-maintenance .service-maintenance-bg-layer,
+  .block-service-maintenance .service-maintenance-intro,
+  .block-service-maintenance .service-maintenance-compact {
+    transition-duration: 0.01ms;
+  }
+
+  .block-service-maintenance .service-maintenance-title.service-maintenance-title--letters-in .service-maintenance-title-char {
+    transition-duration: 0.01ms;
+    transition-delay: 0ms !important;
+  }
 }
 
 #service-diagnostics .block-bg {
@@ -3388,9 +3691,15 @@ body {
   transition-delay: var(--reveal-delay, 0s);
 }
 
-.reveal-on-scroll.is-visible .split-element {
+.reveal-on-scroll.is-visible .split-element,
+#serviceMaintenanceCopyReveal.is-visible .split-element {
   opacity: 1;
   transform: translateX(0);
+}
+
+#serviceMaintenanceCopyReveal .split-element {
+  transition: opacity 0.38s ease-out, transform 0.38s ease-out;
+  transition-delay: var(--reveal-delay, 0s);
 }
 
 /* ========== Scroll to top button ========== */

@@ -400,19 +400,22 @@
     el.setAttribute('data-split-done', '');
   }
 
+  function wrapRevealSplitChildren(container) {
+    var direct = Array.prototype.slice.call(container.children);
+    direct.forEach(function (child) {
+      if (child.nodeType === 1 && !child.querySelector('.split-element')) {
+        var wrap = document.createElement('div');
+        wrap.className = 'split-element';
+        child.parentNode.insertBefore(wrap, child);
+        wrap.appendChild(child);
+      }
+    });
+  }
+
   function runLineSplits() {
     document.querySelectorAll('[data-split-lines]').forEach(splitElementIntoLines);
-    document.querySelectorAll('.reveal-on-scroll').forEach(function (container) {
-      var direct = Array.prototype.slice.call(container.children);
-      direct.forEach(function (child) {
-        if (child.nodeType === 1 && !child.querySelector('.split-element')) {
-          var wrap = document.createElement('div');
-          wrap.className = 'split-element';
-          child.parentNode.insertBefore(wrap, child);
-          wrap.appendChild(child);
-        }
-      });
-    });
+    document.querySelectorAll('.reveal-on-scroll').forEach(wrapRevealSplitChildren);
+    document.querySelectorAll('[data-reveal-split-only]').forEach(wrapRevealSplitChildren);
   }
 
   var staggerStep = 0.055;
@@ -437,19 +440,147 @@
         { rootMargin: '0px', threshold: 0 }
       );
       revealEls.forEach(function (el) {
+        if (el.id === 'serviceMaintenanceCopyReveal') return;
         revealObserver.observe(el);
       });
     } else if (revealEls.length) {
       revealEls.forEach(function (el) {
+        if (el.id === 'serviceMaintenanceCopyReveal') return;
         setRevealDelays(el);
         el.classList.add('is-visible');
       });
     }
   }
 
+  function initServiceMaintenanceTitleChars() {
+    var title = document.getElementById('serviceMaintenanceTitle');
+    if (!title || title.getAttribute('data-title-chars-done')) return;
+    var raw = (title.textContent || '').trim();
+    if (!raw) return;
+    title.innerHTML = '';
+    var upper = raw.toUpperCase();
+    var words = upper.split(/\s+/).filter(function (w) {
+      return w.length > 0;
+    });
+    var idx = 0;
+    for (var w = 0; w < words.length; w++) {
+      var word = words[w];
+      for (var c = 0; c < word.length; c++) {
+        var span = document.createElement('span');
+        span.className = 'service-maintenance-title-char';
+        span.style.setProperty('--i', String(idx));
+        idx += 1;
+        span.textContent = word.charAt(c);
+        title.appendChild(span);
+      }
+      if (w < words.length - 1) {
+        title.appendChild(document.createElement('br'));
+      }
+    }
+    title.setAttribute('data-title-chars-done', '');
+  }
+
+  function initServiceMaintenanceScroll() {
+    var section = document.getElementById('service-maintenance');
+    var copyReveal = document.getElementById('serviceMaintenanceCopyReveal');
+    var title = document.getElementById('serviceMaintenanceTitle');
+    var compact = section && section.querySelector('.service-maintenance-compact');
+    var intro = section && section.querySelector('.service-maintenance-intro');
+    if (!section) return;
+
+    var wasCompact = false;
+    var copyAnimTimer = null;
+    var letterStaggerMs = 38;
+    var letterTransitionMs = 350;
+
+    function clearCopyAnimTimer() {
+      if (copyAnimTimer) {
+        clearTimeout(copyAnimTimer);
+        copyAnimTimer = null;
+      }
+    }
+
+    function resetCompactText() {
+      clearCopyAnimTimer();
+      if (copyReveal) {
+        copyReveal.classList.remove('is-visible');
+      }
+      if (title) {
+        title.classList.remove('service-maintenance-title--letters-in');
+      }
+    }
+
+    function scheduleCopyAfterTitle() {
+      clearCopyAnimTimer();
+      if (!copyReveal || !title) return;
+      var chars = title.querySelectorAll('.service-maintenance-title-char');
+      var n = chars.length;
+      var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var waitMs = reduced ? 0 : Math.max(0, (n - 1) * letterStaggerMs + letterTransitionMs + 45);
+      copyAnimTimer = setTimeout(function () {
+        copyAnimTimer = null;
+        var copyEls = copyReveal.querySelectorAll('.split-element');
+        var copyStep = 0.036;
+        for (var i = 0; i < copyEls.length; i++) {
+          copyEls[i].style.setProperty('--reveal-delay', i * copyStep + 's');
+        }
+        copyReveal.classList.add('is-visible');
+      }, waitMs);
+    }
+
+    function playTitleLetters() {
+      if (!title) {
+        scheduleCopyAfterTitle();
+        return;
+      }
+      var chars = title.querySelectorAll('.service-maintenance-title-char');
+      if (chars.length === 0) {
+        scheduleCopyAfterTitle();
+        return;
+      }
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        title.classList.add('service-maintenance-title--letters-in');
+        scheduleCopyAfterTitle();
+        return;
+      }
+      title.classList.remove('service-maintenance-title--letters-in');
+      void title.offsetHeight;
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          title.classList.add('service-maintenance-title--letters-in');
+          scheduleCopyAfterTitle();
+        });
+      });
+    }
+
+    function update() {
+      var rect = section.getBoundingClientRect();
+      var threshold = window.innerHeight * 0.35;
+      var isCompact = rect.top < threshold;
+      section.classList.toggle('service-maintenance--compact', isCompact);
+      if (compact) compact.setAttribute('aria-hidden', isCompact ? 'false' : 'true');
+      if (intro) intro.setAttribute('aria-hidden', isCompact ? 'true' : 'false');
+
+      if (isCompact && !wasCompact) {
+        resetCompactText();
+        playTitleLetters();
+      } else if (!isCompact && wasCompact) {
+        resetCompactText();
+      }
+
+      wasCompact = isCompact;
+    }
+
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  }
+
   function initReveal() {
+    initServiceMaintenanceTitleChars();
     runLineSplits();
     setupRevealObserver();
+    initServiceMaintenanceScroll();
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
