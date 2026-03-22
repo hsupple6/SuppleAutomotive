@@ -1882,11 +1882,6 @@ body {
     width: 100%;
     min-height: min(22vh, 180px);
   }
-
-  .block-service-maintenance.service-maintenance--compact .service-maintenance-bg-layer {
-    transform: translateX(calc(-1 * (var(--maintenance-edge) + var(--maintenance-image-nudge)))) scale(0.5);
-    transform-origin: right center;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2206,11 +2201,6 @@ body {
   .block-service-diagnostics .service-diagnostics-img-spacer {
     width: 100%;
     min-height: min(22vh, 180px);
-  }
-
-  .block-service-diagnostics.service-diagnostics--compact .service-diagnostics-bg-layer {
-    transform: translateX(calc(var(--diagnostics-edge) + var(--diagnostics-image-nudge))) scale(0.5);
-    transform-origin: left center;
   }
 }
 
@@ -2536,11 +2526,6 @@ body {
     width: 100%;
     min-height: min(22vh, 180px);
   }
-
-  .block-service-inspection.service-inspection--compact .service-inspection-bg-layer {
-    transform: translateX(calc(-1 * (var(--inspection-edge) + var(--inspection-image-nudge)))) scale(0.5);
-    transform-origin: right center;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2556,22 +2541,31 @@ body {
   }
 }
 
-/* Service megacar compact: mobile — width-led image, tighter type, copy/CTA in view, looping CTA border */
+/* Service megacar compact: mobile — looping CTA border. Draw clockwise T→R→B→L (0–50%); erase same order (50–100%) with directed wipes: T L→R, R T→B, B R→L, L B→T */
 @keyframes service-cta-mobile-border-t {
   0% {
     transform: scaleX(0);
+    transform-origin: left center;
   }
   12.5% {
     transform: scaleX(1);
+    transform-origin: left center;
+  }
+  49.99% {
+    transform: scaleX(1);
+    transform-origin: left center;
   }
   50% {
     transform: scaleX(1);
+    transform-origin: right center;
   }
   62.5% {
     transform: scaleX(0);
+    transform-origin: right center;
   }
   100% {
     transform: scaleX(0);
+    transform-origin: right center;
   }
 }
 
@@ -2579,19 +2573,27 @@ body {
   0%,
   12.5% {
     transform: scaleY(0);
+    transform-origin: center top;
   }
   25% {
     transform: scaleY(1);
+    transform-origin: center top;
   }
-  50%,
+  62.49% {
+    transform: scaleY(1);
+    transform-origin: center top;
+  }
   62.5% {
     transform: scaleY(1);
+    transform-origin: center bottom;
   }
   75% {
     transform: scaleY(0);
+    transform-origin: center bottom;
   }
   100% {
     transform: scaleY(0);
+    transform-origin: center bottom;
   }
 }
 
@@ -2599,18 +2601,27 @@ body {
   0%,
   25% {
     transform: scaleX(0);
+    transform-origin: right center;
   }
   37.5% {
     transform: scaleX(1);
+    transform-origin: right center;
+  }
+  74.99% {
+    transform: scaleX(1);
+    transform-origin: right center;
   }
   75% {
     transform: scaleX(1);
+    transform-origin: left center;
   }
   87.5% {
     transform: scaleX(0);
+    transform-origin: left center;
   }
   100% {
     transform: scaleX(0);
+    transform-origin: left center;
   }
 }
 
@@ -2618,15 +2629,23 @@ body {
   0%,
   37.5% {
     transform: scaleY(0);
+    transform-origin: center bottom;
   }
   50% {
     transform: scaleY(1);
+    transform-origin: center bottom;
+  }
+  87.49% {
+    transform: scaleY(1);
+    transform-origin: center bottom;
   }
   87.5% {
     transform: scaleY(1);
+    transform-origin: center top;
   }
   100% {
     transform: scaleY(0);
+    transform-origin: center top;
   }
 }
 
@@ -2635,7 +2654,8 @@ body {
   .block.block-service-diagnostics,
   .block.block-service-inspection {
     min-height: auto;
-    padding: 4.5rem 1rem 2rem;
+    padding: clamp(3rem, 9vw, 4.25rem) 1rem 2rem;
+    overflow: visible;
   }
 
   .block-service-maintenance .service-maintenance-content,
@@ -2647,7 +2667,7 @@ body {
   .block-service-maintenance .service-maintenance-compact,
   .block-service-diagnostics .service-diagnostics-compact,
   .block-service-inspection .service-inspection-compact {
-    padding: 1rem 0 2.5rem;
+    padding: clamp(1rem, 4vw, 1.75rem) 0 2.25rem;
     justify-content: flex-start;
     align-items: stretch;
     overflow-y: auto;
@@ -2659,7 +2679,7 @@ body {
   .block-service-inspection .service-inspection-compact-inner {
     flex: 0 1 auto;
     min-height: 0;
-    gap: 1rem;
+    gap: clamp(-1rem, 6vw, 2.75rem);
     flex-direction: column;
     justify-content: flex-start;
     width: 100%;
@@ -2668,39 +2688,67 @@ body {
   .block-service-maintenance .service-maintenance-visual,
   .block-service-diagnostics .service-diagnostics-visual,
   .block-service-inspection .service-inspection-visual {
-    gap: 0.5rem;
+    gap: clamp(2.25rem, 4vw, 2rem);
     justify-content: flex-start;
-    align-items: stretch;
+    align-items: center;
     overflow: visible;
+    order: 1;
   }
 
   .block-service-maintenance .service-maintenance-title,
   .block-service-diagnostics .service-diagnostics-title,
   .block-service-inspection .service-inspection-title {
+    margin: 0;
+    width: 100%;
+    align-self: stretch;
     font-size: clamp(1.5rem, 8vw, 2.5rem);
     line-height: 1.05;
     letter-spacing: -0.03em;
   }
 
+  /* Photo is on .service-*-bg-layer (spacer is layout-only); match 80% × 16/9 and drop desktop scale(0.5) */
+  #service-maintenance.service-maintenance--compact .service-maintenance-bg-layer,
+  #service-diagnostics.service-diagnostics--compact .service-diagnostics-bg-layer,
+  #service-inspection.service-inspection--compact .service-inspection-bg-layer {
+    inset: auto;
+    left: 10%;
+    right: auto;
+    width: 80%;
+    top: clamp(6rem, 16svh, 9rem);
+    height: auto;
+    aspect-ratio: 16 / 9;
+    transform: none;
+    background-size: cover;
+    background-position: center;
+  }
+
   .block-service-maintenance .service-maintenance-img-spacer,
   .block-service-diagnostics .service-diagnostics-img-spacer,
   .block-service-inspection .service-inspection-img-spacer {
-    width: 100%;
+    width: 80%;
+    max-width: 80%;
+    margin-left: auto;
+    margin-right: auto;
     min-height: 0;
     height: auto;
     max-height: none;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 16 / 9;
     flex: 0 0 auto;
   }
 
   .block-service-maintenance .service-maintenance-copy,
   .block-service-diagnostics .service-diagnostics-copy,
   .block-service-inspection .service-inspection-copy {
+    position: static;
+    top: auto;
+    right: auto;
+    left: auto;
     width: 100%;
     max-width: none;
-    margin-top: 0.35rem;
+    margin-top: 0;
     padding: 0 0.25rem;
     align-self: stretch;
+    order: 2;
   }
 
   .block-service-maintenance .service-maintenance-copy p,
@@ -2713,8 +2761,8 @@ body {
   .service-maintenance-cta-wrap,
   .service-diagnostics-cta-wrap,
   .service-inspection-cta-wrap {
-    margin-top: 1.25rem;
-    margin-bottom: 0.5rem;
+    margin-top: clamp(1.75rem, 5vw, 2.5rem);
+    margin-bottom: 0.75rem;
     text-align: center;
     width: 100%;
   }
