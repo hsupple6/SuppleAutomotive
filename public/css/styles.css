@@ -2664,9 +2664,21 @@ body {
     min-height: min(100svh, 52rem);
   }
 
+  /* Mobile: skip full-bleed intro; compact layout + framed photo from first paint */
+  .block-service-maintenance .service-maintenance-intro,
+  .block-service-diagnostics .service-diagnostics-intro,
+  .block-service-inspection .service-inspection-intro {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
   .block-service-maintenance .service-maintenance-compact,
   .block-service-diagnostics .service-diagnostics-compact,
   .block-service-inspection .service-inspection-compact {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
     padding: clamp(1rem, 4vw, 1.75rem) 0 2.25rem;
     justify-content: flex-start;
     align-items: stretch;
@@ -2698,7 +2710,7 @@ body {
   .block-service-maintenance .service-maintenance-title,
   .block-service-diagnostics .service-diagnostics-title,
   .block-service-inspection .service-inspection-title {
-    margin: 0;
+    margin: clamp(-3.75rem, -12vw, -2.5rem) 0 0 0;
     width: 100%;
     align-self: stretch;
     font-size: clamp(1.5rem, 8vw, 2.5rem);
@@ -2706,10 +2718,10 @@ body {
     letter-spacing: -0.03em;
   }
 
-  /* Photo is on .service-*-bg-layer (spacer is layout-only); match 80% × 16/9 and drop desktop scale(0.5) */
-  #service-maintenance.service-maintenance--compact .service-maintenance-bg-layer,
-  #service-diagnostics.service-diagnostics--compact .service-diagnostics-bg-layer,
-  #service-inspection.service-inspection--compact .service-inspection-bg-layer {
+  /* Photo on .service-*-bg-layer: always framed on mobile; start slightly high then ease down */
+  #service-maintenance .service-maintenance-bg-layer,
+  #service-diagnostics .service-diagnostics-bg-layer,
+  #service-inspection .service-inspection-bg-layer {
     inset: auto;
     left: 10%;
     right: auto;
@@ -2717,9 +2729,16 @@ body {
     top: clamp(6rem, 16svh, 9rem);
     height: auto;
     aspect-ratio: 16 / 9;
-    transform: none;
+    transform: translateY(calc(-1 * clamp(0.75rem, 4vw, 1.35rem)));
+    transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
     background-size: cover;
     background-position: center;
+  }
+
+  #service-maintenance.service-mobile-bg-rested .service-maintenance-bg-layer,
+  #service-diagnostics.service-mobile-bg-rested .service-diagnostics-bg-layer,
+  #service-inspection.service-mobile-bg-rested .service-inspection-bg-layer {
+    transform: translateY(0);
   }
 
   .block-service-maintenance .service-maintenance-img-spacer,
@@ -2806,6 +2825,13 @@ body {
 }
 
 @media (max-width: 639px) and (prefers-reduced-motion: reduce) {
+  #service-maintenance .service-maintenance-bg-layer,
+  #service-diagnostics .service-diagnostics-bg-layer,
+  #service-inspection .service-inspection-bg-layer {
+    transform: translateY(0);
+    transition-duration: 0.01ms;
+  }
+
   .block-service-maintenance .service-maintenance-request .link-cta-border-t,
   .block-service-diagnostics .service-diagnostics-request .link-cta-border-t,
   .block-service-inspection .service-inspection-request .link-cta-border-t {

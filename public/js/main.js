@@ -588,10 +588,12 @@
       });
     }
 
+    var mqServiceMobile = window.matchMedia('(max-width: 639px)');
+
     function update() {
       var rect = section.getBoundingClientRect();
       var threshold = window.innerHeight * 0.35;
-      var isCompact = rect.top < threshold;
+      var isCompact = mqServiceMobile.matches ? true : rect.top < threshold;
       section.classList.toggle(compactClass, isCompact);
       if (compact) compact.setAttribute('aria-hidden', isCompact ? 'false' : 'true');
       if (intro) intro.setAttribute('aria-hidden', isCompact ? 'true' : 'false');
@@ -609,6 +611,59 @@
     window.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update);
     update();
+
+    var mobileBgSettleObs = null;
+
+    function setupMobileBgSettle() {
+      var restedClass = 'service-mobile-bg-rested';
+      if (!mqServiceMobile.matches) {
+        if (mobileBgSettleObs) {
+          mobileBgSettleObs.disconnect();
+          mobileBgSettleObs = null;
+        }
+        section.classList.remove(restedClass);
+        return;
+      }
+      if (section.classList.contains(restedClass)) return;
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        section.classList.add(restedClass);
+        return;
+      }
+      if (typeof IntersectionObserver === 'undefined') {
+        section.classList.add(restedClass);
+        return;
+      }
+      if (mobileBgSettleObs) {
+        mobileBgSettleObs.disconnect();
+        mobileBgSettleObs = null;
+      }
+      var settled = false;
+      mobileBgSettleObs = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting || settled) return;
+            settled = true;
+            if (mobileBgSettleObs) {
+              mobileBgSettleObs.disconnect();
+              mobileBgSettleObs = null;
+            }
+            requestAnimationFrame(function () {
+              requestAnimationFrame(function () {
+                section.classList.add(restedClass);
+              });
+            });
+          });
+        },
+        { rootMargin: '0px', threshold: 0.12 }
+      );
+      mobileBgSettleObs.observe(section);
+    }
+    setupMobileBgSettle();
+    if (mqServiceMobile.addEventListener) {
+      mqServiceMobile.addEventListener('change', setupMobileBgSettle);
+    } else if (mqServiceMobile.addListener) {
+      mqServiceMobile.addListener(setupMobileBgSettle);
+    }
   }
 
   function initReveal() {
