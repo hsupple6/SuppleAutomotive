@@ -413,7 +413,6 @@
       var apiBase = (CONFIG.apiBaseUrl != null && CONFIG.apiBaseUrl !== '') ? CONFIG.apiBaseUrl.replace(/\/$/, '') : '';
       var enteredEmail = (serviceForm.querySelector('[name="email"]') || {}).value || '';
       var payload = {
-        toEmail: enteredEmail,
         name: (serviceForm.querySelector('[name="name"]') || {}).value || '',
         email: enteredEmail,
         phone: (serviceForm.querySelector('[name="phone"]') || {}).value || '',
@@ -426,7 +425,7 @@
         preferred_time: (serviceForm.querySelector('[name="preferred_time"]') || {}).value || '',
         notes: (serviceForm.querySelector('[name="notes"]') || {}).value || ''
       };
-      if (!payload.toEmail) {
+      if (!String(payload.email || '').trim()) {
         showFormMessage(serviceForm, 'Email is required.', true);
         return;
       }

@@ -386,10 +386,6 @@ app.post('/api/submit-service-request', function (req, res) {
 
   try {
     var body = req.body || {};
-    var toEmail = body.toEmail || body.email;
-    if (!toEmail) {
-      return sendError(400, 'Missing toEmail');
-    }
 
     var formData = {
       name: body.name,
@@ -419,6 +415,8 @@ app.post('/api/submit-service-request', function (req, res) {
     if (formData.contact_preference === 'sms' && (!formData.phone || String(formData.phone).trim().length < 10)) {
       return sendError(400, 'Phone number must be at least 10 characters when SMS is selected');
     }
+
+    var ownerEmail = (process.env.OWNER_EMAIL || process.env.EMAIL_OWNER_ALERT || process.env.EMAIL_SIGNATURE_EMAIL || process.env.RESEND_FROM_EMAIL || '').trim();
 
     var dbPromise;
     if (!supabase) {
@@ -506,8 +504,14 @@ app.post('/api/submit-service-request', function (req, res) {
     }
 
     var ownerAlertPromise = trySend(function () {
+      if (!ownerEmail) {
+        console.warn(
+          'Service request: no owner inbox configured. Set OWNER_EMAIL (or EMAIL_OWNER_ALERT) in .env to receive new inquiry emails.'
+        );
+        return Promise.resolve({ skipped: true, reason: 'missing-owner-email' });
+      }
       return emailNotifications.sendOwnerServiceRequestAlert(
-        Object.assign({}, formData, { toEmail: toEmail })
+        Object.assign({}, formData, { ownerEmail: ownerEmail })
       );
     }, 'Owner service-request email failed');
     var customerConfirmationPromise = trySend(function () {
