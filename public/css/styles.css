@@ -1848,7 +1848,7 @@ body {
   .block-service-maintenance .service-maintenance-compact-inner {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: clamp(2.5rem, 11vw, 4.5rem);
   }
 
   .block-service-maintenance .service-maintenance-copy {
@@ -1862,7 +1862,7 @@ body {
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
-    gap: 0.65rem;
+    gap: clamp(3rem, 8vw, 4.25rem);
     order: 1;
     width: 100%;
     max-width: none;
@@ -2168,7 +2168,7 @@ body {
   .block-service-diagnostics .service-diagnostics-compact-inner {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: clamp(2.5rem, 11vw, 4.5rem);
   }
 
   .block-service-diagnostics .service-diagnostics-copy {
@@ -2182,7 +2182,7 @@ body {
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
-    gap: 0.65rem;
+    gap: clamp(3rem, 8vw, 4.25rem);
     order: 1;
     width: 100%;
     max-width: none;
@@ -2492,7 +2492,7 @@ body {
   .block-service-inspection .service-inspection-compact-inner {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: clamp(2.5rem, 11vw, 4.5rem);
   }
 
   .block-service-inspection .service-inspection-copy {
@@ -2506,7 +2506,7 @@ body {
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
-    gap: 0.65rem;
+    gap: clamp(3rem, 8vw, 4.25rem);
     order: 1;
     width: 100%;
     max-width: none;
@@ -2692,7 +2692,7 @@ body {
   .block-service-inspection .service-inspection-compact-inner {
     flex: 0 1 auto;
     min-height: 0;
-    gap: clamp(-1rem, 6vw, 2.75rem);
+    gap: clamp(2.5rem, 11vw, 4.5rem);
     flex-direction: column;
     justify-content: flex-start;
     width: 100%;
@@ -2701,7 +2701,7 @@ body {
   .block-service-maintenance .service-maintenance-visual,
   .block-service-diagnostics .service-diagnostics-visual,
   .block-service-inspection .service-inspection-visual {
-    gap: clamp(2.25rem, 4vw, 2rem);
+    gap: clamp(3rem, 8vw, 4.25rem);
     justify-content: flex-start;
     align-items: center;
     overflow: visible;
@@ -2781,7 +2781,7 @@ body {
   .service-maintenance-cta-wrap,
   .service-diagnostics-cta-wrap,
   .service-inspection-cta-wrap {
-    margin-top: clamp(1.75rem, 5vw, 2.5rem);
+    margin-top: clamp(3rem, 7vw, 4.5rem);
     margin-bottom: 0.75rem;
     text-align: center;
     width: 100%;
