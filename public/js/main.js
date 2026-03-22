@@ -524,7 +524,7 @@
     var charClass = sectionId + '-title-char';
     if (!section) return;
 
-    var wasCompact = false;
+    var wasPastThreshold = false;
     var copyAnimTimer = null;
     var letterStaggerMs = 38;
     var letterTransitionMs = 350;
@@ -606,77 +606,54 @@
     function update() {
       var rect = section.getBoundingClientRect();
       var threshold = window.innerHeight * 0.35;
-      var isCompact = mqServiceMobile.matches ? true : rect.top < threshold;
+      var pastThreshold = rect.top < threshold;
+      var isCompact = mqServiceMobile.matches ? true : pastThreshold;
       section.classList.toggle(compactClass, isCompact);
-      if (compact) compact.setAttribute('aria-hidden', isCompact ? 'false' : 'true');
-      if (intro) intro.setAttribute('aria-hidden', isCompact ? 'true' : 'false');
+      if (mqServiceMobile.matches) {
+        if (compact) compact.setAttribute('aria-hidden', 'false');
+        if (intro) intro.setAttribute('aria-hidden', 'true');
+      } else {
+        if (compact) compact.setAttribute('aria-hidden', isCompact ? 'false' : 'true');
+        if (intro) intro.setAttribute('aria-hidden', isCompact ? 'true' : 'false');
+      }
 
-      if (isCompact && !wasCompact) {
+      if (mqServiceMobile.matches) {
+        if (pastThreshold && !wasPastThreshold) {
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            section.classList.add('service-mobile-bg-rested');
+          } else {
+            requestAnimationFrame(function () {
+              requestAnimationFrame(function () {
+                section.classList.add('service-mobile-bg-rested');
+              });
+            });
+          }
+        }
+        if (!pastThreshold && wasPastThreshold) {
+          section.classList.remove('service-mobile-bg-rested');
+        }
+      } else {
+        section.classList.remove('service-mobile-bg-rested');
+      }
+
+      if (pastThreshold && !wasPastThreshold) {
         resetCompactText();
         playTitleLetters();
-      } else if (!isCompact && wasCompact) {
+      } else if (!pastThreshold && wasPastThreshold) {
         resetCompactText();
       }
 
-      wasCompact = isCompact;
+      wasPastThreshold = pastThreshold;
     }
 
     window.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update);
-    update();
-
-    var mobileBgSettleObs = null;
-
-    function setupMobileBgSettle() {
-      var restedClass = 'service-mobile-bg-rested';
-      if (!mqServiceMobile.matches) {
-        if (mobileBgSettleObs) {
-          mobileBgSettleObs.disconnect();
-          mobileBgSettleObs = null;
-        }
-        section.classList.remove(restedClass);
-        return;
-      }
-      if (section.classList.contains(restedClass)) return;
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        section.classList.add(restedClass);
-        return;
-      }
-      if (typeof IntersectionObserver === 'undefined') {
-        section.classList.add(restedClass);
-        return;
-      }
-      if (mobileBgSettleObs) {
-        mobileBgSettleObs.disconnect();
-        mobileBgSettleObs = null;
-      }
-      var settled = false;
-      mobileBgSettleObs = new IntersectionObserver(
-        function (entries) {
-          entries.forEach(function (entry) {
-            if (!entry.isIntersecting || settled) return;
-            settled = true;
-            if (mobileBgSettleObs) {
-              mobileBgSettleObs.disconnect();
-              mobileBgSettleObs = null;
-            }
-            requestAnimationFrame(function () {
-              requestAnimationFrame(function () {
-                section.classList.add(restedClass);
-              });
-            });
-          });
-        },
-        { rootMargin: '0px', threshold: 0.12 }
-      );
-      mobileBgSettleObs.observe(section);
-    }
-    setupMobileBgSettle();
     if (mqServiceMobile.addEventListener) {
-      mqServiceMobile.addEventListener('change', setupMobileBgSettle);
+      mqServiceMobile.addEventListener('change', update);
     } else if (mqServiceMobile.addListener) {
-      mqServiceMobile.addListener(setupMobileBgSettle);
+      mqServiceMobile.addListener(update);
     }
+    update();
   }
 
   function initServiceMobileCtaScrollExit() {

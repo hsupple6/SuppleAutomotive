@@ -2819,7 +2819,7 @@ body {
     letter-spacing: -0.03em;
   }
 
-  /* Photo on .service-*-bg-layer: always framed on mobile; start slightly high then ease down */
+  /* Photo: framed; before scroll threshold — hero-style zoom-out + slight lift; after — settled (synced with title/copy in JS) */
   #service-maintenance .service-maintenance-bg-layer,
   #service-diagnostics .service-diagnostics-bg-layer,
   #service-inspection .service-inspection-bg-layer {
@@ -2830,8 +2830,9 @@ body {
     top: clamp(6rem, 16svh, 9rem);
     height: auto;
     aspect-ratio: 16 / 9;
-    transform: translateY(calc(-1 * clamp(0.75rem, 4vw, 1.35rem)));
-    transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    transform-origin: center center;
+    transform: translateY(calc(-1 * clamp(0.75rem, 4vw, 1.35rem))) scale(1.22);
+    transition: transform 1s cubic-bezier(0.22, 1, 0.36, 1);
     background-size: cover;
     background-position: center;
   }
@@ -2839,7 +2840,7 @@ body {
   #service-maintenance.service-mobile-bg-rested .service-maintenance-bg-layer,
   #service-diagnostics.service-mobile-bg-rested .service-diagnostics-bg-layer,
   #service-inspection.service-mobile-bg-rested .service-inspection-bg-layer {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 
   .block-service-maintenance .service-maintenance-img-spacer,
@@ -3009,7 +3010,7 @@ body {
   #service-maintenance .service-maintenance-bg-layer,
   #service-diagnostics .service-diagnostics-bg-layer,
   #service-inspection .service-inspection-bg-layer {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
     transition-duration: 0.01ms;
   }
 
