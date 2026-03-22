@@ -456,8 +456,14 @@ body {
 /* ========== Black section between hero and process ========== */
 .section-black {
   width: 100%;
-  min-height: 25rem;
+  min-height: 5rem;
   background: #000;
+}
+
+@media (max-width: 900px) {
+  .section-black {
+    min-height: 20vh;
+  }
 }
 
 /* ========== Process slideshow (above services) ========== */
