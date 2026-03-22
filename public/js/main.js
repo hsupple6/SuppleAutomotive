@@ -60,6 +60,37 @@
   var addressText = address ? (address + (addressLine2 ? ' ' + addressLine2 : '')) : '';
   setText('contactAddress', addressText || 'Contact us for location');
 
+  var socialCfg = CONFIG.social || {};
+  function setFooterSocialLink(id, url, external) {
+    var a = byId(id);
+    if (!a) return;
+    var u = url && String(url).trim();
+    if (!u) {
+      a.hidden = true;
+      return;
+    }
+    a.setAttribute('href', u);
+    if (external) {
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener noreferrer');
+    } else {
+      a.removeAttribute('target');
+      a.removeAttribute('rel');
+    }
+    a.hidden = false;
+  }
+  setFooterSocialLink('footerSocialFacebook', socialCfg.facebook, true);
+  setFooterSocialLink('footerSocialInstagram', socialCfg.instagram, true);
+  if (email) {
+    setFooterSocialLink('footerSocialEmail', 'mailto:' + email, false);
+  } else if (byId('footerSocialEmail')) {
+    byId('footerSocialEmail').hidden = true;
+  }
+  var footerStripSocial = byId('footerStripSocial');
+  if (footerStripSocial) {
+    footerStripSocial.hidden = !footerStripSocial.querySelector('.footer-strip-social-link:not([hidden])');
+  }
+
   var apiBaseForDev = (CONFIG.apiBaseUrl != null && CONFIG.apiBaseUrl !== '') ? CONFIG.apiBaseUrl.replace(/\/$/, '') : '';
   var footerDevControls = byId('footerDevControls');
   var footerDevAdminBtn = byId('footerDevAdminBtn');

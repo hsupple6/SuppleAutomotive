@@ -337,6 +337,7 @@ app.get('/api/dev/pdf-samples/invoice', function (req, res) {
 });
 
 // Static files after /api routes so API paths are never ambiguous with public files
+app.use('/img', express.static(path.join(__dirname, 'img')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 var supabase = null;

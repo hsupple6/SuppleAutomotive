@@ -15,8 +15,9 @@ window.SUPPLE_CONFIG = {
     { id: "inspection", title: "Inspections", description: "Pre-purchase and state safety/emissions inspections." },
   ],
   hours: [{ days: "All Days", time: "All Hours" }],           // e.g. [{ days: "Mon–Fri", time: "8am–6pm" }]
+  /** Full URLs for footer icons above “Soft and Supple” (homepage). Email icon uses `email` as mailto. Image files live in project `img/` (served as `/img/…`). */
   social: {
-    facebook: "",
-    instagram: "",
+    facebook: "https://www.facebook.com/profile.php?id=61577543962820",
+    instagram: "https://www.instagram.com/suppleautomotive/",
   },
 };
