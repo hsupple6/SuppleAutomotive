@@ -182,7 +182,7 @@
   <div class="modal-box" id="invoiceModalBox" style="display: none;">
     <button type="button" class="modal-close" id="invoiceModalClose" aria-label="Close">&times;</button>
     <h2 style="margin:0 0 1rem;font-size:1.1rem;">Invoice preview</h2>
-    <p style="font-size:0.8rem;color:#999;margin:0 0 0.75rem;">Review the PDF below, then submit to add it to this customer&rsquo;s Documents in the payment portal.</p>
+    <p style="font-size:0.8rem;color:#999;margin:0 0 0.75rem;">Review the PDF below, then submit to add it to this customer&rsquo;s Documents in the user portal.</p>
     <iframe id="invoicePdfFrame" title="Invoice PDF"></iframe>
     <div class="invoice-modal-actions">
       <a href="#" id="invoiceOpenTab" class="btn btn-ghost" target="_blank" rel="noopener">Open PDF in new tab</a>
@@ -432,7 +432,7 @@
       var portalInvoices = data.invoices || [];
       var portalDocuments = data.documents || [];
       html += '<div class="section"><div class="section-title">Payment portal — Documents</div>';
-      html += '<p style="font-size:0.8rem;color:#888;margin:0 0 0.75rem 0;line-height:1.45;">These are the same invoice and document links the customer sees when they open <strong>Documents</strong> on the payment portal (identical PDF URLs).</p>';
+      html += '<p style="font-size:0.8rem;color:#888;margin:0 0 0.75rem 0;line-height:1.45;">These are the same invoice and document links the customer sees when they open <strong>Documents</strong> on the user portal (identical PDF URLs).</p>';
       html += '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin:0 0 0.4rem;">Invoices</div>';
       if (!portalInvoices.length) {
         html += '<p style="color:#666;font-size:0.85rem;margin:0 0 0.65rem;">None</p>';
@@ -1092,7 +1092,7 @@
                   });
                 })
                 .then(function (d) {
-                  showToast('Released ' + (d.documentCount || 0) + ' document(s). Customer will see a notice in the payment portal.');
+                  showToast('Released ' + (d.documentCount || 0) + ' document(s). Customer will see a notice in the user portal.');
                   closeDocReleaseModal();
                 });
             }
@@ -1249,7 +1249,7 @@
             });
           })
           .then(function (d) {
-            showToast('Released ' + (d && d.documentCount ? d.documentCount : 0) + ' document(s). Customer will see a notice in the payment portal.');
+            showToast('Released ' + (d && d.documentCount ? d.documentCount : 0) + ' document(s). Customer will see a notice in the user portal.');
             closeStarterWizard();
             closeDocReleaseModal();
           })

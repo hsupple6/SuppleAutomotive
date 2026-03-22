@@ -10,6 +10,7 @@ var buildInvoicePdfBuffer = require(path.join(__dirname, 'lib', 'invoice-pdf')).
 var agreementPdf = require(path.join(__dirname, 'lib', 'agreement-pdf'));
 var estimatePdf = require(path.join(__dirname, 'lib', 'estimate-pdf'));
 var signedAgreementPdf = require(path.join(__dirname, 'lib', 'signed-agreement-pdf'));
+var devPdfSamples = require(path.join(__dirname, 'lib', 'dev-pdf-samples'));
 var emailNotifications = require(path.join(__dirname, 'lib', 'email-notifications'));
 var express = require('express');
 var session = require('express-session');
@@ -207,7 +208,135 @@ function sendControlsPanel(res) {
   });
 }
 
-// Static files: public/ for Vercel compatibility (Vercel serves public/ via CDN; locally we serve it here)
+function devPdfSamplesEnabled() {
+  var v = String(process.env.DEV_PDF_SAMPLES || process.env.ALLOW_DEV_PDF_SAMPLES || '').trim();
+  return v === '1' || /^true$/i.test(v) || /^yes$/i.test(v);
+}
+
+function sendDevSamplePdf(res, buf, filename) {
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('Content-Disposition', 'inline; filename="' + String(filename || 'sample.pdf').replace(/"/g, '') + '"');
+  res.send(buf);
+}
+
+app.get('/api/dev/pdf-samples/check', function (req, res) {
+  res.json({ enabled: devPdfSamplesEnabled() });
+});
+
+app.get('/api/dev/pdf-samples/agreement', function (req, res) {
+  if (!devPdfSamplesEnabled()) return res.status(404).end();
+  var cust = devPdfSamples.fillerCustomer();
+  var veh = devPdfSamples.fillerVehicle();
+  var fields = agreementPdf.normalizeAgreementReleaseFields(devPdfSamples.fillerAgreementFields());
+  agreementPdf
+    .buildAgreementPdfBuffer(cust, veh, { releaseFields: fields })
+    .then(function (buf) {
+      sendDevSamplePdf(res, buf, 'dev-agreement.pdf');
+    })
+    .catch(function (err) {
+      console.error('dev pdf agreement:', err);
+      res.status(500).type('text').send(err.message || 'PDF failed');
+    });
+});
+
+app.get('/api/dev/pdf-samples/agreement-typed', function (req, res) {
+  if (!devPdfSamplesEnabled()) return res.status(404).end();
+  var cust = devPdfSamples.fillerCustomer();
+  var veh = devPdfSamples.fillerVehicle();
+  var fields = agreementPdf.normalizeAgreementReleaseFields(devPdfSamples.fillerAgreementFields());
+  agreementPdf
+    .buildAgreementPdfBuffer(cust, veh, {
+      releaseFields: fields,
+      customerSignature: { mode: 'typed', payload: devPdfSamples.FILLER_DATE_TOKEN },
+      signedDateStr: devPdfSamples.FILLER_DATE_TOKEN
+    })
+    .then(function (buf) {
+      sendDevSamplePdf(res, buf, 'dev-agreement-typed.pdf');
+    })
+    .catch(function (err) {
+      console.error('dev pdf agreement-typed:', err);
+      res.status(500).type('text').send(err.message || 'PDF failed');
+    });
+});
+
+app.get('/api/dev/pdf-samples/agreement-drawn', function (req, res) {
+  if (!devPdfSamplesEnabled()) return res.status(404).end();
+  var cust = devPdfSamples.fillerCustomer();
+  var veh = devPdfSamples.fillerVehicle();
+  var fields = agreementPdf.normalizeAgreementReleaseFields(devPdfSamples.fillerAgreementFields());
+  agreementPdf
+    .buildAgreementPdfBuffer(cust, veh, {
+      releaseFields: fields,
+      customerSignature: { mode: 'drawn', payload: devPdfSamples.FILLER_DRAWN_SIG_PNG },
+      signedDateStr: devPdfSamples.FILLER_DATE_TOKEN
+    })
+    .then(function (buf) {
+      sendDevSamplePdf(res, buf, 'dev-agreement-drawn.pdf');
+    })
+    .catch(function (err) {
+      console.error('dev pdf agreement-drawn:', err);
+      res.status(500).type('text').send(err.message || 'PDF failed');
+    });
+});
+
+app.get('/api/dev/pdf-samples/agreement-bundle', function (req, res) {
+  if (!devPdfSamplesEnabled()) return res.status(404).end();
+  var cust = devPdfSamples.fillerCustomer();
+  var veh = devPdfSamples.fillerVehicle();
+  var fields = agreementPdf.normalizeAgreementReleaseFields(devPdfSamples.fillerAgreementFields());
+  agreementPdf
+    .buildAgreementPdfBuffer(cust, veh, { releaseFields: fields })
+    .then(function (baseBuf) {
+      return signedAgreementPdf.buildSignedAgreementPdf(baseBuf, {
+        mode: 'typed',
+        payload: devPdfSamples.FILLER_DATE_TOKEN,
+        customerName: cust.name,
+        signedAtLabel: devPdfSamples.FILLER_DATE_TOKEN + ' (UTC)'
+      });
+    })
+    .then(function (outBytes) {
+      sendDevSamplePdf(res, Buffer.from(outBytes), 'dev-agreement-signature-bundle.pdf');
+    })
+    .catch(function (err) {
+      console.error('dev pdf agreement-bundle:', err);
+      res.status(500).type('text').send(err.message || 'PDF failed');
+    });
+});
+
+app.get('/api/dev/pdf-samples/estimate', function (req, res) {
+  if (!devPdfSamplesEnabled()) return res.status(404).end();
+  var cust = devPdfSamples.fillerCustomer();
+  var veh = devPdfSamples.fillerVehicle();
+  var ef = estimatePdf.normalizeEstimateReleaseFields(devPdfSamples.fillerEstimateFields());
+  estimatePdf
+    .buildEstimatePdfBuffer(cust, veh, {
+      releaseFields: ef,
+      customerSignature: { mode: 'typed', payload: devPdfSamples.FILLER_DATE_TOKEN },
+      signedDateStr: devPdfSamples.FILLER_DATE_TOKEN
+    })
+    .then(function (buf) {
+      sendDevSamplePdf(res, buf, 'dev-estimate.pdf');
+    })
+    .catch(function (err) {
+      console.error('dev pdf estimate:', err);
+      res.status(500).type('text').send(err.message || 'PDF failed');
+    });
+});
+
+app.get('/api/dev/pdf-samples/invoice', function (req, res) {
+  if (!devPdfSamplesEnabled()) return res.status(404).end();
+  buildInvoicePdfBuffer(devPdfSamples.fillerInvoiceBundle())
+    .then(function (buf) {
+      sendDevSamplePdf(res, buf, 'dev-invoice.pdf');
+    })
+    .catch(function (err) {
+      console.error('dev pdf invoice:', err);
+      res.status(500).type('text').send(err.message || 'PDF failed');
+    });
+});
+
+// Static files after /api routes so API paths are never ambiguous with public files
 app.use(express.static(path.join(__dirname, 'public')));
 
 var supabase = null;

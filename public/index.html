@@ -57,7 +57,7 @@
           <a href="#location">Location</a>
         </nav>
         <div class="header-actions">
-        <a href="payment.html" class="link-payment js-payment-portal-link" id="headerPaymentPortal">Payment Portal</a>
+        <a href="payment.html" class="link-payment js-payment-portal-link" id="headerPaymentPortal">User Portal</a>
         <a href="request-service.html" class="link-cta js-request-service-link" id="headerRequestService">
           <span class="link-cta-border link-cta-border-t" aria-hidden="true"></span>
           <span class="link-cta-border link-cta-border-r" aria-hidden="true"></span>
@@ -81,7 +81,7 @@
         <a href="#location">Location</a>
       </nav>
       <div class="mobile-nav-overlay-actions">
-        <a href="payment.html" class="js-payment-portal-link">Payment Portal</a>
+        <a href="payment.html" class="js-payment-portal-link">User Portal</a>
         <a href="request-service.html" class="js-request-service-link">Request service</a>
       </div>
     </div>
@@ -609,15 +609,15 @@
       <a href="#">Sitemap</a>
       <a href="#">Privacy</a>
     </div>
-    <div class="footer-dev-controls" id="footerDevControls" style="display:none;">
-      <button type="button" class="footer-dev-button" id="footerDevAdminBtn">Dev: Admin dashboard (hsupple06)</button>
+    <div class="footer-dev-controls" id="footerDevControls" hidden>
+      <button type="button" class="footer-dev-button" id="footerDevAdminBtn">Dev: Supple Controls</button>
+      <div class="footer-dev-pdf" id="footerDevPdf" hidden>
+        <p class="footer-dev-pdf-title">Sample PDFs (filler data + signatures <code>xx/xxxxxx</code>)</p>
+        <p class="footer-dev-pdf-hint">Requires <code>DEV_PDF_SAMPLES=1</code> in server <code>.env</code>.</p>
+        <ul class="footer-dev-pdf-list" id="footerDevPdfList"></ul>
+      </div>
     </div>
   </footer>
-
-  <div class="cookie-bar" id="cookieBar" role="dialog" aria-label="Cookie notice">
-    <p>We use cookies on this website to enhance the experience. <a href="#">Privacy policy</a>.</p>
-    <button type="button" class="cookie-accept" id="cookieAccept">Allow Cookies</button>
-  </div>
 
   <div class="slash-overlay" id="slashOverlay" aria-hidden="true">
     <div class="slash-overlay-line slash-overlay-line-bg" id="slashOverlayLineBg"></div>

@@ -60,21 +60,6 @@
   var addressText = address ? (address + (addressLine2 ? ' ' + addressLine2 : '')) : '';
   setText('contactAddress', addressText || 'Contact us for location');
 
-  // Cookie bar (Koenigsegg-style)
-  var cookieBar = byId('cookieBar');
-  var cookieAccept = byId('cookieAccept');
-  if (cookieBar && cookieAccept) {
-    if (typeof localStorage !== 'undefined' && localStorage.getItem('supple-cookies-accepted')) {
-      cookieBar.classList.remove('visible');
-    } else {
-      cookieBar.classList.add('visible');
-    }
-    cookieAccept.addEventListener('click', function () {
-      if (typeof localStorage !== 'undefined') localStorage.setItem('supple-cookies-accepted', '1');
-      cookieBar.classList.remove('visible');
-    });
-  }
-
   // Request service: full-page blue slash, then navigate to request-service.html
   var requestServiceLinks = document.querySelectorAll('.js-request-service-link');
   var slashOverlay = byId('slashOverlay');
@@ -104,7 +89,7 @@
     });
   }
 
-  // Payment Portal: same slash animation but WHITE strip, then navigate to payment.html
+  // User Portal: same slash animation but WHITE strip, then navigate to payment.html
   var paymentPortalLinks = document.querySelectorAll('.js-payment-portal-link');
   if (paymentPortalLinks.length && slashOverlay && slashLine) {
     function goToPayment(e) {

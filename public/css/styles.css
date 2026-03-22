@@ -338,7 +338,7 @@ body {
   transform: translateY(-7px) rotate(-45deg);
 }
 
-/* Payment Portal: semi-hidden rounded pill, gray → black + inset white on hover */
+/* User Portal: semi-hidden rounded pill, gray → black + inset white on hover */
 .link-payment {
   display: inline-block;
   padding: 0.5rem 1rem;
@@ -3542,7 +3542,7 @@ body {
   padding: 6rem 2rem 4rem;
 }
 
-/* ========== Payment portal dashboard ========== */
+/* ========== User portal dashboard (payment.html) ========== */
 .payment-success-banner {
   margin: 0 auto 1.5rem;
   padding: 0.85rem 1.25rem;
@@ -4161,6 +4161,91 @@ body {
   color: var(--text);
 }
 
+.footer-dev-controls {
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  max-width: 36rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.footer-dev-controls[hidden] {
+  display: none !important;
+}
+
+.footer-dev-button {
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.footer-dev-button:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.footer-dev-pdf {
+  text-align: left;
+  width: 100%;
+}
+
+.footer-dev-pdf[hidden] {
+  display: none !important;
+}
+
+.footer-dev-pdf-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.footer-dev-pdf-title code {
+  font-size: 0.72em;
+}
+
+.footer-dev-pdf-hint {
+  margin: 0 0 0.65rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.footer-dev-pdf-hint code {
+  font-size: 0.85em;
+}
+
+.footer-dev-pdf-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.footer-dev-pdf-list a {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--accent-light, #38bdf8);
+  text-decoration: none;
+  padding: 0.25rem 0;
+}
+
+.footer-dev-pdf-list a:hover {
+  text-decoration: underline;
+}
+
 /* ========== Full-page orange slash animation ========== */
 .slash-overlay {
   position: fixed;
@@ -4200,7 +4285,7 @@ body {
   animation: slash-sweep-gray 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* White strip variant for Payment Portal */
+/* White strip variant for User Portal */
 .slash-overlay-white .slash-overlay-line:not(.slash-overlay-line-bg) {
   background: #fff;
   box-shadow: 0 0 60px 8px rgba(255, 255, 255, 0.35);
@@ -4246,62 +4331,6 @@ body {
     transform: translate(-50%, -50%) rotate(-45deg) translateX(150vw);
     opacity: 0;
   }
-}
-
-/* ========== Cookie bar ========== */
-.cookie-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-  padding: 1rem 2rem;
-  background: var(--bg);
-  border-top: 1px solid var(--border);
-  flex-wrap: wrap;
-  transform: translateY(100%);
-  transition: transform 0.3s ease;
-}
-
-.cookie-bar.visible {
-  transform: translateY(0);
-}
-
-.cookie-bar p {
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-.cookie-bar a {
-  color: var(--text);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.cookie-bar a:hover {
-  color: var(--text-muted);
-}
-
-.cookie-accept {
-  padding: 0.5rem 1.25rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: var(--bg);
-  background: var(--text);
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  transition: opacity 0.2s;
-}
-
-.cookie-accept:hover {
-  opacity: 0.9;
 }
 
 /* ========== Image placeholders ========== */
@@ -4745,13 +4774,6 @@ body {
     gap: 1rem;
   }
 
-  .cookie-bar {
-    flex-direction: column;
-    align-items: stretch;
-    text-align: center;
-    padding: 1rem 1rem;
-  }
-
   /* Process slider: fit to screen (no horizontal overflow), reduced height on mobile */
   .process-slider {
     width: 100%;
@@ -5006,7 +5028,7 @@ body {
   line-height: 1.3;
 }
 
-/* Payment portal — Documents */
+/* User portal — Documents */
 .payment-history .payment-documents-btn {
   margin-top: 0;
   margin-bottom: 1rem;

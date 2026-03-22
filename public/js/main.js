@@ -60,19 +60,71 @@
   var addressText = address ? (address + (addressLine2 ? ' ' + addressLine2 : '')) : '';
   setText('contactAddress', addressText || 'Contact us for location');
 
-  // Cookie bar (Koenigsegg-style)
-  var cookieBar = byId('cookieBar');
-  var cookieAccept = byId('cookieAccept');
-  if (cookieBar && cookieAccept) {
-    if (typeof localStorage !== 'undefined' && localStorage.getItem('supple-cookies-accepted')) {
-      cookieBar.classList.remove('visible');
-    } else {
-      cookieBar.classList.add('visible');
+  var apiBaseForDev = (CONFIG.apiBaseUrl != null && CONFIG.apiBaseUrl !== '') ? CONFIG.apiBaseUrl.replace(/\/$/, '') : '';
+  var footerDevControls = byId('footerDevControls');
+  var footerDevAdminBtn = byId('footerDevAdminBtn');
+  var footerDevPdf = byId('footerDevPdf');
+  var footerDevPdfList = byId('footerDevPdfList');
+  if (footerDevControls && footerDevAdminBtn && footerDevPdf && footerDevPdfList && typeof fetch !== 'undefined') {
+    function isLocalDevHost() {
+      var h = window.location.hostname || '';
+      return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
     }
-    cookieAccept.addEventListener('click', function () {
-      if (typeof localStorage !== 'undefined') localStorage.setItem('supple-cookies-accepted', '1');
-      cookieBar.classList.remove('visible');
+    function showFooterDevLocalMessage(fetchFailed) {
+      if (!isLocalDevHost()) return;
+      footerDevControls.hidden = false;
+      footerDevPdf.hidden = false;
+      var hint = footerDevPdf.querySelector('.footer-dev-pdf-hint');
+      if (hint) {
+        hint.textContent = fetchFailed
+          ? 'Could not reach the dev PDF API. Serve the site with npm start (Node), not live-server or opening the HTML file directly.'
+          : 'Sample PDF links appear when DEV_PDF_SAMPLES=1 is in the server .env — save the file and restart npm start.';
+      }
+    }
+    footerDevAdminBtn.addEventListener('click', function () {
+      window.location.href = '/supplecontrols';
     });
+    var pdfSamples = [
+      { path: '/api/dev/pdf-samples/agreement', label: 'Service agreement (empty signature lines)' },
+      { path: '/api/dev/pdf-samples/agreement-typed', label: 'Service agreement (typed customer signature)' },
+      { path: '/api/dev/pdf-samples/agreement-drawn', label: 'Service agreement (drawn placeholder image)' },
+      { path: '/api/dev/pdf-samples/agreement-bundle', label: 'Agreement + extra signature page (pdf-lib bundle)' },
+      { path: '/api/dev/pdf-samples/estimate', label: 'Estimate (typed customer signature)' },
+      { path: '/api/dev/pdf-samples/invoice', label: 'Invoice' }
+    ];
+    var checkUrl = (apiBaseForDev || '') + '/api/dev/pdf-samples/check';
+    fetch(checkUrl, { credentials: 'same-origin' })
+      .then(function (r) {
+        if (!r.ok) {
+          showFooterDevLocalMessage(true);
+          return null;
+        }
+        return r.json();
+      })
+      .then(function (data) {
+        if (!data) return;
+        if (data.enabled) {
+          footerDevControls.hidden = false;
+          footerDevPdf.hidden = false;
+          var hintOn = footerDevPdf.querySelector('.footer-dev-pdf-hint');
+          if (hintOn) hintOn.hidden = true;
+          pdfSamples.forEach(function (item) {
+            var li = document.createElement('li');
+            var a = document.createElement('a');
+            a.href = (apiBaseForDev || '') + item.path;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.textContent = item.label;
+            li.appendChild(a);
+            footerDevPdfList.appendChild(li);
+          });
+          return;
+        }
+        showFooterDevLocalMessage(false);
+      })
+      .catch(function () {
+        showFooterDevLocalMessage(true);
+      });
   }
 
   // Request service: full-page blue slash, then navigate to request-service.html
@@ -80,63 +132,11 @@
   var slashOverlay = byId('slashOverlay');
   var slashLine = byId('slashOverlayLine');
   var slashLineBg = byId('slashOverlayLineBg');
-  function runMobileHamburgerSlashNavigate(href) {
-    if (!window.matchMedia('(max-width: 900px)').matches) return false;
-    var mobileNavSlash = byId('mobileNavSlash');
-    var mobileNavSlashFill = mobileNavSlash ? mobileNavSlash.querySelector('.mobile-nav-slash-fill') : null;
-    var mobileNavOverlayContent = byId('mobileNavOverlayContent');
-    var topBarForNav = document.querySelector('.top-bar');
-    var navToggleForNav = byId('navToggle');
-    var navMenuContentForNav = byId('navMenuContent');
-    if (!mobileNavSlash || !mobileNavSlashFill) return false;
-
-    if (topBarForNav) {
-      topBarForNav.classList.remove('nav-open', 'nav-with-slash');
-    }
-    if (navToggleForNav) {
-      navToggleForNav.setAttribute('aria-expanded', 'false');
-      navToggleForNav.setAttribute('aria-label', 'Open menu');
-    }
-    if (navMenuContentForNav) navMenuContentForNav.classList.remove('is-visible');
-    if (mobileNavOverlayContent) mobileNavOverlayContent.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-
-    mobileNavSlash.setAttribute('aria-hidden', 'false');
-    mobileNavSlash.classList.add('mobile-nav-slash-active', 'mobile-nav-slash-open');
-    mobileNavSlash.classList.remove('mobile-nav-slash-close', 'mobile-nav-slash-behind');
-
-    var done = false;
-    function navigate() {
-      if (done) return;
-      done = true;
-      window.location.href = href;
-    }
-    var fallback = setTimeout(navigate, 1400);
-    function onCloseEnd() {
-      clearTimeout(fallback);
-      navigate();
-    }
-    var closeStarted = false;
-    function startClose() {
-      if (closeStarted) return;
-      closeStarted = true;
-      mobileNavSlash.classList.remove('mobile-nav-slash-open', 'mobile-nav-slash-behind');
-      mobileNavSlash.classList.add('mobile-nav-slash-close');
-      mobileNavSlashFill.addEventListener('animationend', onCloseEnd, { once: true });
-    }
-    mobileNavSlashFill.addEventListener('animationend', startClose, { once: true });
-    // Kick close a bit early so mobile does not sit on a blue full-screen hold.
-    setTimeout(startClose, 260);
-    return true;
-  }
-
   if (requestServiceLinks.length) {
     function goToRequestService(e) {
       var href = e.currentTarget.getAttribute('href');
       if (!href || href.indexOf('request-service') === -1) return;
-      if (runMobileHamburgerSlashNavigate('request-service.html')) {
-        e.preventDefault();
-        e.stopPropagation();
+      if (window.matchMedia('(max-width: 900px)').matches) {
         return;
       }
       if (!slashOverlay || !slashLine) {
@@ -164,15 +164,13 @@
     });
   }
 
-  // Payment Portal: same slash animation but WHITE strip, then navigate to payment.html
+  // User Portal: same slash animation but WHITE strip, then navigate to payment.html
   var paymentPortalLinks = document.querySelectorAll('.js-payment-portal-link');
   if (paymentPortalLinks.length) {
     function goToPayment(e) {
       var href = e.currentTarget.getAttribute('href');
       if (!href || href.indexOf('payment') === -1) return;
-      if (runMobileHamburgerSlashNavigate('payment.html')) {
-        e.preventDefault();
-        e.stopPropagation();
+      if (window.matchMedia('(max-width: 900px)').matches) {
         return;
       }
       if (!slashOverlay || !slashLine) {
@@ -852,7 +850,7 @@
     window.addEventListener('resize', updateProcessUnderline);
   }
 
-  // Contact switch: service request (Email / SMS) uses #contactPreference; payment portal (Email / Phone) uses #paymentForm
+  // Contact switch: service request (Email / SMS) uses #contactPreference; user portal (Email / Phone) uses #paymentForm
   var contactSwitch = document.querySelector('.contact-switch');
   if (contactSwitch) {
     var options = contactSwitch.querySelectorAll('.contact-switch-option');
