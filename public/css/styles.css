@@ -4676,6 +4676,15 @@ body {
     line-height: 0.95;
   }
 
+  .block.hero {
+    min-height: 135vh;
+    padding-bottom: 8rem;
+  }
+
+  .section-black {
+    min-height: clamp(7.5rem, 24vw, 12rem);
+  }
+
   .hero-img {
     background-size: 140%;
   }
@@ -4692,8 +4701,10 @@ body {
     position: absolute;
     z-index: 2;
     left: 50%;
-    top: 90vh;
-    transform: translate(-50%, -50%);
+    right: auto;
+    top: auto;
+    bottom: clamp(3.5rem, 11vh, 7rem);
+    transform: translateX(-50%);
     width: calc(100% - 2rem);
     max-width: 19rem;
     box-sizing: border-box;
@@ -5115,6 +5126,11 @@ body {
 
   .block {
     padding: 5rem 1rem 3rem;
+  }
+
+  .block.hero {
+    min-height: 135vh;
+    padding-bottom: 8rem;
   }
 
   .block-pricing {
