@@ -489,7 +489,8 @@
         sr.className = charClass;
         sr.style.setProperty('--i', String(idx));
         idx += 1;
-        sr.textContent = restLine.charAt(r);
+        /* Regular spaces collapse inside inline-block letter spans; NBSP keeps gaps visible */
+        sr.textContent = restLine.charAt(r) === ' ' ? '\u00a0' : restLine.charAt(r);
         title.appendChild(sr);
       }
     } else {
