@@ -7,12 +7,9 @@ Email: hlsbusiness@suppleautomotive.com
 Customer Name: __CUSTOMER_NAME__  
 Phone: __CUSTOMER_PHONE__  
 Email: __CUSTOMER_EMAIL__  
-Service Address: __ADDRESS_FULL__  
+Service Address: __SERVICE_ADDRESS__  
 
 Vehicle Year: __VEHICLE_YEAR__   Make: __VEHICLE_MAKE__   Model: __VEHICLE_MODEL__  
-VIN: __VEHICLE_VIN__  
-Mileage: __VEHICLE_MILEAGE__  
-
 ---
 
 ## 1. Repair Authorization and Work Order
@@ -179,8 +176,8 @@ This agreement shall be governed by and interpreted under the laws of the state 
 ### 7.4 Dispute Resolution
 Any disputes arising from this agreement shall be resolved in a court of competent jurisdiction within the applicable state.
 
----
 
-Customer Signature: [[CUSTOMER_SIG]]
+[[CUSTOMER_SIG]]
+---
 
 Mechanic Signature: _________________________________   Date: _______________
