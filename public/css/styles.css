@@ -2662,6 +2662,7 @@ body {
   .block-service-diagnostics .service-diagnostics-content,
   .block-service-inspection .service-inspection-content {
     min-height: min(100svh, 52rem);
+    overflow: visible;
   }
 
   /* Mobile: skip full-bleed intro; compact layout + framed photo from first paint */
@@ -2682,8 +2683,8 @@ body {
     padding: clamp(1rem, 4vw, 1.75rem) 0 2.25rem;
     justify-content: flex-start;
     align-items: stretch;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    /* visible: negative title margin must not be clipped (overflow-y: auto cut the headings) */
+    overflow: visible;
   }
 
   .block-service-maintenance .service-maintenance-compact-inner,
