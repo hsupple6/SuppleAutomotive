@@ -440,52 +440,87 @@
         { rootMargin: '0px', threshold: 0 }
       );
       revealEls.forEach(function (el) {
-        if (el.id === 'serviceMaintenanceCopyReveal') return;
+        if (el.id === 'serviceMaintenanceCopyReveal' || el.id === 'serviceDiagnosticsCopyReveal' || el.id === 'serviceInspectionCopyReveal') return;
         revealObserver.observe(el);
       });
     } else if (revealEls.length) {
       revealEls.forEach(function (el) {
-        if (el.id === 'serviceMaintenanceCopyReveal') return;
+        if (el.id === 'serviceMaintenanceCopyReveal' || el.id === 'serviceDiagnosticsCopyReveal' || el.id === 'serviceInspectionCopyReveal') return;
         setRevealDelays(el);
         el.classList.add('is-visible');
       });
     }
   }
 
-  function initServiceMaintenanceTitleChars() {
-    var title = document.getElementById('serviceMaintenanceTitle');
+  function serviceSectionIdToCamel(sectionId) {
+    return sectionId.replace(/-([a-z])/g, function (_, c) {
+      return c.toUpperCase();
+    });
+  }
+
+  function initServiceBlockTitleChars(sectionId) {
+    var titleId = serviceSectionIdToCamel(sectionId) + 'Title';
+    var title = document.getElementById(titleId);
     if (!title || title.getAttribute('data-title-chars-done')) return;
     var raw = (title.textContent || '').trim();
     if (!raw) return;
+    var charClass = sectionId + '-title-char';
     title.innerHTML = '';
     var upper = raw.toUpperCase();
     var words = upper.split(/\s+/).filter(function (w) {
       return w.length > 0;
     });
     var idx = 0;
-    for (var w = 0; w < words.length; w++) {
-      var word = words[w];
-      for (var c = 0; c < word.length; c++) {
-        var span = document.createElement('span');
-        span.className = 'service-maintenance-title-char';
-        span.style.setProperty('--i', String(idx));
+    /* Inspection has four words; one break per word stacks four narrow lines. Two lines (like diagnostics) reads much wider. */
+    if (sectionId === 'service-inspection' && words.length > 2) {
+      var w0 = words[0];
+      for (var c0 = 0; c0 < w0.length; c0++) {
+        var s0 = document.createElement('span');
+        s0.className = charClass;
+        s0.style.setProperty('--i', String(idx));
         idx += 1;
-        span.textContent = word.charAt(c);
-        title.appendChild(span);
+        s0.textContent = w0.charAt(c0);
+        title.appendChild(s0);
       }
-      if (w < words.length - 1) {
-        title.appendChild(document.createElement('br'));
+      title.appendChild(document.createElement('br'));
+      var restLine = words.slice(1).join(' ');
+      for (var r = 0; r < restLine.length; r++) {
+        var sr = document.createElement('span');
+        sr.className = charClass;
+        sr.style.setProperty('--i', String(idx));
+        idx += 1;
+        sr.textContent = restLine.charAt(r);
+        title.appendChild(sr);
+      }
+    } else {
+      for (var w = 0; w < words.length; w++) {
+        var word = words[w];
+        for (var c = 0; c < word.length; c++) {
+          var span = document.createElement('span');
+          span.className = charClass;
+          span.style.setProperty('--i', String(idx));
+          idx += 1;
+          span.textContent = word.charAt(c);
+          title.appendChild(span);
+        }
+        if (w < words.length - 1) {
+          title.appendChild(document.createElement('br'));
+        }
       }
     }
     title.setAttribute('data-title-chars-done', '');
   }
 
-  function initServiceMaintenanceScroll() {
-    var section = document.getElementById('service-maintenance');
-    var copyReveal = document.getElementById('serviceMaintenanceCopyReveal');
-    var title = document.getElementById('serviceMaintenanceTitle');
-    var compact = section && section.querySelector('.service-maintenance-compact');
-    var intro = section && section.querySelector('.service-maintenance-intro');
+  function initServiceBlockScroll(sectionId) {
+    var camel = serviceSectionIdToCamel(sectionId);
+    var section = document.getElementById(sectionId);
+    var copyReveal = document.getElementById(camel + 'CopyReveal');
+    var title = document.getElementById(camel + 'Title');
+    var compactClass = sectionId + '--compact';
+    var compact = section && section.querySelector('.' + sectionId + '-compact');
+    var intro = section && section.querySelector('.' + sectionId + '-intro');
+    var lettersInClass = sectionId + '-title--letters-in';
+    var charClass = sectionId + '-title-char';
     if (!section) return;
 
     var wasCompact = false;
@@ -506,14 +541,14 @@
         copyReveal.classList.remove('is-visible');
       }
       if (title) {
-        title.classList.remove('service-maintenance-title--letters-in');
+        title.classList.remove(lettersInClass);
       }
     }
 
     function scheduleCopyAfterTitle() {
       clearCopyAnimTimer();
       if (!copyReveal || !title) return;
-      var chars = title.querySelectorAll('.service-maintenance-title-char');
+      var chars = title.getElementsByClassName(charClass);
       var n = chars.length;
       var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       var waitMs = reduced ? 0 : Math.max(0, (n - 1) * letterStaggerMs + letterTransitionMs + 45);
@@ -533,21 +568,21 @@
         scheduleCopyAfterTitle();
         return;
       }
-      var chars = title.querySelectorAll('.service-maintenance-title-char');
+      var chars = title.getElementsByClassName(charClass);
       if (chars.length === 0) {
         scheduleCopyAfterTitle();
         return;
       }
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        title.classList.add('service-maintenance-title--letters-in');
+        title.classList.add(lettersInClass);
         scheduleCopyAfterTitle();
         return;
       }
-      title.classList.remove('service-maintenance-title--letters-in');
+      title.classList.remove(lettersInClass);
       void title.offsetHeight;
       requestAnimationFrame(function () {
         requestAnimationFrame(function () {
-          title.classList.add('service-maintenance-title--letters-in');
+          title.classList.add(lettersInClass);
           scheduleCopyAfterTitle();
         });
       });
@@ -557,7 +592,7 @@
       var rect = section.getBoundingClientRect();
       var threshold = window.innerHeight * 0.35;
       var isCompact = rect.top < threshold;
-      section.classList.toggle('service-maintenance--compact', isCompact);
+      section.classList.toggle(compactClass, isCompact);
       if (compact) compact.setAttribute('aria-hidden', isCompact ? 'false' : 'true');
       if (intro) intro.setAttribute('aria-hidden', isCompact ? 'true' : 'false');
 
@@ -577,10 +612,14 @@
   }
 
   function initReveal() {
-    initServiceMaintenanceTitleChars();
+    ['service-maintenance', 'service-diagnostics', 'service-inspection'].forEach(function (sectionId) {
+      initServiceBlockTitleChars(sectionId);
+    });
     runLineSplits();
     setupRevealObserver();
-    initServiceMaintenanceScroll();
+    ['service-maintenance', 'service-diagnostics', 'service-inspection'].forEach(function (sectionId) {
+      initServiceBlockScroll(sectionId);
+    });
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {

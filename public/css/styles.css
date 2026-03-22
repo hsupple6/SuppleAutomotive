@@ -1903,33 +1903,888 @@ body {
 }
 
 #service-diagnostics .block-bg {
+  background: var(--bg-alt);
+}
+
+#service-diagnostics .service-diagnostics-bg-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   background-image: url('/images/service-diagnostics.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  transform-origin: left center;
+  transition: transform 0.4s ease;
 }
 
 #service-diagnostics .block-bg .block-placeholder {
+  position: relative;
+  z-index: 0;
   background: transparent;
   color: transparent;
 }
 
-#service-inspection .block-headline,
-#service-inspection .block-headline .block-headline-line {
-  -webkit-text-stroke: 2px black;
-  paint-order: stroke fill;
+/* Precision diagnostics: intro full-bleed, then scroll compacts image to 50% width (left) + copy right */
+.block-service-diagnostics {
+  overflow: hidden;
+  align-items: stretch;
+  --diagnostics-edge: clamp(1.25rem, 5vw, 3rem);
+  /* Extra horizontal shift so scaled image reads more centered; scale unchanged */
+  --diagnostics-image-nudge: clamp(2.25rem, 7vw, 6rem);
+}
+
+.block-service-diagnostics .service-diagnostics-content {
+  position: relative;
+  max-width: none;
+  width: 100%;
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-height: calc(100vh - 10rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.block-service-diagnostics .service-diagnostics-intro {
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.block-service-diagnostics .service-diagnostics-compact {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  padding: 2.35rem 0 3.25rem;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.block-service-diagnostics.service-diagnostics--compact .service-diagnostics-intro {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.block-service-diagnostics.service-diagnostics--compact .service-diagnostics-compact {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.block-service-diagnostics.service-diagnostics--compact .service-diagnostics-bg-layer {
+  transform: translateX(calc(var(--diagnostics-edge) + var(--diagnostics-image-nudge))) scale(0.5);
+}
+
+.block-service-diagnostics .service-diagnostics-compact-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  min-height: 0;
+  padding-left: var(--diagnostics-edge);
+  padding-right: var(--diagnostics-edge);
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .block-service-diagnostics .service-diagnostics-compact-inner {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 38rem) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      'title .'
+      'image copy';
+    column-gap: clamp(1.25rem, 3.5vw, 2.5rem);
+    row-gap: 2rem;
+    align-items: stretch;
+  }
+
+  /* Title + spacer participate in parent grid (paragraph aligns to image row) */
+  .block-service-diagnostics .service-diagnostics-visual {
+    display: contents;
+  }
+
+  .block-service-diagnostics .service-diagnostics-copy {
+    grid-area: copy;
+    align-self: center;
+    justify-self: end;
+
+    position: absolute;
+    top: 17.5%;
+    right: 7.5%;
+    left: auto;
+
+  }
+
+  .block-service-diagnostics .service-diagnostics-title {
+    padding-left: 65px;
+    padding-right: 0;
+    grid-area: title;
+    justify-self: start;
+    align-self: start;
+    width: 100%;
+    transform: translateY(-54%);
+  }
+
+  .block-service-diagnostics .service-diagnostics-img-spacer {
+    grid-area: image;
+    align-self: center;
+    justify-self: start;
+    width: min(50vw, 100%);
+  }
+}
+
+.block-service-diagnostics .service-diagnostics-copy {
+  text-align: left;
+  padding: 0;
+  background: none;
+  width: min(28rem, 42vw);
+  max-width: 100%;
+  min-width: 0;
+  justify-self: end;
+}
+
+.block-service-diagnostics .service-diagnostics-copy p {
+  font-size: clamp(0.95rem, 1.6vw, 1.1rem);
+  line-height: 1.65;
+  color: #ffffff;
+  margin: 0;
+}
+
+.service-diagnostics-cta-wrap {
+  margin-top: 5rem;
+  text-align: center;
+}
+
+/* Larger CTA: Gustavo (same as .mobile-nav-overlay-links) + chrome label + silver shimmer */
+.block-service-diagnostics .service-diagnostics-request {
+  padding: 0.95rem 2rem;
+  font-size: 1rem;
+}
+
+.block-service-diagnostics .service-diagnostics-request .link-cta-label {
+  font-family: Gustavo, sans-serif;
+  font-weight: 500;
+  font-size: clamp(0.95rem, 1.85vw, 1.2rem);
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: uppercase;
+
+  background-image: linear-gradient(
+    90deg,
+    #6a6a6a 0%,
+    #6a6a6a 10%,
+    #9a9a9a 20%,
+    #d8d8d8 30%,
+    #ffffff 40%,
+    #e4e4e4 50%,
+    #a3a3a3 60%,
+    #6e6e6e 70%,
+    #9a9a9a 80%,
+    #d8d8d8 90%,
+    #ffffff 100%
+  );
+  background-size: 240% 100%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+#serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-request .link-cta-label {
+  animation: maintenance-cta-silver-shimmer 7.5s ease-in-out infinite;
+}
+
+.block-service-diagnostics .service-diagnostics-request .link-cta-border {
+  background: linear-gradient(
+    180deg,
+    rgba(200, 200, 200, 0.95),
+    rgba(255, 255, 255, 0.85),
+    rgba(160, 160, 160, 0.9)
+  );
+}
+
+.block-service-diagnostics .service-diagnostics-request:hover .link-cta-label {
+  animation-duration: 1.35s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-request .link-cta-label {
+    animation: none;
+    background-position: 50% 50%;
+  }
+
+  .block-service-diagnostics .service-diagnostics-request:hover .link-cta-label {
+    animation: none;
+  }
+}
+
+.block-service-diagnostics .service-diagnostics-title {
+  margin: -0.85rem 0 0 0;
+  font-family: Gustavo, sans-serif;
+  font-weight: 500;
+  line-height: 0.95;
+  text-transform: uppercase;
+  font-size: clamp(4rem, 6vw, 5rem);
+  letter-spacing: -0.02em;
+  text-align: left;
+  color: #ffffff;
+  order: 0;
+  width: 100%;
+}
+
+.block-service-diagnostics .service-diagnostics-title br {
+  display: block;
+}
+
+.block-service-diagnostics .service-diagnostics-title-char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.block-service-diagnostics .service-diagnostics-title.service-diagnostics-title--letters-in .service-diagnostics-title-char {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  transition-delay: calc(var(--i, 0) * 38ms);
+}
+
+.block-service-diagnostics .service-diagnostics-img-spacer {
+  width: 100%;
+  order: 1;
+  min-height: min(28vh, 220px);
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 639px) {
+  .block-service-diagnostics .service-diagnostics-compact-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .block-service-diagnostics .service-diagnostics-copy {
+    padding: 0;
+    order: 2;
+    max-width: min(24rem, 100%);
+  }
+
+  .block-service-diagnostics .service-diagnostics-visual {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0.65rem;
+    order: 1;
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    padding-top: 0;
+  }
+
+  .block-service-diagnostics .service-diagnostics-title {
+    text-align: left;
+    margin-left: 0;
+    margin-right: 0;
+    width: 100%;
+    max-width: none;
+  }
+
+  .block-service-diagnostics .service-diagnostics-img-spacer {
+    width: 100%;
+    min-height: min(22vh, 180px);
+  }
+
+  .block-service-diagnostics.service-diagnostics--compact .service-diagnostics-bg-layer {
+    transform: translateX(calc(var(--diagnostics-edge) + var(--diagnostics-image-nudge))) scale(0.5);
+    transform-origin: left center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .block-service-diagnostics .service-diagnostics-bg-layer,
+  .block-service-diagnostics .service-diagnostics-intro,
+  .block-service-diagnostics .service-diagnostics-compact {
+    transition-duration: 0.01ms;
+  }
+
+  .block-service-diagnostics .service-diagnostics-title.service-diagnostics-title--letters-in .service-diagnostics-title-char {
+    transition-duration: 0.01ms;
+    transition-delay: 0ms !important;
+  }
 }
 
 #service-inspection .block-bg {
+  background: var(--bg-alt);
+}
+
+#service-inspection .service-inspection-bg-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   background-image: url('/images/service-inspection.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  transform-origin: right center;
+  transition: transform 0.4s ease;
 }
 
 #service-inspection .block-bg .block-placeholder {
+  position: relative;
+  z-index: 0;
   background: transparent;
   color: transparent;
+}
+
+#service-inspection .service-inspection-intro .block-headline,
+#service-inspection .service-inspection-intro .block-headline .block-headline-line {
+  -webkit-text-stroke: 2px black;
+  paint-order: stroke fill;
+}
+
+
+/* Inspections: intro full-bleed, then scroll compacts image to 50% width (right) + copy left */
+.block-service-inspection {
+  overflow: hidden;
+  align-items: stretch;
+  --inspection-edge: clamp(1.25rem, 5vw, 3rem);
+  /* Extra horizontal shift (left) so scaled image reads more centered; scale unchanged */
+  --inspection-image-nudge: clamp(2.25rem, 7vw, 6rem);
+}
+
+.block-service-inspection .service-inspection-content {
+  position: relative;
+  max-width: none;
+  width: 100%;
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-height: calc(100vh - 10rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.block-service-inspection .service-inspection-intro {
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.block-service-inspection .service-inspection-compact {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  padding: 2.35rem 0 3.25rem;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.block-service-inspection.service-inspection--compact .service-inspection-intro {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.block-service-inspection.service-inspection--compact .service-inspection-compact {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.block-service-inspection.service-inspection--compact .service-inspection-bg-layer {
+  transform: translateX(calc(-1 * (var(--inspection-edge) + var(--inspection-image-nudge)))) scale(0.5);
+}
+
+.block-service-inspection .service-inspection-compact-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  min-height: 0;
+  padding-left: var(--inspection-edge);
+  padding-right: var(--inspection-edge);
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .block-service-inspection .service-inspection-compact-inner {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      '. title'
+      'copy image';
+    column-gap: clamp(1.25rem, 3.5vw, 2.5rem);
+    row-gap: 2rem;
+    align-items: stretch;
+  }
+
+  /* Title + spacer participate in parent grid (paragraph aligns to image row) */
+  .block-service-inspection .service-inspection-visual {
+    display: contents;
+  }
+
+  .block-service-inspection .service-inspection-copy {
+    grid-area: copy;
+    align-self: center;
+    justify-self: start;
+
+    position: absolute;
+    top: 17.5%;
+    left: 7.5%;
+
+  }
+
+  .block-service-inspection .service-inspection-title {
+    padding-right: 65px;
+    grid-area: title;
+    justify-self: end;
+    align-self: start;
+    width: min(100vw, 100%);
+    transform: translateY(-54%);
+  }
+
+  .block-service-inspection .service-inspection-img-spacer {
+    grid-area: image;
+    align-self: center;
+    justify-self: end;
+    width: min(50vw, 100%);
+  }
+}
+
+.block-service-inspection .service-inspection-copy {
+  text-align: left;
+  padding: 0;
+  background: none;
+  width: min(28rem, 42vw);
+  max-width: 100%;
+  min-width: 0;
+  justify-self: start;
+}
+
+.block-service-inspection .service-inspection-copy p {
+  font-size: clamp(0.95rem, 1.6vw, 1.1rem);
+  line-height: 1.65;
+  color: #ffffff;
+  margin: 0;
+}
+
+.service-inspection-cta-wrap {
+  margin-top: 5rem;
+  text-align: center;
+}
+
+/* Larger CTA: Gustavo (same as .mobile-nav-overlay-links) + chrome label + silver shimmer */
+.block-service-inspection .service-inspection-request {
+  padding: 0.95rem 2rem;
+  font-size: 1rem;
+}
+
+.block-service-inspection .service-inspection-request .link-cta-label {
+  font-family: Gustavo, sans-serif;
+  font-weight: 500;
+  font-size: clamp(0.95rem, 1.85vw, 1.2rem);
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: uppercase;
+
+  background-image: linear-gradient(
+    90deg,
+    #6a6a6a 0%,
+    #6a6a6a 10%,
+    #9a9a9a 20%,
+    #d8d8d8 30%,
+    #ffffff 40%,
+    #e4e4e4 50%,
+    #a3a3a3 60%,
+    #6e6e6e 70%,
+    #9a9a9a 80%,
+    #d8d8d8 90%,
+    #ffffff 100%
+  );
+  background-size: 240% 100%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+#serviceInspectionCopyReveal.is-visible .service-inspection-request .link-cta-label {
+  animation: maintenance-cta-silver-shimmer 7.5s ease-in-out infinite;
+}
+
+.block-service-inspection .service-inspection-request .link-cta-border {
+  background: linear-gradient(
+    180deg,
+    rgba(200, 200, 200, 0.95),
+    rgba(255, 255, 255, 0.85),
+    rgba(160, 160, 160, 0.9)
+  );
+}
+
+.block-service-inspection .service-inspection-request:hover .link-cta-label {
+  animation-duration: 1.35s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #serviceInspectionCopyReveal.is-visible .service-inspection-request .link-cta-label {
+    animation: none;
+    background-position: 50% 50%;
+  }
+
+  .block-service-inspection .service-inspection-request:hover .link-cta-label {
+    animation: none;
+  }
+}
+
+.block-service-inspection .service-inspection-title {
+  margin: -0.85rem 0 0 0;
+  font-family: Gustavo, sans-serif;
+  font-weight: 500;
+  line-height: 0.95;
+  text-transform: uppercase;
+  font-size: clamp(4rem, 6vw, 5rem);
+  letter-spacing: -0.02em;
+  text-align: right;
+  color: #ffffff;
+  order: 0;
+}
+
+.block-service-inspection .service-inspection-title br {
+  display: block;
+}
+
+.block-service-inspection .service-inspection-title-char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.block-service-inspection .service-inspection-title.service-inspection-title--letters-in .service-inspection-title-char {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  transition-delay: calc(var(--i, 0) * 38ms);
+}
+
+.block-service-inspection .service-inspection-img-spacer {
+  width: 100%;
+  order: 1;
+  min-height: min(28vh, 220px);
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 639px) {
+  .block-service-inspection .service-inspection-compact-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .block-service-inspection .service-inspection-copy {
+    padding: 0;
+    order: 2;
+    max-width: min(24rem, 100%);
+  }
+
+  .block-service-inspection .service-inspection-visual {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0.65rem;
+    order: 1;
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    padding-top: 0;
+  }
+
+  .block-service-inspection .service-inspection-title {
+    text-align: right;
+    margin-left: 0;
+    margin-right: 0;
+    width: 100%;
+    max-width: none;
+  }
+
+  .block-service-inspection .service-inspection-img-spacer {
+    width: 100%;
+    min-height: min(22vh, 180px);
+  }
+
+  .block-service-inspection.service-inspection--compact .service-inspection-bg-layer {
+    transform: translateX(calc(-1 * (var(--inspection-edge) + var(--inspection-image-nudge)))) scale(0.5);
+    transform-origin: right center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .block-service-inspection .service-inspection-bg-layer,
+  .block-service-inspection .service-inspection-intro,
+  .block-service-inspection .service-inspection-compact {
+    transition-duration: 0.01ms;
+  }
+
+  .block-service-inspection .service-inspection-title.service-inspection-title--letters-in .service-inspection-title-char {
+    transition-duration: 0.01ms;
+    transition-delay: 0ms !important;
+  }
+}
+
+/* Service megacar compact: mobile — width-led image, tighter type, copy/CTA in view, looping CTA border */
+@keyframes service-cta-mobile-border-t {
+  0% {
+    transform: scaleX(0);
+  }
+  12.5% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(1);
+  }
+  62.5% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes service-cta-mobile-border-r {
+  0%,
+  12.5% {
+    transform: scaleY(0);
+  }
+  25% {
+    transform: scaleY(1);
+  }
+  50%,
+  62.5% {
+    transform: scaleY(1);
+  }
+  75% {
+    transform: scaleY(0);
+  }
+  100% {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes service-cta-mobile-border-b {
+  0%,
+  25% {
+    transform: scaleX(0);
+  }
+  37.5% {
+    transform: scaleX(1);
+  }
+  75% {
+    transform: scaleX(1);
+  }
+  87.5% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes service-cta-mobile-border-l {
+  0%,
+  37.5% {
+    transform: scaleY(0);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+  87.5% {
+    transform: scaleY(1);
+  }
+  100% {
+    transform: scaleY(0);
+  }
+}
+
+@media (max-width: 639px) {
+  .block.block-service-maintenance,
+  .block.block-service-diagnostics,
+  .block.block-service-inspection {
+    min-height: auto;
+    padding: 4.5rem 1rem 2rem;
+  }
+
+  .block-service-maintenance .service-maintenance-content,
+  .block-service-diagnostics .service-diagnostics-content,
+  .block-service-inspection .service-inspection-content {
+    min-height: min(100svh, 52rem);
+  }
+
+  .block-service-maintenance .service-maintenance-compact,
+  .block-service-diagnostics .service-diagnostics-compact,
+  .block-service-inspection .service-inspection-compact {
+    padding: 1rem 0 2.5rem;
+    justify-content: flex-start;
+    align-items: stretch;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .block-service-maintenance .service-maintenance-compact-inner,
+  .block-service-diagnostics .service-diagnostics-compact-inner,
+  .block-service-inspection .service-inspection-compact-inner {
+    flex: 0 1 auto;
+    min-height: 0;
+    gap: 1rem;
+    flex-direction: column;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .block-service-maintenance .service-maintenance-visual,
+  .block-service-diagnostics .service-diagnostics-visual,
+  .block-service-inspection .service-inspection-visual {
+    gap: 0.5rem;
+    justify-content: flex-start;
+    align-items: stretch;
+    overflow: visible;
+  }
+
+  .block-service-maintenance .service-maintenance-title,
+  .block-service-diagnostics .service-diagnostics-title,
+  .block-service-inspection .service-inspection-title {
+    font-size: clamp(1.5rem, 8vw, 2.5rem);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+  }
+
+  .block-service-maintenance .service-maintenance-img-spacer,
+  .block-service-diagnostics .service-diagnostics-img-spacer,
+  .block-service-inspection .service-inspection-img-spacer {
+    width: 100%;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    aspect-ratio: 4 / 3;
+    flex: 0 0 auto;
+  }
+
+  .block-service-maintenance .service-maintenance-copy,
+  .block-service-diagnostics .service-diagnostics-copy,
+  .block-service-inspection .service-inspection-copy {
+    width: 100%;
+    max-width: none;
+    margin-top: 0.35rem;
+    padding: 0 0.25rem;
+    align-self: stretch;
+  }
+
+  .block-service-maintenance .service-maintenance-copy p,
+  .block-service-diagnostics .service-diagnostics-copy p,
+  .block-service-inspection .service-inspection-copy p {
+    font-size: clamp(0.9rem, 3.5vw, 1rem);
+    line-height: 1.55;
+  }
+
+  .service-maintenance-cta-wrap,
+  .service-diagnostics-cta-wrap,
+  .service-inspection-cta-wrap {
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    text-align: center;
+    width: 100%;
+  }
+
+  .block-service-maintenance .service-maintenance-request,
+  .block-service-diagnostics .service-diagnostics-request,
+  .block-service-inspection .service-inspection-request {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .block-service-maintenance .service-maintenance-request .link-cta-border,
+  .block-service-diagnostics .service-diagnostics-request .link-cta-border,
+  .block-service-inspection .service-inspection-request .link-cta-border {
+    transition: none !important;
+  }
+
+  .block-service-maintenance .service-maintenance-request .link-cta-border-t,
+  .block-service-diagnostics .service-diagnostics-request .link-cta-border-t,
+  .block-service-inspection .service-inspection-request .link-cta-border-t {
+    animation: service-cta-mobile-border-t 4s linear infinite;
+  }
+
+  .block-service-maintenance .service-maintenance-request .link-cta-border-r,
+  .block-service-diagnostics .service-diagnostics-request .link-cta-border-r,
+  .block-service-inspection .service-inspection-request .link-cta-border-r {
+    animation: service-cta-mobile-border-r 4s linear infinite;
+  }
+
+  .block-service-maintenance .service-maintenance-request .link-cta-border-b,
+  .block-service-diagnostics .service-diagnostics-request .link-cta-border-b,
+  .block-service-inspection .service-inspection-request .link-cta-border-b {
+    animation: service-cta-mobile-border-b 4s linear infinite;
+  }
+
+  .block-service-maintenance .service-maintenance-request .link-cta-border-l,
+  .block-service-diagnostics .service-diagnostics-request .link-cta-border-l,
+  .block-service-inspection .service-inspection-request .link-cta-border-l {
+    animation: service-cta-mobile-border-l 4s linear infinite;
+  }
+}
+
+@media (max-width: 639px) and (prefers-reduced-motion: reduce) {
+  .block-service-maintenance .service-maintenance-request .link-cta-border-t,
+  .block-service-diagnostics .service-diagnostics-request .link-cta-border-t,
+  .block-service-inspection .service-inspection-request .link-cta-border-t {
+    animation: none;
+    transform: scaleX(1);
+  }
+
+  .block-service-maintenance .service-maintenance-request .link-cta-border-r,
+  .block-service-diagnostics .service-diagnostics-request .link-cta-border-r,
+  .block-service-inspection .service-inspection-request .link-cta-border-r {
+    animation: none;
+    transform: scaleY(1);
+  }
+
+  .block-service-maintenance .service-maintenance-request .link-cta-border-b,
+  .block-service-diagnostics .service-diagnostics-request .link-cta-border-b,
+  .block-service-inspection .service-inspection-request .link-cta-border-b {
+    animation: none;
+    transform: scaleX(1);
+  }
+
+  .block-service-maintenance .service-maintenance-request .link-cta-border-l,
+  .block-service-diagnostics .service-diagnostics-request .link-cta-border-l,
+  .block-service-inspection .service-inspection-request .link-cta-border-l {
+    animation: none;
+    transform: scaleY(1);
+  }
 }
 
 /* ========== Copy blocks (In-house / About us) ========== */
@@ -3771,12 +4626,16 @@ body {
 }
 
 .reveal-on-scroll.is-visible .split-element,
-#serviceMaintenanceCopyReveal.is-visible .split-element {
+#serviceMaintenanceCopyReveal.is-visible .split-element,
+#serviceDiagnosticsCopyReveal.is-visible .split-element,
+#serviceInspectionCopyReveal.is-visible .split-element {
   opacity: 1;
   transform: translateX(0);
 }
 
-#serviceMaintenanceCopyReveal .split-element {
+#serviceMaintenanceCopyReveal .split-element,
+#serviceDiagnosticsCopyReveal .split-element,
+#serviceInspectionCopyReveal .split-element {
   transition: opacity 0.38s ease-out, transform 0.38s ease-out;
   transition-delay: var(--reveal-delay, 0s);
 }
