@@ -55,13 +55,13 @@
   var heroMechanicBio = byId('heroMechanicBio');
   if (heroMechanicBio) {
     var heroMechanicBios = [
-      'Purdue-trained engineer—honest work from oil changes to engine builds, at your door.',
-      'Mobile repair with clear answers—no job too small, none too involved.',
+      'Purdue-trained engineer—mobile service from oil changes to engine builds.',
+      'Mobile repairs made simple—no job too small, none too complex.',
       'Diagnostics, maintenance, and repairs done right where you park.',
       'Years under the hood—if it rolls, I can fix it, upgrade it, or make it faster.',
-      'Straight talk, solid parts, and work you can trust across the 805.',
+      'Honest work, clear answers, trusted across the 805 and Ventura County.',
       'Engineer by training, mechanic by trade—the shop comes to you, not the runaround.'
-    ];
+  ];
     heroMechanicBio.textContent =
       heroMechanicBios[Math.floor(Math.random() * heroMechanicBios.length)];
   }
