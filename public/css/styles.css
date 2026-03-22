@@ -456,7 +456,7 @@ body {
 /* ========== Black section between hero and process ========== */
 .section-black {
   width: 100%;
-  min-height: 4rem;
+  min-height: 25rem;
   background: #000;
 }
 
@@ -1134,7 +1134,7 @@ body {
     flex-direction: column;
     position: absolute;
     z-index: 2;
-    top: clamp(11rem, 18vh, 15rem);
+    top: clamp(13.5rem, 24vh, 19rem);
     bottom: 4rem;
     left: clamp(1.25rem, 4vw, 3rem);
     right: auto;
@@ -4676,13 +4676,21 @@ body {
     line-height: 0.95;
   }
 
+  /* Hero: bg flush to top (no padding gap); stack sits low on the dark gradient */
   .block.hero {
-    min-height: 135vh;
-    padding-bottom: 8rem;
+    min-height: 100svh;
+    min-height: 100vh;
+    padding-top: 0;
+    padding-bottom: 2.5rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    justify-content: flex-start;
+    align-items: stretch;
+    overflow: visible;
   }
 
-  .section-black {
-    min-height: clamp(7.5rem, 24vw, 12rem);
+  .block.hero .hero-bg {
+    min-height: 100%;
   }
 
   .hero-img {
@@ -4693,21 +4701,25 @@ body {
     display: none;
   }
 
+  /* Anchor with bottom only — do not set top+bottom together or height collapses to a short strip and content gets clipped ("eaten"). */
   .hero-mobile-stack {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.25rem;
+    justify-content: flex-start;
+    gap: 1rem;
     position: absolute;
     z-index: 2;
     left: 50%;
     right: auto;
-    top: auto;
-    bottom: clamp(3.5rem, 11vh, 7rem);
+    top: 80vh;
     transform: translateX(-50%);
-    width: calc(100% - 2rem);
-    max-width: 19rem;
+    width: calc(100% - 1.5rem);
+    max-width: 18rem;
+    max-height: none;
+    overflow: visible;
     box-sizing: border-box;
+    pointer-events: auto;
   }
 
   .hero-credibility {
@@ -4744,7 +4756,7 @@ body {
   }
 
   .hero-mechanic-photo {
-    max-width: 11.5rem;
+    max-width: 10rem;
     width: 100%;
     aspect-ratio: 4 / 5;
     overflow: hidden;
@@ -5129,8 +5141,14 @@ body {
   }
 
   .block.hero {
-    min-height: 135vh;
-    padding-bottom: 8rem;
+    min-height: 100svh;
+    min-height: 100vh;
+    padding-top: 0;
+    padding-bottom: 2.5rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    justify-content: flex-start;
+    align-items: stretch;
   }
 
   .block-pricing {
@@ -5294,6 +5312,17 @@ body {
 @media (max-width: 480px) {
   .block {
     padding: 4.5rem 0.75rem 2.5rem;
+  }
+
+  .block.hero {
+    min-height: 100svh;
+    min-height: 100vh;
+    padding-top: 0;
+    padding-bottom: 2.25rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    justify-content: flex-start;
+    align-items: stretch;
   }
 
   .hero .hero-title {
