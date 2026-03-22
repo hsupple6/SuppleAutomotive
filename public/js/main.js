@@ -34,6 +34,38 @@
   setText('logoAccent', rest ? ' ' + rest : '');
   if (byId('heroTagline')) byId('heroTagline').textContent = tagline;
 
+  var heroCredibilityHeadline = byId('heroCredibilityHeadline');
+  if (heroCredibilityHeadline) {
+    var heroCatchlines = [
+      '805 drivers, we come to you for every automotive need.',
+      'Mobile auto repair made easy for the 805.',
+      'From oil changes to diagnostics, we\'ve got the 805 covered.',
+      'Reliable automotive service for every corner of the 805.',
+      'Professional mobile mechanics serving the 805 with care.',
+      '805\'s go-to solution for honest, on\u2011site auto repair.',
+      'Serving Ventura County and the coast from Oxnard to Malibu.', 
+      'Mobile auto repair wherever the road takes you — Ventura County and beyond.',
+      'Trusted automotive service along the 805 and the Pacific coast.',
+      'From Ventura to Malibu, we bring the shop to you.'
+  ];
+    heroCredibilityHeadline.textContent =
+      heroCatchlines[Math.floor(Math.random() * heroCatchlines.length)];
+  }
+
+  var heroMechanicBio = byId('heroMechanicBio');
+  if (heroMechanicBio) {
+    var heroMechanicBios = [
+      'Purdue-trained engineer—honest work from oil changes to engine builds, at your door.',
+      'Mobile repair with clear answers—no job too small, none too involved.',
+      'Diagnostics, maintenance, and repairs done right where you park.',
+      'Years under the hood—if it rolls, I can fix it, upgrade it, or make it faster.',
+      'Straight talk, solid parts, and work you can trust across the 805.',
+      'Engineer by training, mechanic by trade—the shop comes to you, not the runaround.'
+    ];
+    heroMechanicBio.textContent =
+      heroMechanicBios[Math.floor(Math.random() * heroMechanicBios.length)];
+  }
+
   setText('footerName', businessName);
   setText('footerYear', String(new Date().getFullYear()));
 
