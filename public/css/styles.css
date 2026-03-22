@@ -462,7 +462,7 @@ body {
 
 @media (max-width: 900px) {
   .section-black {
-    min-height: 40vh;
+    min-height: 42.5vh;
   }
 }
 
@@ -3323,7 +3323,7 @@ body {
   }
 }
 
-/* ========== Copy blocks (In-house / About us) ========== */
+/* ========== Copy blocks (services blurb / about) ========== */
 .block-copy {
   padding: 6rem 2rem;
 }
