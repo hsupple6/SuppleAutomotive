@@ -988,8 +988,9 @@ body {
   width: 100%;
   height: 100%;
   background-image: url('/images/hero.jpg');
-  background-size: 110%;
-  background-position: 60% 65%;
+  /* Was 110% width — too tight; ~100% shows more of the photo */
+  background-size: 100% auto;
+  background-position: 60% 67%;
   background-repeat: no-repeat;
   animation: hero-img-zoom 1s forwards;
 }
@@ -1005,7 +1006,7 @@ body {
 
 @keyframes hero-img-zoom {
   from {
-    transform: scale(1.25);
+    transform: scale(1.06);
   }
   to {
     transform: scale(1);
@@ -4682,7 +4683,7 @@ body {
   }
 
   .hero-img {
-    background-size: 140%;
+    background-size: 118%;
   }
 
   .hero-content .link-discover {
@@ -5197,10 +5198,10 @@ body {
     right: 0.5rem;
   }
 
-  /* Hero: scale up background so it reaches the top on mobile */
+  /* Hero: slight scale so image fills tall phones; keep below ~165% to avoid feeling too tight */
   .hero-img {
-    background-size: 165%;
-    background-position: 55% 65%;
+    background-size: 128%;
+    background-position: 60% 66%;
   }
 
   /* Hero: comfortable spacing on small screens */
