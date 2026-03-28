@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "static": "live-server --port=3000 --open=/"
+    "static": "live-server --port=3000 --open=/",
+    "business-card": "node business-card/server.js"
   },
   "dependencies": {
     "@fontsource/dancing-script": "^5.2.8",

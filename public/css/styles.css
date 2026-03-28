@@ -3637,7 +3637,6 @@ body {
 }
 
 .form-checkbox-indicator {
-  position: relative;
   width: 18px;
   height: 18px;
   margin-top: 0.1rem;
@@ -3647,27 +3646,10 @@ body {
   flex-shrink: 0;
 }
 
-.form-checkbox-indicator::after {
-  content: 'X';
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
 .form-checkbox input[type="checkbox"]:checked + .form-checkbox-indicator {
   background: var(--accent-light);
   border-color: var(--accent-light);
   box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.22);
-}
-
-.form-checkbox input[type="checkbox"]:checked + .form-checkbox-indicator::after {
-  opacity: 1;
 }
 
 .form-checkbox input[type="checkbox"]:focus-visible + .form-checkbox-indicator {

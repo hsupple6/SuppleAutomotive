@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supple Automotive — Business card export</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="toolbar">
+    <h1>Business cards</h1>
+    <p class="toolbar-hint">3.5″ × 2″ · Export uses 4× pixel ratio (~300+ effective DPI for preview size). Logos load from the main site <code>/logo</code>.</p>
+    <div class="toolbar-actions">
+      <button type="button" class="btn" id="btnFront">Download front PNG</button>
+      <button type="button" class="btn" id="btnBack">Download back PNG</button>
+    </div>
+  </header>
+
+  <main class="stage">
+    <section class="panel-wrap" aria-label="Front">
+      <span class="panel-label">Front</span>
+      <div class="card card--front" id="cardFront">
+        <div class="card__glow" aria-hidden="true"></div>
+        <div class="card__inner">
+          <div class="card__logo-wrap">
+            <img class="card__logo" src="/logo/logo1.png" alt="" crossorigin="anonymous">
+          </div>
+          <p class="card__name">Supple Automotive</p>
+          <p class="card__tagline">Professional mobile auto repair you can trust.</p>
+          <p class="card__area">805 · Ventura County</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel-wrap" aria-label="Back">
+      <span class="panel-label">Back</span>
+      <div class="card card--back" id="cardBack">
+        <div class="card__back-geo" aria-hidden="true">
+          <div class="card__back-plane card__back-plane--deep"></div>
+          <div class="card__back-plane card__back-plane--slate"></div>
+          <div class="card__back-plane card__back-plane--ice"></div>
+        </div>
+        <div class="card__inner card__inner--back">
+          <div class="card__back-grid">
+            <div class="card__back-main">
+              <p class="card__back-kicker">Services</p>
+              <p class="card__back-lead">Maintenance, diagnostics, inspections, and repairs — we come to you.</p>
+
+              <dl class="card__back-dl">
+                <div class="card__back-dl-row">
+                  <dt>Phone</dt>
+                  <dd><a href="tel:+18054434181">+1 (805) 443-4181</a></dd>
+                </div>
+                <div class="card__back-dl-row">
+                  <dt>Email</dt>
+                  <dd><a href="mailto:hlsbusiness@suppleautomotive.com">hlsbusiness@suppleautomotive.com</a></dd>
+                </div>
+                <div class="card__back-dl-row">
+                  <dt>Web</dt>
+                  <dd><a href="https://suppleautomotive.com/">suppleautomotive.com</a></dd>
+                </div>
+              </dl>
+            </div>
+
+            <aside class="card__back-aside" aria-label="Website QR code">
+              <a href="https://suppleautomotive.com/" class="card__back-qr-white" target="_blank" rel="noopener noreferrer" aria-label="suppleautomotive.com">
+                <span class="card__back-qr-slot" aria-hidden="true"></span>
+              </a>
+            </aside>
+          </div>
+
+          <div class="card__back-foot">
+            <p class="card__back-foot-text">24-hour On-Call Service · Ventura County &amp; 805</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js" crossorigin="anonymous"></script>
+  <script src="app.js"></script>
+</body>
+</html>

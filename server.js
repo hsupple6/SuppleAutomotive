@@ -455,10 +455,12 @@ function getOrCreateShopAccount() {
 
 function formatFormBody(data) {
   var lines = [];
-  var labels = {
+    var labels = {
     name: 'Name',
     email: 'Email',
     phone: 'Phone',
+    service_address: 'Service address',
+    work_location: 'Work location',
     vehicle_year: 'Vehicle year',
     vehicle_make: 'Make',
     vehicle_model: 'Model',
@@ -468,9 +470,20 @@ function formatFormBody(data) {
     preferred_time: 'Preferred time',
     notes: 'Additional notes'
   };
+  var workLocationLabels = {
+    garage: 'Garage',
+    driveway: 'Driveway',
+    lot: 'Lot',
+    street: 'Street',
+    other: 'Other'
+  };
   Object.keys(labels).forEach(function (key) {
     var val = data[key];
     if (val != null && String(val).trim() !== '') {
+      if (key === 'work_location') {
+        var wl = String(val).trim().toLowerCase();
+        val = workLocationLabels[wl] || val;
+      }
       lines.push(labels[key] + ': ' + String(val).trim());
     }
   });
@@ -523,6 +536,8 @@ app.post('/api/submit-service-request', function (req, res) {
       phone: body.phone,
       contact_preference: String(body.contact_preference || 'email').toLowerCase() === 'sms' ? 'sms' : 'email',
       contact_via_ok: !!body.contact_via_ok,
+      service_address: body.service_address,
+      work_location: body.work_location,
       vehicle_year: body.vehicle_year,
       vehicle_make: body.vehicle_make,
       vehicle_model: body.vehicle_model,
@@ -625,7 +640,13 @@ app.post('/api/submit-service-request', function (req, res) {
               payment_status: 'unpaid',
               service_name: formData.service_type || 'Service request',
               service_price: 0,
-              notes: [formData.details, formData.notes].filter(Boolean).join('\n') || null
+              notes: (function () {
+                var wl = String(formData.work_location || '').trim().toLowerCase();
+                var wlLabels = { garage: 'Garage', driveway: 'Driveway', lot: 'Lot', street: 'Street', other: 'Other' };
+                var wlLine = wl && wlLabels[wl] ? 'Work location: ' + wlLabels[wl] : (formData.work_location ? 'Work location: ' + formData.work_location : '');
+                var addrLine = (formData.service_address && String(formData.service_address).trim()) ? 'Service address: ' + String(formData.service_address).trim() : '';
+                return [addrLine, wlLine, formData.details, formData.notes].filter(Boolean).join('\n') || null;
+              })()
             }).then(function (r) {
               if (r && r.error) return Promise.reject(new Error(r.error.message || 'Service insert failed'));
             });

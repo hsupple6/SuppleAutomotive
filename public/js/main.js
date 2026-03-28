@@ -1038,6 +1038,8 @@
         phone: (serviceForm.querySelector('[name="phone"]') || {}).value || '',
         contact_preference: (serviceForm.querySelector('[name="contact_preference"]') || {}).value || 'email',
         contact_via_ok: !!((serviceForm.querySelector('[name="contact_via_ok"]') || {}).checked),
+        service_address: (serviceForm.querySelector('[name="service_address"]') || {}).value || '',
+        work_location: (serviceForm.querySelector('[name="work_location"]') || {}).value || '',
         vehicle_year: (serviceForm.querySelector('[name="vehicle_year"]') || {}).value || '',
         vehicle_make: (serviceForm.querySelector('[name="vehicle_make"]') || {}).value || '',
         vehicle_model: (serviceForm.querySelector('[name="vehicle_model"]') || {}).value || '',
