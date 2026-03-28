@@ -336,6 +336,19 @@ app.get('/api/dev/pdf-samples/invoice', function (req, res) {
     });
 });
 
+// SEO: keyword URLs → same homepage (canonical in index.html points to /)
+var seoLandingPaths = require(path.join(__dirname, 'lib', 'seo-landing-paths.js'));
+var publicIndexHtml = path.join(__dirname, 'public', 'index.html');
+var seoSeen = {};
+seoLandingPaths.forEach(function (segment) {
+  if (!segment || typeof segment !== 'string' || segment.indexOf('/') !== -1) return;
+  if (seoSeen[segment]) return;
+  seoSeen[segment] = true;
+  app.get('/' + segment, function (req, res) {
+    res.sendFile(publicIndexHtml);
+  });
+});
+
 // Static files after /api routes so API paths are never ambiguous with public files
 app.use('/img', express.static(path.join(__dirname, 'img')));
 app.use(express.static(path.join(__dirname, 'public')));
