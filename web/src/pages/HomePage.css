@@ -1,0 +1,31 @@
+.home-main {
+  padding: 2.5rem 1.25rem 4rem;
+  max-width: 960px;
+  margin: 0 auto;
+  outline: none;
+}
+
+.home-main-inner {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+  border: 1px solid #e2e8f0;
+}
+
+.home-main-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.5rem;
+  color: #0f172a;
+}
+
+.home-main-lead {
+  margin: 0 0 1rem;
+  color: #64748b;
+}
+
+.home-main-inner code {
+  font-size: 0.9em;
+  background: #f1f5f9;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}

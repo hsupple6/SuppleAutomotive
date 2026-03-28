@@ -1,0 +1,109 @@
+.seo-hero {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  padding: 2rem 1.25rem;
+  background: linear-gradient(180deg, #f1f5f9 0%, #f8fafc 100%);
+}
+
+.seo-hero-box {
+  width: min(60vw, 720px);
+  min-height: 60vh;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: clamp(1.75rem, 4vw, 2.75rem);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow:
+    0 4px 6px -1px rgba(15, 23, 42, 0.08),
+    0 12px 24px -4px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.seo-hero-h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.5rem, 3.5vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: #0f172a;
+}
+
+.seo-hero-desc {
+  margin: 0 0 1.75rem;
+  max-width: 42ch;
+  font-size: 1.05rem;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.seo-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  align-items: center;
+}
+
+.seo-hero-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.65rem 1.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: 10px;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.seo-hero-btn-primary {
+  background: #0ea5e9;
+  color: #fff;
+  border: 1px solid #0284c7;
+  box-shadow: 0 1px 2px rgba(14, 165, 233, 0.35);
+}
+
+.seo-hero-btn-primary:hover {
+  background: #0284c7;
+  border-color: #0369a1;
+}
+
+.seo-hero-btn-secondary {
+  background: #fff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+}
+
+.seo-hero-btn-secondary:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+@media (max-width: 640px) {
+  .seo-hero-box {
+    width: 100%;
+    min-height: auto;
+  }
+
+  .seo-hero-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .seo-hero-btn {
+    width: 100%;
+  }
+}

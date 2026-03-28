@@ -6,7 +6,9 @@
     "start": "node server.js",
     "dev": "node server.js",
     "static": "live-server --port=3000 --open=/",
-    "business-card": "node business-card/server.js"
+    "business-card": "node business-card/server.js",
+    "web:dev": "npm run dev --prefix web",
+    "web:build": "npm run build --prefix web"
   },
   "dependencies": {
     "@fontsource/dancing-script": "^5.2.8",
