@@ -66,6 +66,220 @@
       heroMechanicBios[Math.floor(Math.random() * heroMechanicBios.length)];
   }
 
+  function initHeroGalleryRotation() {
+    var hero = document.querySelector('.hero');
+    var heroBg = hero ? hero.querySelector('.hero-bg') : null;
+    var heroImg = hero ? hero.querySelector('.hero-img') : null;
+    var gallery = byId('heroGallery');
+    var slotLeft = byId('heroGalleryLeft');
+    var slotCenter = byId('heroGalleryCenter');
+    var slotRight = byId('heroGalleryRight');
+    var fly = byId('heroGalleryFly');
+
+    if (!hero || !heroBg || !heroImg || !gallery || !slotLeft || !slotCenter || !slotRight) return;
+    if (window.matchMedia('(max-width: 900px)').matches) return;
+
+    var cropConfig = window.HERO_CROP_CONFIG || {};
+    var heroCrop = cropConfig.hero || { x: 60, y: 67, zoom: 100 };
+    var imageBank = Array.isArray(cropConfig.images) ? cropConfig.images : [];
+    imageBank = imageBank
+      .filter(function (item) {
+        return item && typeof item.src === 'string' && item.src.length > 0;
+      })
+      .map(function (item) {
+        return {
+          src: item.src,
+          x: typeof item.x === 'number' ? item.x : 50,
+          y: typeof item.y === 'number' ? item.y : 50,
+          zoom: typeof item.zoom === 'number' ? item.zoom : 100
+        };
+      });
+    if (!imageBank.length) return;
+
+    function setBlackSlot(el) {
+      if (!el) return;
+      el.style.backgroundImage = 'none';
+      el.classList.add('is-black');
+      el.classList.remove('is-has-image', 'is-incoming');
+      delete el.dataset.src;
+    }
+
+    function applyCroppedImage(el, crop) {
+      if (!el || !crop || !crop.src) return;
+      var safeSrc = String(crop.src).replace(/'/g, '%27');
+      var cropX = typeof crop.x === 'number' ? crop.x : 50;
+      var cropY = typeof crop.y === 'number' ? crop.y : 50;
+      var cropZoom = typeof crop.zoom === 'number' ? crop.zoom : 100;
+      el.style.backgroundImage = "url('" + safeSrc + "')";
+      el.style.backgroundSize = cropZoom === 100 ? 'cover' : cropZoom + '%';
+      el.style.backgroundPosition = cropX + '% ' + cropY + '%';
+      el.classList.remove('is-black');
+      el.classList.add('is-has-image');
+      el.dataset.src = crop.src;
+      el.dataset.cropX = String(cropX);
+      el.dataset.cropY = String(cropY);
+      el.dataset.cropZoom = String(cropZoom);
+    }
+
+    function cropFromDataset(el) {
+      if (!el || !el.dataset || !el.dataset.src) return null;
+      return {
+        src: el.dataset.src,
+        x: Number(el.dataset.cropX || 50),
+        y: Number(el.dataset.cropY || 50),
+        zoom: Number(el.dataset.cropZoom || 100)
+      };
+    }
+
+    function markIncoming(el) {
+      if (!el) return;
+      el.classList.remove('is-incoming');
+      void el.offsetWidth;
+      el.classList.add('is-incoming');
+    }
+
+    function positionFlyForMove() {
+      var centerRect = slotCenter.getBoundingClientRect();
+      var rightRect = slotRight.getBoundingClientRect();
+      fly.style.left = centerRect.left + 'px';
+      fly.style.top = centerRect.top + 'px';
+      fly.style.width = centerRect.width + 'px';
+      fly.style.height = centerRect.height + 'px';
+      fly.style.setProperty('--hero-fly-x-from', '0px');
+      fly.style.setProperty('--hero-fly-y-from', '0px');
+      fly.style.setProperty('--hero-fly-x-to', (rightRect.left - centerRect.left) + 'px');
+      fly.style.setProperty('--hero-fly-y-to', (rightRect.top - centerRect.top) + 'px');
+      fly.style.setProperty('--hero-fly-scale-to', (rightRect.width / centerRect.width));
+    }
+
+    function setHeroDockToCenter() {
+      var heroRect = heroImg.getBoundingClientRect();
+      var centerRect = slotCenter.getBoundingClientRect();
+      var heroCenterX = heroRect.left + heroRect.width * 0.5;
+      var heroCenterY = heroRect.top + heroRect.height * 0.5;
+      var centerX = centerRect.left + centerRect.width * 0.5;
+      var centerY = centerRect.top + centerRect.height * 0.5;
+      var scaleX = centerRect.width / heroRect.width;
+      var scaleY = centerRect.height / heroRect.height;
+      var dockScale = Math.min(scaleX, scaleY);
+      hero.style.setProperty('--hero-img-dock-x', (centerX - heroCenterX) + 'px');
+      hero.style.setProperty('--hero-img-dock-y', (centerY - heroCenterY) + 'px');
+      hero.style.setProperty('--hero-img-dock-scale', String(dockScale));
+    }
+
+    function getBaseName(src) {
+      if (!src) return '';
+      var cleaned = String(src).split('?')[0];
+      var parts = cleaned.split('/');
+      return parts[parts.length - 1] || cleaned;
+    }
+
+    function buildHeroCropDevPanel(items) {
+      var toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.id = 'heroCropDevToggle';
+      toggle.className = 'hero-crop-dev-toggle';
+      toggle.textContent = 'Crop Dev';
+      toggle.setAttribute('aria-expanded', 'false');
+
+      var panel = document.createElement('aside');
+      panel.id = 'heroCropDevPanel';
+      panel.className = 'hero-crop-dev-panel';
+      panel.hidden = true;
+
+      var title = document.createElement('h3');
+      title.className = 'hero-crop-dev-title';
+      title.textContent = 'Hero Crop Previews';
+      panel.appendChild(title);
+
+      var list = document.createElement('div');
+      list.className = 'hero-crop-dev-list';
+
+      items.forEach(function (crop) {
+        var card = document.createElement('div');
+        card.className = 'hero-crop-dev-card';
+        var thumb = document.createElement('div');
+        thumb.className = 'hero-crop-dev-thumb';
+        applyCroppedImage(thumb, crop);
+        var name = document.createElement('p');
+        name.className = 'hero-crop-dev-name';
+        name.textContent = getBaseName(crop.src);
+        card.appendChild(thumb);
+        card.appendChild(name);
+        list.appendChild(card);
+      });
+
+      panel.appendChild(list);
+      document.body.appendChild(toggle);
+      document.body.appendChild(panel);
+
+      toggle.addEventListener('click', function () {
+        var open = panel.hidden;
+        panel.hidden = !open;
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    }
+
+    buildHeroCropDevPanel(imageBank);
+
+    var bankIndex = 0;
+    var heroCycleTimer = null;
+    applyCroppedImage(slotCenter, {
+      src: '/images/hero.jpg',
+      x: typeof heroCrop.x === 'number' ? heroCrop.x : 60,
+      y: typeof heroCrop.y === 'number' ? heroCrop.y : 67,
+      zoom: typeof heroCrop.zoom === 'number' ? heroCrop.zoom : 100
+    });
+    setBlackSlot(slotLeft);
+    setBlackSlot(slotRight);
+
+    function stepCarousel() {
+      var previousCenter = cropFromDataset(slotCenter);
+      var incomingCenter = imageBank[bankIndex % imageBank.length];
+      bankIndex += 1;
+      var nextLeftPreview = imageBank[bankIndex % imageBank.length];
+
+      applyCroppedImage(slotLeft, nextLeftPreview);
+      markIncoming(slotLeft);
+
+      applyCroppedImage(slotCenter, incomingCenter);
+      markIncoming(slotCenter);
+      if (previousCenter) {
+        applyCroppedImage(slotRight, previousCenter);
+        markIncoming(slotRight);
+      }
+    }
+
+    /* Sliding center->right animation intentionally disabled per request.
+    fly.addEventListener('animationend', function () {
+      if (pendingRightCrop) {
+        applyCroppedImage(slotRight, pendingRightCrop);
+        markIncoming(slotRight);
+      }
+      fly.classList.remove('is-animating');
+    });
+    */
+
+    function queueNextCycle() {
+      if (heroCycleTimer) {
+        clearTimeout(heroCycleTimer);
+      }
+      heroCycleTimer = window.setTimeout(function () {
+        stepCarousel();
+        queueNextCycle();
+      }, 5000);
+    }
+
+    window.setTimeout(function () {
+      setHeroDockToCenter();
+      hero.classList.add('hero-gallery-active');
+      document.body.classList.add('hero-logo-scrolled');
+      window.dispatchEvent(new Event('scroll'));
+      queueNextCycle();
+    }, 5000);
+  }
+  initHeroGalleryRotation();
+
   setText('footerName', businessName);
   setText('footerYear', String(new Date().getFullYear()));
 
@@ -268,7 +482,8 @@
       document.body.classList.contains('page-payment') ||
       document.body.classList.contains('page-request');
     function onScroll() {
-      if (forceScrolledHeader) {
+      var forceHeroScrolled = document.body.classList.contains('hero-logo-scrolled');
+      if (forceScrolledHeader || forceHeroScrolled) {
         topBar.classList.add('scrolled');
         return;
       }
