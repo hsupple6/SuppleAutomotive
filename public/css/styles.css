@@ -4876,10 +4876,13 @@ body {
 
   .block.hero .hero-bg {
     min-height: 100%;
+    top: 0;
   }
 
+  /* Match desktop: full-bleed cover; avoid % sizes + low focal point (reads as gap / image “shifted down”) */
   .hero-img {
-    background-size: 118%;
+    background-size: cover;
+    background-position: center top;
   }
 
   .hero-gallery {
@@ -5403,10 +5406,10 @@ body {
     right: 0.5rem;
   }
 
-  /* Hero: slight scale so image fills tall phones; keep below ~165% to avoid feeling too tight */
+  /* Hero: keep image flush to top of viewport (no “band” above) */
   .hero-img {
-    background-size: 128%;
-    background-position: 60% 66%;
+    background-size: cover;
+    background-position: center top;
   }
 
   /* Hero: comfortable spacing on small screens */
