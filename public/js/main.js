@@ -167,60 +167,23 @@
       hero.style.setProperty('--hero-img-dock-scale', String(dockScale));
     }
 
-    function getBaseName(src) {
-      if (!src) return '';
-      var cleaned = String(src).split('?')[0];
-      var parts = cleaned.split('/');
-      return parts[parts.length - 1] || cleaned;
+    function applyLeftWhenDecoded(crop) {
+      if (!crop || !crop.src) return;
+      var img = new Image();
+      function paint() {
+        applyCroppedImage(slotLeft, crop);
+        markIncoming(slotLeft);
+      }
+      img.onload = function () {
+        if (img.decode) {
+          img.decode().then(paint).catch(paint);
+        } else {
+          paint();
+        }
+      };
+      img.onerror = paint;
+      img.src = crop.src;
     }
-
-    function buildHeroCropDevPanel(items) {
-      var toggle = document.createElement('button');
-      toggle.type = 'button';
-      toggle.id = 'heroCropDevToggle';
-      toggle.className = 'hero-crop-dev-toggle';
-      toggle.textContent = 'Crop Dev';
-      toggle.setAttribute('aria-expanded', 'false');
-
-      var panel = document.createElement('aside');
-      panel.id = 'heroCropDevPanel';
-      panel.className = 'hero-crop-dev-panel';
-      panel.hidden = true;
-
-      var title = document.createElement('h3');
-      title.className = 'hero-crop-dev-title';
-      title.textContent = 'Hero Crop Previews';
-      panel.appendChild(title);
-
-      var list = document.createElement('div');
-      list.className = 'hero-crop-dev-list';
-
-      items.forEach(function (crop) {
-        var card = document.createElement('div');
-        card.className = 'hero-crop-dev-card';
-        var thumb = document.createElement('div');
-        thumb.className = 'hero-crop-dev-thumb';
-        applyCroppedImage(thumb, crop);
-        var name = document.createElement('p');
-        name.className = 'hero-crop-dev-name';
-        name.textContent = getBaseName(crop.src);
-        card.appendChild(thumb);
-        card.appendChild(name);
-        list.appendChild(card);
-      });
-
-      panel.appendChild(list);
-      document.body.appendChild(toggle);
-      document.body.appendChild(panel);
-
-      toggle.addEventListener('click', function () {
-        var open = panel.hidden;
-        panel.hidden = !open;
-        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-      });
-    }
-
-    buildHeroCropDevPanel(imageBank);
 
     var bankIndex = 0;
     var heroCycleTimer = null;
@@ -239,15 +202,16 @@
       bankIndex += 1;
       var nextLeftPreview = imageBank[bankIndex % imageBank.length];
 
-      applyCroppedImage(slotLeft, nextLeftPreview);
-      markIncoming(slotLeft);
-
+      /* Center + right first: right reuses previous center (already decoded — no black flash). */
       applyCroppedImage(slotCenter, incomingCenter);
       markIncoming(slotCenter);
       if (previousCenter) {
         applyCroppedImage(slotRight, previousCenter);
         markIncoming(slotRight);
       }
+
+      /* Left shows the *next* bank image — decode before paint so black slot does not flash. */
+      applyLeftWhenDecoded(nextLeftPreview);
     }
 
     /* Sliding center->right animation intentionally disabled per request.
