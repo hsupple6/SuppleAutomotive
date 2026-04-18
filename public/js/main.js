@@ -82,12 +82,12 @@
     body.className = 'service-thanks-toast-body';
     if (channel === 'sms') {
       body.textContent = contact
-        ? 'We received your request. We sent confirmation to ' + contact + '.'
-        : 'We received your request. We sent confirmation to your phone.';
+        ? 'We received your request! We sent confirmation to ' + contact + '.'
+        : 'We received your request! We sent confirmation to your phone.';
     } else {
       body.textContent = contact
-        ? 'We received your request. We sent confirmation to: ' + contact + '.'
-        : 'We received your request. We sent confirmation to your email.';
+        ? 'We received your request! We sent confirmation to: ' + contact + '.'
+        : 'We received your request! We sent confirmation to your email.';
     }
 
     var btn = document.createElement('button');
