@@ -9,6 +9,9 @@
   --link-underline: rgba(255, 255, 255, 0.5);
   --accent-light: #38bdf8;
   --accent-light-dim: rgba(56, 189, 248, 0.25);
+  /* Scrolled header: white at ~40% opacity (not solid #fff) */
+  --header-scrolled-white: rgba(255, 255, 255, 0.4);
+  --header-scrolled-white-hover: rgba(255, 255, 255, 0.62);
 }
 
 *,
@@ -95,39 +98,39 @@ body {
   transition: background 1s;
 }
 
-/* Scrolled: top bar content turns bright white over dark content */
+/* Scrolled: top bar chrome = white @ ~0.4 opacity over dark content */
 .top-bar.scrolled .logo:not(.site-logo),
 .top-bar.scrolled .logo-main,
 .top-bar.scrolled .logo-accent {
   color: transparent;
-  -webkit-text-stroke: 2.5px #fff;
+  -webkit-text-stroke: 2.5px var(--header-scrolled-white);
 }
 .top-bar.scrolled .nav-links a {
-  color: #fff;
+  color: var(--header-scrolled-white);
 }
 .top-bar.scrolled .nav-links a:hover {
-  color: #fff;
-  opacity: 0.85;
+  color: var(--header-scrolled-white-hover);
 }
 .top-bar.scrolled .link-payment {
-  color: #fff;
-  border-color: #fff;
+  color: var(--header-scrolled-white);
+  border-color: var(--header-scrolled-white);
   background: transparent;
 }
 .top-bar.scrolled .link-payment:hover {
-  background: #fff;
-  color: #000;
+  background: var(--header-scrolled-white);
+  color: #fff;
+  border-color: var(--header-scrolled-white-hover);
 }
 .top-bar.scrolled .link-cta {
-  color: #fff;
+  color: var(--header-scrolled-white);
 }
 .top-bar.scrolled .link-cta-border {
-  background: #fff;
+  background: var(--header-scrolled-white);
 }
 .top-bar.scrolled .nav-toggle-icon,
 .top-bar.scrolled .nav-toggle-icon::before,
 .top-bar.scrolled .nav-toggle-icon::after {
-  background: #fff;
+  background: var(--header-scrolled-white);
 }
 
 .logo {
@@ -200,7 +203,19 @@ body {
 }
 
 .top-bar.scrolled .header-brand-chrome-top {
-  color: #fff;
+  color: var(--header-scrolled-white);
+}
+
+.top-bar.scrolled .header-brand-chrome-bottom {
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.32) 38%,
+    rgba(255, 255, 255, 0.45) 50%,
+    rgba(255, 255, 255, 0.28) 60%,
+    rgba(255, 255, 255, 0.16) 100%
+  );
+  text-shadow: none;
 }
 
 .header-brand-chrome-bottom {
@@ -5259,7 +5274,7 @@ body {
   .top-bar.scrolled .logo:not(.site-logo),
   .top-bar.scrolled .logo-main,
   .top-bar.scrolled .logo-accent {
-    -webkit-text-stroke: 1px #fff;
+    -webkit-text-stroke: 1px var(--header-scrolled-white);
   }
 
   .top-bar {

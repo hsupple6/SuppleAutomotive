@@ -67,6 +67,10 @@
   }
 
   function initHeroGalleryRotation() {
+    /*
+     * HERO GALLERY CAROUSEL — deprecated (static hero).
+     * Restore: remove this comment block and uncomment initHeroGalleryRotation() after this function.
+     * ---
     var hero = document.querySelector('.hero');
     var heroBg = hero ? hero.querySelector('.hero-bg') : null;
     var heroImg = hero ? hero.querySelector('.hero-img') : null;
@@ -202,7 +206,7 @@
       bankIndex += 1;
       var nextLeftPreview = imageBank[bankIndex % imageBank.length];
 
-      /* Center + right first: right reuses previous center (already decoded — no black flash). */
+      // Center + right first: right reuses previous center (already decoded — no black flash).
       applyCroppedImage(slotCenter, incomingCenter);
       markIncoming(slotCenter);
       if (previousCenter) {
@@ -210,19 +214,18 @@
         markIncoming(slotRight);
       }
 
-      /* Left shows the *next* bank image — decode before paint so black slot does not flash. */
+      // Left shows the *next* bank image — decode before paint so black slot does not flash.
       applyLeftWhenDecoded(nextLeftPreview);
     }
 
-    /* Sliding center->right animation intentionally disabled per request.
-    fly.addEventListener('animationend', function () {
-      if (pendingRightCrop) {
-        applyCroppedImage(slotRight, pendingRightCrop);
-        markIncoming(slotRight);
-      }
-      fly.classList.remove('is-animating');
-    });
-    */
+    // Sliding center->right animation intentionally disabled per request.
+    // fly.addEventListener('animationend', function () {
+    //   if (pendingRightCrop) {
+    //     applyCroppedImage(slotRight, pendingRightCrop);
+    //     markIncoming(slotRight);
+    //   }
+    //   fly.classList.remove('is-animating');
+    // });
 
     function queueNextCycle() {
       if (heroCycleTimer) {
@@ -241,8 +244,9 @@
       window.dispatchEvent(new Event('scroll'));
       queueNextCycle();
     }, 5000);
+    */
   }
-  initHeroGalleryRotation();
+  // initHeroGalleryRotation(); // static hero — carousel disabled (see initHeroGalleryRotation)
 
   setText('footerName', businessName);
   setText('footerYear', String(new Date().getFullYear()));

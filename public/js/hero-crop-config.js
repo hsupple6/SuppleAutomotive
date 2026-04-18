@@ -1,3 +1,4 @@
+// Used only when hero gallery rotation is enabled in public/js/main.js (initHeroGalleryRotation — currently commented out / static hero).
 window.HERO_CROP_CONFIG = {
   hero: { x: 60, y: 67, zoom: 100 },
   images: [
