@@ -1021,6 +1021,43 @@
         });
       }
     })();
+
+    (function tryPortalMagicLink() {
+      var params = new URLSearchParams(window.location.search);
+      var p = params.get('p');
+      if (!p) return;
+      fetch(apiBase + '/api/portal-bootstrap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p: p })
+      })
+        .then(function (r) {
+          return r.json().then(function (d) {
+            if (!r.ok) throw new Error(d.error || 'Link invalid or expired');
+            return d;
+          });
+        })
+        .then(function (data) {
+          var cust = data.customer || {};
+          showDashboard(data, {
+            name: cust.name || '',
+            email: cust.email || '',
+            phone: phoneLast10(cust.phone || '') || ''
+          });
+          params.delete('p');
+          var qs = params.toString();
+          var path = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+          window.history.replaceState({}, '', path);
+        })
+        .catch(function (err) {
+          var el = document.getElementById('paymentFormMessage');
+          if (el) {
+            el.textContent = err.message || 'Sign-in link could not be used.';
+            el.hidden = false;
+            el.className = 'form-message form-message-error';
+          }
+        });
+    })();
   })();
   </script>
 </body>

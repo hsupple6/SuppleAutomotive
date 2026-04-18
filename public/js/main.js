@@ -1215,11 +1215,18 @@
       var submitBtn = serviceForm.querySelector('.form-submit');
       var apiBase = (CONFIG.apiBaseUrl != null && CONFIG.apiBaseUrl !== '') ? CONFIG.apiBaseUrl.replace(/\/$/, '') : '';
       var enteredEmail = (serviceForm.querySelector('[name="email"]') || {}).value || '';
+      var hiddenPref = (serviceForm.querySelector('[name="contact_preference"]') || {}).value || 'email';
+      var activeContactBtn = serviceForm.querySelector('.contact-switch .contact-switch-option.active');
+      var activeMode = activeContactBtn && activeContactBtn.getAttribute('data-mode');
+      var contactPref =
+        activeMode === 'sms' ? 'sms' : activeMode === 'email' ? 'email' : hiddenPref === 'sms' ? 'sms' : 'email';
+      var prefInput = serviceForm.querySelector('[name="contact_preference"]');
+      if (prefInput) prefInput.value = contactPref;
       var payload = {
         name: (serviceForm.querySelector('[name="name"]') || {}).value || '',
         email: enteredEmail,
         phone: (serviceForm.querySelector('[name="phone"]') || {}).value || '',
-        contact_preference: (serviceForm.querySelector('[name="contact_preference"]') || {}).value || 'email',
+        contact_preference: contactPref,
         contact_via_ok: !!((serviceForm.querySelector('[name="contact_via_ok"]') || {}).checked),
         service_address: (serviceForm.querySelector('[name="service_address"]') || {}).value || '',
         work_location: (serviceForm.querySelector('[name="work_location"]') || {}).value || '',

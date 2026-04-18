@@ -12,6 +12,7 @@ var estimatePdf = require(path.join(__dirname, 'lib', 'estimate-pdf'));
 var signedAgreementPdf = require(path.join(__dirname, 'lib', 'signed-agreement-pdf'));
 var devPdfSamples = require(path.join(__dirname, 'lib', 'dev-pdf-samples'));
 var emailNotifications = require(path.join(__dirname, 'lib', 'email-notifications'));
+var portalMagic = require(path.join(__dirname, 'lib', 'portal-magic'));
 var express = require('express');
 var session = require('express-session');
 var multer = require('multer');
@@ -440,6 +441,130 @@ function fetchPendingSignatureBundlesForCustomer(customerId) {
     });
 }
 
+/** Build the same JSON body as a successful payment-lookup (dashboard payload). */
+function fetchPaymentDashboardPayload(customer, referenceNumber) {
+  var customerId = customer.id;
+  var custDisplay = Object.assign({}, customer);
+  if (custDisplay.phone) custDisplay.phone = phoneLast10(custDisplay.phone) || custDisplay.phone;
+  var srvQ = supabase.from('services').select('*').eq('customer_id', customerId).order('created_at', { ascending: false });
+  if (referenceNumber) srvQ = srvQ.eq('reference_number', referenceNumber);
+  return srvQ.then(function (srvRes) {
+    if (srvRes.error) return Promise.reject(new Error(srvRes.error.message || 'Services lookup failed'));
+    var services = srvRes.data || [];
+    var serviceIds = services.map(function (s) {
+      return s.id;
+    });
+    if (serviceIds.length === 0) {
+      return Promise.all([
+        supabase
+          .from('service_invoices')
+          .select('id, service_id, invoice_number, pdf_url, created_at')
+          .eq('customer_id', customerId)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('customer_documents')
+          .select('id, title, pdf_url, created_at')
+          .eq('customer_id', customerId)
+          .order('created_at', { ascending: false })
+      ]).then(function (docRes) {
+        var inv = docRes[0] && !docRes[0].error && docRes[0].data ? docRes[0].data : [];
+        var docs = docRes[1] && !docRes[1].error && docRes[1].data ? docRes[1].data : [];
+        return fetchPendingSignatureBundlesForCustomer(customerId).then(function (pendingSignatureBundles) {
+          return {
+            ok: true,
+            customer: custDisplay,
+            vehicles: [],
+            services: [],
+            balance: 0,
+            invoices: inv,
+            documents: docs,
+            pendingSignatureBundles: pendingSignatureBundles
+          };
+        });
+      });
+    }
+    return Promise.all([
+      supabase.from('service_parts').select('*').in('service_id', serviceIds),
+      supabase.from('service_payments').select('service_id, amount').in('service_id', serviceIds),
+      supabase.from('service_images').select('*').in('service_id', serviceIds)
+    ]).then(function (results) {
+      var partsRes = results[0];
+      var payRes = results[1];
+      var imagesRes = results[2];
+      var parts = partsRes.data || [];
+      var payments = payRes.data || [];
+      var images = imagesRes.data || [];
+      var partsByService = {};
+      parts.forEach(function (p) {
+        if (!partsByService[p.service_id]) partsByService[p.service_id] = [];
+        partsByService[p.service_id].push(p);
+      });
+      var paidByService = {};
+      payments.forEach(function (p) {
+        paidByService[p.service_id] = (paidByService[p.service_id] || 0) + Number(p.amount || 0);
+      });
+      var imagesByService = {};
+      images.forEach(function (img) {
+        if (!imagesByService[img.service_id]) imagesByService[img.service_id] = [];
+        imagesByService[img.service_id].push(img);
+      });
+      var balance = 0;
+      var servicesWithParts = services.map(function (s) {
+        var serviceParts = partsByService[s.id] || [];
+        var partsTotal = serviceParts.reduce(function (sum, p) {
+          return sum + Number(p.total_price || 0);
+        }, 0);
+        var total = Number(s.service_price || 0) + partsTotal;
+        var paidTotal = paidByService[s.id] || 0;
+        var serviceBalance = Math.round((total - paidTotal) * 100) / 100;
+        var isPosted = (s.bill_status || 'posted') === 'posted';
+        if (isPosted && serviceBalance > 0) balance += serviceBalance;
+        var paymentStatus = serviceBalance <= 0 ? 'paid' : paidTotal > 0 ? 'partial' : 'unpaid';
+        return Object.assign({}, s, {
+          parts: serviceParts,
+          images: imagesByService[s.id] || [],
+          total: total,
+          payment_status: paymentStatus,
+          bill_status: s.bill_status || 'posted'
+        });
+      });
+      return supabase
+        .from('vehicles')
+        .select('*')
+        .eq('customer_id', customerId)
+        .then(function (vRes) {
+          return Promise.all([
+            supabase
+              .from('service_invoices')
+              .select('id, service_id, invoice_number, pdf_url, created_at')
+              .eq('customer_id', customerId)
+              .order('created_at', { ascending: false }),
+            supabase
+              .from('customer_documents')
+              .select('id, title, pdf_url, created_at')
+              .eq('customer_id', customerId)
+              .order('created_at', { ascending: false })
+          ]).then(function (docRes) {
+            var inv = docRes[0] && !docRes[0].error && docRes[0].data ? docRes[0].data : [];
+            var docs = docRes[1] && !docRes[1].error && docRes[1].data ? docRes[1].data : [];
+            return fetchPendingSignatureBundlesForCustomer(customerId).then(function (pendingSignatureBundles) {
+              return {
+                ok: true,
+                customer: custDisplay,
+                vehicles: vRes.data || [],
+                services: servicesWithParts,
+                balance: Math.round(balance * 100) / 100,
+                invoices: inv,
+                documents: docs,
+                pendingSignatureBundles: pendingSignatureBundles
+              };
+            });
+          });
+        });
+    });
+  });
+}
+
 function verifyPaymentBodyCustomer(body, customer) {
   var name = (body.name || '').trim();
   var email = (body.email || '').trim();
@@ -524,15 +649,24 @@ function trySend(promiseFactory, label) {
 
 function sendAccountUpdateByCustomerId(customerId, updateSummary) {
   if (!customerId) return Promise.resolve();
-  return supabase.from('customers').select('email').eq('id', customerId).maybeSingle().then(function (cRes) {
-    var customerEmail = cRes && cRes.data ? cRes.data.email : '';
-    return trySend(function () {
-      return emailNotifications.sendAccountUpdatedAlert({
-        email: customerEmail,
-        updateSummary: updateSummary
-      });
-    }, 'Account update email failed');
-  });
+  return supabase
+    .from('customers')
+    .select('id, email, phone, contact_preference')
+    .eq('id', customerId)
+    .maybeSingle()
+    .then(function (cRes) {
+      var row = cRes && cRes.data ? cRes.data : null;
+      var customerEmail = row ? row.email : '';
+      return trySend(function () {
+        return emailNotifications.sendAccountUpdatedAlert({
+          email: customerEmail,
+          customerId: customerId,
+          phone: row && row.phone,
+          contact_preference: row && row.contact_preference,
+          updateSummary: updateSummary
+        });
+      }, 'Account update email failed');
+    });
 }
 
 app.post('/api/submit-service-request', function (req, res) {
@@ -590,7 +724,7 @@ app.post('/api/submit-service-request', function (req, res) {
         var phone = phoneLast10(phoneRaw) || null;
         if (!name) {
           console.warn('Submit: skipped DB (no name)');
-          return Promise.resolve();
+          return Promise.resolve(null);
         }
 
         return getOrCreateShopAccount().then(function (accountId) {
@@ -599,7 +733,15 @@ app.post('/api/submit-service-request', function (req, res) {
           if (email) query = query.eq('email', email);
           else if (phone) query = query.eq('phone', phone);
           else {
-            return supabase.from('customers').insert({ account_id: accountId, name: name }).select('id').single()
+            return supabase
+              .from('customers')
+              .insert({
+                account_id: accountId,
+                name: name,
+                contact_preference: String(formData.contact_preference || 'email').toLowerCase() === 'sms' ? 'sms' : 'email'
+              })
+              .select('id')
+              .single()
               .then(function (r) {
                 if (r.error) return Promise.reject(new Error(r.error.message || 'Customer insert failed'));
                 if (r.data && r.data.id) {
@@ -611,12 +753,27 @@ app.post('/api/submit-service-request', function (req, res) {
           }
           return query.maybeSingle().then(function (cust) {
             if (cust.error) return Promise.reject(new Error(cust.error.message || 'Customer lookup failed'));
-            if (cust.data) return { accountId: accountId, customerId: cust.data.id, vehicleId: null };
+            if (cust.data) {
+              var pref = String(formData.contact_preference || 'email').toLowerCase() === 'sms' ? 'sms' : 'email';
+              return supabase
+                .from('customers')
+                .update({
+                  contact_preference: pref,
+                  phone: phone || cust.data.phone,
+                  name: name
+                })
+                .eq('id', cust.data.id)
+                .then(function (ur) {
+                  if (ur.error) return Promise.reject(new Error(ur.error.message || 'Customer update failed'));
+                  return { accountId: accountId, customerId: cust.data.id, vehicleId: null };
+                });
+            }
             return supabase.from('customers').insert({
               account_id: accountId,
               name: name,
               email: email || null,
-              phone: phone || null
+              phone: phone || null,
+              contact_preference: String(formData.contact_preference || 'email').toLowerCase() === 'sms' ? 'sms' : 'email'
             }).select('id').single().then(function (r) {
               if (r.error) return Promise.reject(new Error(r.error.message || 'Customer insert failed'));
               if (r.data && r.data.id) {
@@ -665,27 +822,33 @@ app.post('/api/submit-service-request', function (req, res) {
               })()
             }).then(function (r) {
               if (r && r.error) return Promise.reject(new Error(r.error.message || 'Service insert failed'));
+              return { customerId: ctx.customerId };
             });
           });
       })();
     }
 
-    var ownerAlertPromise = trySend(function () {
-      if (!ownerEmail) {
-        console.warn(
-          'Service request: no owner inbox configured. Set OWNER_EMAIL (or EMAIL_OWNER_ALERT) in .env to receive new inquiry emails.'
-        );
-        return Promise.resolve({ skipped: true, reason: 'missing-owner-email' });
-      }
-      return emailNotifications.sendOwnerServiceRequestAlert(
-        Object.assign({}, formData, { ownerEmail: ownerEmail })
-      );
-    }, 'Owner service-request email failed');
-    var customerConfirmationPromise = trySend(function () {
-      return emailNotifications.sendServiceRequestConfirmation(formData);
-    }, 'Customer confirmation email failed');
-
-    Promise.all([dbPromise, ownerAlertPromise, customerConfirmationPromise])
+    dbPromise
+      .then(function (ctxAfterDb) {
+        var enrich = Object.assign({}, formData);
+        if (ctxAfterDb && ctxAfterDb.customerId) enrich.customerId = ctxAfterDb.customerId;
+        return Promise.all([
+          trySend(function () {
+            if (!ownerEmail) {
+              console.warn(
+                'Service request: no owner inbox configured. Set OWNER_EMAIL (or EMAIL_OWNER_ALERT) in .env to receive new inquiry emails.'
+              );
+              return Promise.resolve({ skipped: true, reason: 'missing-owner-email' });
+            }
+            return emailNotifications.sendOwnerServiceRequestAlert(
+              Object.assign({}, formData, { ownerEmail: ownerEmail })
+            );
+          }, 'Owner service-request email failed'),
+          trySend(function () {
+            return emailNotifications.sendServiceRequestConfirmation(enrich);
+          }, 'Customer confirmation email failed')
+        ]);
+      })
       .then(function () {
         res.json({ ok: true });
       })
@@ -761,108 +924,45 @@ app.post('/api/payment-lookup', function (req, res) {
       if (!normalizeNameCompare(name, _.customer.name)) {
         return Promise.reject(new Error('Name does not match our records for this email or phone.'));
       }
-      var customerId = _.customer.id;
-      var srvQ = supabase.from('services').select('*').eq('customer_id', customerId).order('created_at', { ascending: false });
-      if (referenceNumber) srvQ = srvQ.eq('reference_number', referenceNumber);
-        return srvQ.then(function (srvRes) {
-          var services = srvRes.data || [];
-          var serviceIds = services.map(function (s) { return s.id; });
-          if (serviceIds.length === 0) {
-            var cust = _.customer;
-            if (cust && cust.phone) cust.phone = phoneLast10(cust.phone) || cust.phone;
-            return Promise.all([
-              supabase.from('service_invoices').select('id, service_id, invoice_number, pdf_url, created_at').eq('customer_id', customerId).order('created_at', { ascending: false }),
-              supabase.from('customer_documents').select('id, title, pdf_url, created_at').eq('customer_id', customerId).order('created_at', { ascending: false })
-            ]).then(function (docRes) {
-              var inv = (docRes[0] && !docRes[0].error && docRes[0].data) ? docRes[0].data : [];
-              var docs = (docRes[1] && !docRes[1].error && docRes[1].data) ? docRes[1].data : [];
-              return fetchPendingSignatureBundlesForCustomer(customerId).then(function (pendingSignatureBundles) {
-                return res.json({
-                  ok: true,
-                  customer: cust,
-                  vehicles: [],
-                  services: [],
-                  balance: 0,
-                  invoices: inv,
-                  documents: docs,
-                  pendingSignatureBundles: pendingSignatureBundles
-                });
-              });
-            });
-          }
-          return Promise.all([
-            supabase.from('service_parts').select('*').in('service_id', serviceIds),
-            supabase.from('service_payments').select('service_id, amount').in('service_id', serviceIds),
-            supabase.from('service_images').select('*').in('service_id', serviceIds)
-          ]).then(function (results) {
-            var partsRes = results[0];
-            var payRes = results[1];
-            var imagesRes = results[2];
-            var parts = partsRes.data || [];
-            var payments = payRes.data || [];
-            var images = imagesRes.data || [];
-            var partsByService = {};
-            parts.forEach(function (p) {
-              if (!partsByService[p.service_id]) partsByService[p.service_id] = [];
-              partsByService[p.service_id].push(p);
-            });
-            var paidByService = {};
-            payments.forEach(function (p) {
-              paidByService[p.service_id] = (paidByService[p.service_id] || 0) + Number(p.amount || 0);
-            });
-            var imagesByService = {};
-            images.forEach(function (img) {
-              if (!imagesByService[img.service_id]) imagesByService[img.service_id] = [];
-              imagesByService[img.service_id].push(img);
-            });
-            var balance = 0;
-            var servicesWithParts = services.map(function (s) {
-              var serviceParts = partsByService[s.id] || [];
-              var partsTotal = serviceParts.reduce(function (sum, p) { return sum + Number(p.total_price || 0); }, 0);
-              var total = Number(s.service_price || 0) + partsTotal;
-              var paidTotal = paidByService[s.id] || 0;
-              var serviceBalance = Math.round((total - paidTotal) * 100) / 100;
-              var isPosted = (s.bill_status || 'posted') === 'posted';
-              if (isPosted && serviceBalance > 0) balance += serviceBalance;
-              var paymentStatus = serviceBalance <= 0 ? 'paid' : (paidTotal > 0 ? 'partial' : 'unpaid');
-              return Object.assign({}, s, {
-                parts: serviceParts,
-                images: imagesByService[s.id] || [],
-                total: total,
-                payment_status: paymentStatus,
-                bill_status: s.bill_status || 'posted'
-              });
-            });
-            return supabase.from('vehicles').select('*').eq('customer_id', customerId).then(function (vRes) {
-              var cust = _.customer;
-              if (cust && cust.phone) cust.phone = phoneLast10(cust.phone) || cust.phone;
-              return Promise.all([
-                supabase.from('service_invoices').select('id, service_id, invoice_number, pdf_url, created_at').eq('customer_id', customerId).order('created_at', { ascending: false }),
-                supabase.from('customer_documents').select('id, title, pdf_url, created_at').eq('customer_id', customerId).order('created_at', { ascending: false })
-              ]).then(function (docRes) {
-                var inv = (docRes[0] && !docRes[0].error && docRes[0].data) ? docRes[0].data : [];
-                var docs = (docRes[1] && !docRes[1].error && docRes[1].data) ? docRes[1].data : [];
-                return fetchPendingSignatureBundlesForCustomer(customerId).then(function (pendingSignatureBundles) {
-                  res.json({
-                    ok: true,
-                    customer: cust,
-                    vehicles: vRes.data || [],
-                    services: servicesWithParts,
-                    balance: Math.round(balance * 100) / 100,
-                    invoices: inv,
-                    documents: docs,
-                    pendingSignatureBundles: pendingSignatureBundles
-                  });
-                });
-              });
-            });
-          });
-        });
-      }).catch(function (err) {
-        console.error('Payment lookup error:', err.message || err);
-        var isNotFound = err.message && (err.message.indexOf('No customer found') === 0 || err.message.indexOf('Name does not match') === 0);
-        sendError(isNotFound ? 404 : 500, err.message || 'Lookup failed');
+      return fetchPaymentDashboardPayload(_.customer, referenceNumber).then(function (payload) {
+        res.json(payload);
       });
+    })
+    .catch(function (err) {
+      console.error('Payment lookup error:', err.message || err);
+      var isNotFound = err.message && (err.message.indexOf('No customer found') === 0 || err.message.indexOf('Name does not match') === 0);
+      sendError(isNotFound ? 404 : 500, err.message || 'Lookup failed');
+    });
+});
+
+/** One-tap portal: magic link in SMS opens payment page logged in as this customer. */
+app.post('/api/portal-bootstrap', function (req, res) {
+  function sendError(status, message) {
+    res.status(status).json({ ok: false, error: message });
+  }
+  if (!supabase) return sendError(503, 'Database not configured');
+  var body = req.body || {};
+  var token = String(body.p || body.token || '').trim();
+  if (!token) return sendError(400, 'Missing token');
+  var customerId = portalMagic.verifyPortalToken(token);
+  if (!customerId) return sendError(401, 'Invalid or expired link');
+  getOrCreateShopAccount()
+    .then(function (accountId) {
+      if (!accountId) return Promise.reject(new Error('Database not ready'));
+      return supabase.from('customers').select('*').eq('id', customerId).eq('account_id', accountId).maybeSingle();
+    })
+    .then(function (cRes) {
+      if (cRes.error) return sendError(500, cRes.error.message || 'Lookup failed');
+      if (!cRes.data) return sendError(404, 'Account not found');
+      return fetchPaymentDashboardPayload(cRes.data, '');
+    })
+    .then(function (payload) {
+      res.json(payload);
+    })
+    .catch(function (err) {
+      console.error('portal-bootstrap:', err.message || err);
+      sendError(500, err.message || 'Server error');
+    });
 });
 
 app.post('/api/signable-pdf', function (req, res) {
@@ -1056,6 +1156,7 @@ app.post('/api/complete-signature-bundle', function (req, res) {
   var bundleKeyForSign = null;
   var customerNameForSign = '';
   var customerEmailForSign = '';
+  var customerNotifyRow = null;
   getOrCreateShopAccount()
     .then(function (accountId) {
       if (!accountId) throw new Error('Account not ready');
@@ -1082,6 +1183,7 @@ app.post('/api/complete-signature-bundle', function (req, res) {
             }
             customerNameForSign = cr.data.name || '';
             customerEmailForSign = cr.data.email || '';
+            customerNotifyRow = cr.data;
             return supabase.from('customer_signature_bundles').update({
               status: 'completed',
               signature_mode: mode,
@@ -1110,6 +1212,9 @@ app.post('/api/complete-signature-bundle', function (req, res) {
         trySend(function () {
           return emailNotifications.sendSignedDocumentAlert({
             email: customerEmailForSign,
+            customerId: customerIdForSign,
+            phone: customerNotifyRow && customerNotifyRow.phone,
+            contact_preference: customerNotifyRow && customerNotifyRow.contact_preference,
             documentType: String(bundleKeyForSign || '').toLowerCase() === 'estimate' ? 'estimate' : 'agreement',
             documentUrl: signedPdfUrl || ''
           });
@@ -1293,7 +1398,7 @@ app.post('/supplecontrols/api/customers/:id/send-email', controlsApiAuth, functi
   getAccountThen(req, res, function (accountId) {
     supabase
       .from('customers')
-      .select('id, name, email')
+      .select('id, name, email, phone, contact_preference')
       .eq('id', customerId)
       .eq('account_id', accountId)
       .single()
@@ -1303,6 +1408,9 @@ app.post('/supplecontrols/api/customers/:id/send-email', controlsApiAuth, functi
         if (!customer.email) return res.status(400).json({ error: 'Customer has no email on file' });
         return emailNotifications.sendManualCustomerEmail({
           email: customer.email,
+          customerId: customer.id,
+          phone: customer.phone,
+          contact_preference: customer.contact_preference,
           subject: subject,
           message: message,
           heading: subject,
@@ -1489,10 +1597,14 @@ app.patch('/supplecontrols/api/customers/:id', controlsApiAuth, function (req, r
     supabase.from('customers').select('id').eq('id', customerId).eq('account_id', accountId).single().then(function (r) {
       if (r.error || !r.data) return res.status(404).json({ error: 'Customer not found' });
       var upd = {};
-      ['name', 'email', 'phone', 'address_line1', 'address_line2', 'city', 'state', 'postal_code', 'notes'].forEach(function (k) {
+      ['name', 'email', 'phone', 'address_line1', 'address_line2', 'city', 'state', 'postal_code', 'notes', 'contact_preference'].forEach(function (k) {
         if (body[k] !== undefined) upd[k] = body[k];
       });
       if (body.phone !== undefined && body.phone) upd.phone = phoneLast10(String(body.phone)) || body.phone;
+      if (upd.contact_preference !== undefined) {
+        var cp = String(upd.contact_preference || '').toLowerCase();
+        upd.contact_preference = cp === 'sms' ? 'sms' : 'email';
+      }
       if (Object.keys(upd).length === 0) return res.json({ ok: true });
       supabase.from('customers').update(upd).eq('id', customerId).select().single().then(function (u) {
         if (u.error) return controlsJson(new Error(u.error.message), res);
@@ -2104,8 +2216,12 @@ app.post('/supplecontrols/api/customers/:customerId/signature-bundles/release', 
                 .then(function (docIns) {
                   if (docIns.error) throw new Error(docIns.error.message);
                   trySend(function () {
+                    var row = releaseCustomerRow;
                     return emailNotifications.sendDocumentsAssignedAlert({
-                      email: releaseCustomerRow && releaseCustomerRow.email
+                      email: row && row.email,
+                      customerId: row && row.id,
+                      phone: row && row.phone,
+                      contact_preference: row && row.contact_preference
                     });
                   }, 'Documents assigned alert email failed');
                   res.status(201).json({
@@ -2147,8 +2263,12 @@ app.post('/supplecontrols/api/customers/:customerId/signature-bundles/release', 
         }).then(function (docIns) {
           if (docIns.error) throw new Error(docIns.error.message);
           trySend(function () {
+            var row = releaseCustomerRow;
             return emailNotifications.sendDocumentsAssignedAlert({
-              email: releaseCustomerRow && releaseCustomerRow.email
+              email: row && row.email,
+              customerId: row && row.id,
+              phone: row && row.phone,
+              contact_preference: row && row.contact_preference
             });
           }, 'Documents assigned alert email failed');
           res.status(201).json({ ok: true, bundleKey: safeKey, documentCount: files.length, source: 'pdf' });
