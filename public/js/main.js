@@ -14,6 +14,103 @@
     return document.getElementById(id);
   }
 
+  var SERVICE_THANKS_STORAGE_KEY = 'suppleServiceRequestThanks';
+
+  function formatPhoneForThanks(raw) {
+    var d = String(raw || '').replace(/\D/g, '');
+    if (d.length === 11 && d[0] === '1') d = d.slice(1);
+    if (d.length !== 10) return String(raw || '').trim();
+    return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+  }
+
+  function hideServiceThanksToast() {
+    var el = byId('serviceThanksToast');
+    if (el) {
+      if (el._serviceThanksOnKey) {
+        document.removeEventListener('keydown', el._serviceThanksOnKey);
+      }
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }
+    document.body.style.overflow = '';
+  }
+
+  function showServiceRequestThanksFromStorage() {
+    var raw;
+    try {
+      raw = sessionStorage.getItem(SERVICE_THANKS_STORAGE_KEY);
+    } catch (e) {
+      return;
+    }
+    if (!raw) return;
+    try {
+      sessionStorage.removeItem(SERVICE_THANKS_STORAGE_KEY);
+    } catch (e2) {}
+    var data;
+    try {
+      data = JSON.parse(raw);
+    } catch (e3) {
+      return;
+    }
+    if (!data || typeof data !== 'object') return;
+    var channel = data.channel === 'sms' ? 'sms' : 'email';
+    var contact = data.contact != null ? String(data.contact).trim() : '';
+
+    hideServiceThanksToast();
+
+    var wrap = document.createElement('div');
+    wrap.id = 'serviceThanksToast';
+    wrap.className = 'service-thanks-toast';
+    wrap.setAttribute('role', 'alertdialog');
+    wrap.setAttribute('aria-modal', 'true');
+    wrap.setAttribute('aria-labelledby', 'serviceThanksToastTitle');
+
+    var backdrop = document.createElement('button');
+    backdrop.type = 'button';
+    backdrop.className = 'service-thanks-toast-backdrop';
+    backdrop.setAttribute('aria-label', 'Dismiss');
+    backdrop.addEventListener('click', hideServiceThanksToast);
+
+    var card = document.createElement('div');
+    card.className = 'service-thanks-toast-card';
+
+    var title = document.createElement('h2');
+    title.id = 'serviceThanksToastTitle';
+    title.className = 'service-thanks-toast-title';
+    title.textContent = 'We received your request';
+
+    var body = document.createElement('p');
+    body.className = 'service-thanks-toast-body';
+    if (channel === 'sms') {
+      body.textContent = contact
+        ? 'We received your request. We sent confirmation to ' + contact + '.'
+        : 'We received your request. We sent confirmation to your phone.';
+    } else {
+      body.textContent = contact
+        ? 'We received your request. We sent confirmation to: ' + contact + '.'
+        : 'We received your request. We sent confirmation to your email.';
+    }
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'service-thanks-toast-btn';
+    btn.textContent = 'OK';
+    btn.addEventListener('click', hideServiceThanksToast);
+
+    card.appendChild(title);
+    card.appendChild(body);
+    card.appendChild(btn);
+    wrap.appendChild(backdrop);
+    wrap.appendChild(card);
+    document.body.appendChild(wrap);
+    document.body.style.overflow = 'hidden';
+    btn.focus();
+    function onKey(e) {
+      if (e.key === 'Escape') hideServiceThanksToast();
+    }
+    wrap._serviceThanksOnKey = onKey;
+    document.addEventListener('keydown', onKey);
+  }
+
   function setText(id, text) {
     var el = byId(id);
     if (el) el.textContent = text;
@@ -1265,6 +1362,21 @@
           });
         })
         .then(function () {
+          if (document.body.classList.contains('page-request')) {
+            var channel = contactPref === 'sms' ? 'sms' : 'email';
+            var contact =
+              channel === 'sms'
+                ? formatPhoneForThanks(payload.phone)
+                : String(payload.email || '').trim();
+            try {
+              sessionStorage.setItem(
+                SERVICE_THANKS_STORAGE_KEY,
+                JSON.stringify({ channel: channel, contact: contact })
+              );
+            } catch (errStore) {}
+            window.location.href = 'index.html';
+            return;
+          }
           showFormMessage(serviceForm, 'Thanks. We’ll be in touch soon.', false);
           serviceForm.reset();
         })
@@ -1401,4 +1513,6 @@
         });
     });
   }
+
+  showServiceRequestThanksFromStorage();
 })();

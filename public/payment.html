@@ -15,53 +15,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
 </head>
 <body class="page-payment">
-  <header class="top-bar">
-    <a href="index.html" class="logo site-logo" aria-label="Supple Automotive">
-      <div class="site-logo-inner">
-        <img src="logo/logo.png" alt="Supple Automotive" class="site-logo-img site-logo-img-main" width="auto" height="48">
-        <img src="logo/logo1.png" alt="Supple Automotive" class="site-logo-img site-logo-img-alt" width="auto" height="48">
-      </div>
-    </a>
-    <div class="header-brand-chrome" aria-hidden="true">
-      <div class="header-brand-chrome-top">UPPLE</div>
-      <div class="header-brand-chrome-bottom">AUTOMOTIVE</div>
-    </div>
-    <button type="button" class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navMenu">
-      <span class="nav-toggle-icon" aria-hidden="true"></span>
-    </button>
-    <div class="nav-menu" id="navMenu" role="navigation">
-      <div class="nav-menu-content" id="navMenuContent">
-        <nav class="nav-links">
-          <a href="index.html">Home</a>
-          <a href="index.html#services">Services</a>
-          <a href="index.html#about">About</a>
-          <a href="request-service.html">Request service</a>
-          <a href="index.html#contact">Contact</a>
-        </nav>
-        <div class="header-actions">
-          <a href="payment.html" class="link-payment nav-current js-payment-portal-link" id="headerPaymentPortal">User Portal</a>
-          <a href="request-service.html" class="link-cta js-request-service-link">Request service</a>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <div class="mobile-nav-slash" id="mobileNavSlash" aria-hidden="true">
-    <div class="mobile-nav-slash-fill"></div>
-    <div class="mobile-nav-overlay-content" id="mobileNavOverlayContent" aria-hidden="true">
-      <nav class="mobile-nav-overlay-links">
-        <a href="index.html#services">Services</a>
-        <a href="index.html#pricing">Pricing</a>
-        <a href="index.html#about">About</a>
-        <a href="index.html#contact">Contact</a>
-      </nav>
-      <div class="mobile-nav-overlay-actions">
-        <a href="payment.html" class="js-payment-portal-link">User Portal</a>
-        <a href="request-service.html" class="js-request-service-link">Request service</a>
-      </div>
-    </div>
-  </div>
-
   <main>
     <p class="payment-success-banner" id="paymentSuccessBanner" hidden role="alert">Payment successful. Your balance has been updated. Look up your account below to see the change.</p>
     <!-- Lookup form -->
@@ -215,21 +168,6 @@
     </div>
   </main>
 
-  <footer class="footer">
-    <nav class="footer-nav">
-      <a href="index.html">Home</a>
-      <a href="index.html#services">Services</a>
-      <a href="index.html#about">About</a>
-      <a href="request-service.html">Request service</a>
-      <a href="index.html#contact">Contact</a>
-    </nav>
-    <p class="footer-copy">Copyright &copy; since <span id="footerYear"></span> &ndash; <span id="footerName">Supple Automotive</span></p>
-    <div class="footer-legal">
-      <a href="#">Sitemap</a>
-      <a href="#">Privacy</a>
-    </div>
-  </footer>
-
   <script src="config.js"></script>
   <script src="js/main.js"></script>
   <script>
@@ -370,46 +308,37 @@
         };
       }
 
-      var sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      function needsServiceSoon(vehicleId) {
-        var completed = services.filter(function (s) { return s.vehicle_id === vehicleId && s.status === 'completed'; });
-        if (completed.length === 0) return true;
-        var last = completed.reduce(function (latest, s) {
-          var d = s.completed_at ? new Date(s.completed_at) : (s.created_at ? new Date(s.created_at) : null);
-          return d && (!latest || d > latest) ? d : latest;
-        }, null);
-        return !last || last < sixMonthsAgo;
-      }
-
       if (vehiclesList) {
-        var vehiclesBlock = document.getElementById('paymentVehiclesBlock');
         vehiclesList.innerHTML = vehicles.map(function (v) {
-          var need = needsServiceSoon(v.id);
           var label = [v.year, v.make, v.model].filter(Boolean).join(' ');
-          var serviceDates = services.filter(function (s) { return s.vehicle_id === v.id; }).map(function (s) {
-            return s.completed_at ? new Date(s.completed_at).toLocaleDateString() : (s.created_at ? new Date(s.created_at).toLocaleDateString() : '—');
+          var vehicleServices = services.filter(function (s) {
+            return s.vehicle_id != null && String(s.vehicle_id) === String(v.id);
           });
-          var details = [
-            v.trim ? 'Trim: ' + v.trim : '',
-            v.vin ? 'VIN: ' + v.vin : '',
-            v.license_plate ? 'Plate: ' + v.license_plate : '',
-            v.mileage != null ? 'Mileage: ' + v.mileage.toLocaleString() : '',
-            v.color ? 'Color: ' + v.color : '',
-            v.notes ? 'Notes: ' + v.notes : ''
-          ].filter(Boolean);
-          var serviceLines = serviceDates.length ? 'Service dates: ' + serviceDates.join(', ') : 'No services yet.';
-          var nextLine = 'Next service: —';
-          return '<li class="payment-vehicle-item' + (need ? ' payment-vehicle-needs-service' : '') + '">' +
-            '<div class="payment-vehicle-summary">' +
-            (need ? '<span class="payment-vehicle-warning" aria-label="Needs service soon">!</span>' : '') +
+          vehicleServices.sort(function (a, b) {
+            var ta = new Date(a.completed_at || a.created_at || 0).getTime();
+            var tb = new Date(b.completed_at || b.created_at || 0).getTime();
+            return tb - ta;
+          });
+          var serviceTagsHtml = vehicleServices.length
+            ? vehicleServices.map(function (s) {
+              var displayName = isRequestedService(s) ? 'Requested Service' : (s.service_name || 'Service');
+              var dateStr = s.completed_at ? new Date(s.completed_at).toLocaleDateString() : (s.created_at ? new Date(s.created_at).toLocaleDateString() : '');
+              return '<li class="payment-vehicle-service-tag">' +
+                '<span class="payment-vehicle-service-tag-name">' + escapeHtml(displayName) + '</span>' +
+                (dateStr ? '<span class="payment-vehicle-service-tag-date">' + escapeHtml(dateStr) + '</span>' : '') +
+                '</li>';
+            }).join('')
+            : '<li class="payment-vehicle-service-tag payment-vehicle-service-tag--empty"><span class="payment-vehicle-service-tag-name">No services yet.</span></li>';
+          return '<li class="payment-vehicle-item">' +
+            '<details class="payment-vehicle-details-wrap">' +
+            '<summary class="payment-vehicle-summary">' +
             '<span class="payment-vehicle-label">' + escapeHtml(label || 'Vehicle') + '</span>' +
+            '</summary>' +
+            '<div class="payment-vehicle-panel">' +
+            '<p class="payment-vehicle-service-history-label">Service history</p>' +
+            '<ul class="payment-vehicle-service-list">' + serviceTagsHtml + '</ul>' +
             '</div>' +
-            '<div class="payment-vehicle-expand">' +
-            '<div class="payment-vehicle-details">' + (details.length ? details.map(function (d) { return escapeHtml(d); }).join('<br>') : '—') + '</div>' +
-            '<p class="payment-vehicle-services">' + escapeHtml(serviceLines) + '</p>' +
-            '<p class="payment-vehicle-next">' + escapeHtml(nextLine) + '</p>' +
-            '</div>' +
+            '</details>' +
             '</li>';
         }).join('');
         if (vehiclesEmpty) vehiclesEmpty.hidden = vehicles.length > 0;

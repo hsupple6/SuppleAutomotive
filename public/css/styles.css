@@ -3902,10 +3902,159 @@ body {
   margin-top: 0;
 }
 
+/* Service request submitted → home: confirmation toast */
+.service-thanks-toast {
+  position: fixed;
+  inset: 0;
+  z-index: 2400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.service-thanks-toast-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+}
+
+.service-thanks-toast-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  padding: 1.75rem 1.5rem 1.5rem;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.service-thanks-toast-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.service-thanks-toast-body {
+  margin: 0 0 1.35rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.service-thanks-toast-btn {
+  display: inline-block;
+  min-width: 7rem;
+  padding: 0.65rem 1.35rem;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--text);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.service-thanks-toast-btn:hover {
+  opacity: 0.92;
+}
+
 /* Request service as own page */
 .page-request .block-form {
   min-height: 100vh;
   padding: 6rem 2rem 4rem;
+}
+
+.page-request {
+  color: #fff;
+}
+
+/* Same left cluster as home (logo + chrome); no nav/actions on this page */
+.page-request .top-bar {
+  justify-content: flex-start;
+}
+
+body.page-request .top-bar .header-brand-chrome-top {
+  color: #fff;
+  opacity: 1;
+}
+
+.page-request .form-title,
+.page-request .form-intro,
+.page-request .form-label {
+  color: #fff;
+  opacity: 1;
+}
+
+.page-request .form-label em {
+  color: rgba(255, 255, 255, 0.55);
+  font-style: normal;
+  font-weight: 500;
+}
+
+.page-request .form-checkbox-label {
+  color: rgba(255, 255, 255, 0.55);
+  opacity: 1;
+}
+
+.page-request .form-message-success,
+.page-request .form-message-error {
+  color: #fff;
+}
+
+.page-request .contact-switch-option,
+.page-request .contact-switch-option:not(.active):hover,
+.page-request .contact-switch-option.active {
+  color: #fff;
+}
+
+.page-request .form-input,
+.page-request .form-select,
+.page-request .form-textarea {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.page-request .form-input::placeholder,
+.page-request .form-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+  opacity: 1;
+}
+
+.page-request .footer .footer-nav a,
+.page-request .footer .footer-copy,
+.page-request .footer .footer-legal a,
+.page-request .footer .footer-nav a:hover,
+.page-request .footer .footer-legal a:hover {
+  color: #fff;
+}
+
+.page-request .form-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff99' d='M6 7.5L2 3.5h8z'/%3E%3C/svg%3E");
+}
+
+.page-request input[type='date'].form-input::-webkit-datetime-edit,
+.page-request input[type='date'].form-input::-webkit-datetime-edit-fields-wrapper,
+.page-request input[type='date'].form-input::-webkit-datetime-edit-text,
+.page-request input[type='date'].form-input::-webkit-datetime-edit-month-field,
+.page-request input[type='date'].form-input::-webkit-datetime-edit-day-field,
+.page-request input[type='date'].form-input::-webkit-datetime-edit-year-field {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.page-request .contact-switch-option:disabled {
+  color: #fff;
+  opacity: 1;
 }
 
 /* ========== User portal dashboard (payment.html) ========== */
@@ -3922,8 +4071,82 @@ body {
 
 .page-payment {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
-  padding: 6rem 2rem 4rem;
+  padding: clamp(3rem, 10vmin, 7rem) 2rem clamp(3rem, 10vmin, 7rem);
+}
+
+.page-payment .payment-form-section .block.block-form {
+  min-height: calc(100dvh - 16rem);
+  min-height: calc(100vh - 16rem);
+  padding: clamp(2rem, 6vmin, 4.5rem) 0;
+  justify-content: flex-start;
+}
+
+/* Logged-in portal: lock document scroll; panels scroll inside */
+html:has(#paymentDashboard:not([hidden])) {
+  overflow: hidden;
+  height: 100%;
+}
+
+body.page-payment:has(#paymentDashboard:not([hidden])) {
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(2.5rem, 8vmin, 5.5rem) 2rem clamp(2.5rem, 8vmin, 5.5rem);
+  box-sizing: border-box;
+}
+
+body.page-payment:has(#paymentDashboard:not([hidden])) .payment-success-banner {
+  flex-shrink: 0;
+}
+
+body.page-payment:has(#paymentDashboard:not([hidden])) main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+body.page-payment:has(#paymentDashboard:not([hidden])) .payment-dashboard {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+body.page-payment:has(#paymentDashboard:not([hidden])) .payment-pending-signatures-banner {
+  flex-shrink: 0;
+}
+
+body.page-payment:has(#paymentDashboard:not([hidden])) .payment-dashboard-inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.page-payment:has(#paymentDashboard:not([hidden])) .payment-dashboard-inner > * {
+  min-height: 0;
+}
+
+body.page-payment:has(#paymentDashboard:not([hidden])) .payment-balance-block {
+  min-height: 0;
+}
+
+@media (max-width: 900px) {
+  body.page-payment:has(#paymentDashboard:not([hidden])) {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
 }
 
 .payment-dashboard {
@@ -3934,11 +4157,12 @@ body {
 .payment-dashboard-inner {
   display: grid;
   grid-template-columns: 260px 1fr 320px;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 2rem;
   grid-template-areas:
     "vehicles details details"
     "vehicles balance history";
+  min-height: 0;
 }
 
 .payment-details-block {
@@ -3946,6 +4170,8 @@ body {
   background: var(--bg-alt);
   border: 1px solid var(--border);
   padding: 1.75rem 2rem;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .payment-details-title {
@@ -3987,6 +4213,10 @@ body {
   background: var(--bg-alt);
   border: 1px solid var(--border);
   padding: 1.25rem;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .payment-vehicles-title {
@@ -3996,12 +4226,17 @@ body {
   text-transform: uppercase;
   color: var(--text-muted);
   margin-bottom: 1rem;
+  flex-shrink: 0;
 }
 
 .payment-vehicles-list {
   list-style: none;
   margin: 0;
   padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .payment-vehicle-item {
@@ -4016,71 +4251,117 @@ body {
   margin-bottom: 0;
 }
 
+.payment-vehicle-details-wrap {
+  margin: 0;
+}
+
+.payment-vehicle-details-wrap > summary {
+  list-style: none;
+}
+
+.payment-vehicle-details-wrap > summary::-webkit-details-marker {
+  display: none;
+}
+
 .payment-vehicle-summary {
-  padding: 0.6rem 0.75rem;
+  padding: 0.65rem 0.85rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  cursor: default;
+  justify-content: center;
+  gap: 0.35rem;
+  cursor: pointer;
   position: relative;
+  user-select: none;
+}
+
+.payment-vehicle-summary::after {
+  content: '▾';
+  font-size: 0.85rem;
+  opacity: 0.55;
+  line-height: 1;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.payment-vehicle-details-wrap[open] > .payment-vehicle-summary::after {
+  transform: rotate(-180deg);
+  opacity: 0.75;
 }
 
 .payment-vehicle-label {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--text);
+  text-align: center;
 }
 
-.payment-vehicle-warning {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 50%;
-  background: #d4a017;
-  color: #1a1a1a;
-  font-size: 0.75rem;
-  font-weight: 700;
-  flex-shrink: 0;
+.payment-vehicle-panel {
+  background: transparent;
+  border-top: 1px solid var(--border);
+  padding: 0.5rem 0.35rem 0.35rem;
 }
 
-.payment-vehicle-expand {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.25s ease-out;
-  background: var(--bg);
-}
-
-.payment-vehicle-item:hover .payment-vehicle-expand,
-.payment-vehicle-item:focus-within .payment-vehicle-expand {
-  max-height: 280px;
-}
-
-.payment-vehicle-details,
-.payment-vehicle-services,
-.payment-vehicle-next {
-  font-size: 0.8rem;
+.payment-vehicle-service-history-label {
+  margin: 0 0 0.45rem;
+  padding: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  margin: 0;
-  padding: 0.6rem 0.75rem 0.5rem;
-  line-height: 1.45;
+  text-align: center;
 }
 
-.payment-vehicle-details {
-  padding-bottom: 0.25rem;
+.payment-vehicle-service-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.payment-vehicle-service-tag {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  max-width: 100%;
+  padding: 0.25rem 0.5rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.payment-vehicle-service-tag--empty {
+  opacity: 0.85;
+}
+
+.payment-vehicle-service-tag-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text);
+  text-align: center;
+  word-break: break-word;
+}
+
+.payment-vehicle-service-tag-date {
+  font-size: 0.7rem;
+  color: var(--text-muted);
 }
 
 .payment-vehicles-empty {
   font-size: 0.875rem;
   color: var(--text-muted);
   margin: 0;
+  flex-shrink: 0;
 }
 
 .payment-balance-block {
   grid-area: balance;
   position: relative;
   min-height: 280px;
+  min-width: 0;
   background: var(--bg-alt);
   border: 1px solid var(--border);
   padding: 2rem;
@@ -4136,6 +4417,11 @@ body {
   background: var(--bg-alt);
   border: 1px solid var(--border);
   padding: 1.5rem;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .payment-history-header {
@@ -4144,6 +4430,7 @@ body {
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 1rem;
+  flex-shrink: 0;
 }
 
 .payment-history-title {
@@ -4188,12 +4475,17 @@ body {
   font-size: 0.875rem;
   color: var(--text-muted);
   margin: 0;
+  flex-shrink: 0;
 }
 
 .payment-history-list {
   list-style: none;
   margin: 0;
   padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .payment-history-item {
@@ -4256,6 +4548,7 @@ body {
   font-size: 0.875rem;
   color: var(--text-muted);
   margin: 0;
+  flex-shrink: 0;
 }
 
 /* Service detail modal */
@@ -4337,6 +4630,7 @@ body {
       "details"
       "balance"
       "history";
+    grid-template-rows: minmax(0, 32vh) auto auto minmax(0, 1fr);
   }
 }
 
@@ -5397,6 +5691,7 @@ body {
       "details"
       "balance"
       "history";
+    grid-template-rows: minmax(0, 32vh) auto auto minmax(0, 1fr);
     gap: 1.25rem;
   }
 
@@ -5579,6 +5874,7 @@ body {
 .payment-history .payment-documents-btn {
   margin-top: 0;
   margin-bottom: 1rem;
+  flex-shrink: 0;
 }
 
 .payment-documents-btn {
@@ -5630,7 +5926,10 @@ body {
   max-width: 520px;
   width: 100%;
   max-height: 85vh;
-  overflow: auto;
+  max-height: 85dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 1.5rem 1.75rem;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
 }
@@ -5640,11 +5939,17 @@ body {
   font-weight: 600;
   margin: 0 0 1rem;
   color: var(--text);
+  flex-shrink: 0;
 }
 
 .payment-documents-modal-body {
   font-size: 0.875rem;
   color: var(--text);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .payment-docs-fold {
@@ -5790,6 +6095,7 @@ a.payment-docs-row--link:hover .payment-docs-row-link {
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .payment-documents-modal-close:hover {
