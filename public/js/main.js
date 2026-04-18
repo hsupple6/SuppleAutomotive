@@ -1232,6 +1232,10 @@
         showFormMessage(serviceForm, 'Email is required.', true);
         return;
       }
+      if (!String(payload.service_address || '').trim()) {
+        showFormMessage(serviceForm, 'Service address is required.', true);
+        return;
+      }
       var btnText = submitBtn ? submitBtn.textContent : '';
       if (submitBtn) {
         submitBtn.disabled = true;

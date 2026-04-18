@@ -41,6 +41,7 @@ The drive-out cost is non-refundable once service has been initiated, regardless
 ### 1.6 Labor, Diagnostic Fees, and Estimates
 
 Labor Rate: $ __LABOR_RATE__ per hour  
+
 Diagnostic Fee: $ __DIAGNOSTIC_FEE__
 
 Customer acknowledges that diagnostic time will be billed at the stated rate or fee as applicable.

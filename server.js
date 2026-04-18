@@ -567,6 +567,9 @@ app.post('/api/submit-service-request', function (req, res) {
     if (!formData.email || !String(formData.email).trim()) {
       return sendError(400, 'Email is required');
     }
+    if (!formData.service_address || !String(formData.service_address).trim()) {
+      return sendError(400, 'Service address is required');
+    }
     if (!formData.contact_via_ok) {
       return sendError(400, 'Please confirm contact permission');
     }
