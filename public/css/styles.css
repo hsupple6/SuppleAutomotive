@@ -2111,6 +2111,37 @@ body {
   margin: 0;
 }
 
+#serviceMaintenanceCopyReveal > .split-element + .split-element,
+#serviceDiagnosticsCopyReveal > .split-element + .split-element,
+#serviceInspectionCopyReveal > .split-element + .split-element {
+  margin-top: 0.85rem;
+}
+
+#serviceMaintenanceCopyReveal:not(.is-visible) .service-maintenance-cta-wrap,
+#serviceDiagnosticsCopyReveal:not(.is-visible) .service-diagnostics-cta-wrap,
+#serviceInspectionCopyReveal:not(.is-visible) .service-inspection-cta-wrap {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#serviceMaintenanceCopyReveal.is-visible .service-maintenance-cta-wrap,
+#serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-cta-wrap,
+#serviceInspectionCopyReveal.is-visible .service-inspection-cta-wrap {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 0.45s ease 0.4s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #serviceMaintenanceCopyReveal.is-visible .service-maintenance-cta-wrap,
+  #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-cta-wrap,
+  #serviceInspectionCopyReveal.is-visible .service-inspection-cta-wrap {
+    transition: none;
+  }
+}
+
 .service-maintenance-cta-wrap {
   margin-top: 5rem;
   text-align: center;
@@ -2383,7 +2414,7 @@ body {
     grid-template-areas:
       'title .'
       'image copy';
-    column-gap: clamp(1.25rem, 3.5vw, 2.5rem);
+    column-gap: clamp(1.65rem, 4.25vw, 3rem);
     row-gap: 2rem;
     align-items: stretch;
   }
@@ -2400,9 +2431,8 @@ body {
 
     position: absolute;
     top: 17.5%;
-    right: 7.5%;
+    right: 4.5%;
     left: auto;
-
   }
 
   .block-service-diagnostics .service-diagnostics-title {
@@ -2431,6 +2461,12 @@ body {
   max-width: 100%;
   min-width: 0;
   justify-self: end;
+}
+
+@media (min-width: 640px) {
+  .block-service-diagnostics .service-diagnostics-copy {
+    padding-left: clamp(0.5rem, 1.25vw, 1rem);
+  }
 }
 
 .block-service-diagnostics .service-diagnostics-copy p {
@@ -3376,8 +3412,8 @@ body {
   #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-request.service-cta-mobile--draw-in:not(.service-cta-mobile--draw-out) .link-cta-label,
   #serviceInspectionCopyReveal.is-visible .service-inspection-request.service-cta-mobile--draw-in:not(.service-cta-mobile--draw-out) .link-cta-label {
     opacity: 0;
-    animation: service-cta-mobile-label-pop 0.42s ease forwards, maintenance-cta-silver-shimmer 7.5s ease-in-out infinite;
-    animation-delay: 1.88s, 2.2s;
+    animation: service-cta-mobile-label-pop 0.32s ease forwards, maintenance-cta-silver-shimmer 2.6s ease-in-out infinite;
+    animation-delay: 1.02s, 1.28s;
   }
 
   #serviceMaintenanceCopyReveal.is-visible .service-maintenance-request.service-cta-mobile--draw-out .link-cta-label,
@@ -3392,7 +3428,7 @@ body {
   .block-service-maintenance .service-maintenance-title.service-maintenance-title--letters-in .service-maintenance-title-char,
   .block-service-diagnostics .service-diagnostics-title.service-diagnostics-title--letters-in .service-diagnostics-title-char,
   .block-service-inspection .service-inspection-title.service-inspection-title--letters-in .service-inspection-title-char {
-    transition-duration: 0.175s;
+    transition-duration: 0.25s;
     transition-delay: calc(var(--i, 0) * 19ms);
   }
 
@@ -3403,6 +3439,12 @@ body {
   .block-service-diagnostics .service-diagnostics-compact,
   .block-service-inspection .service-inspection-compact {
     transition-duration: 0.2s;
+  }
+
+  #serviceMaintenanceCopyReveal.is-visible .service-maintenance-cta-wrap,
+  #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-cta-wrap,
+  #serviceInspectionCopyReveal.is-visible .service-inspection-cta-wrap {
+    transition: opacity 0.32s ease 0.12s;
   }
 
   #serviceMaintenanceCopyReveal.is-visible .service-maintenance-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-label,
@@ -5832,7 +5874,7 @@ body.page-payment:has(#paymentDashboard:not([hidden])) .payment-balance-block {
   #serviceMaintenanceCopyReveal .split-element,
   #serviceDiagnosticsCopyReveal .split-element,
   #serviceInspectionCopyReveal .split-element {
-    transition: opacity 0.19s ease-out, transform 0.19s ease-out;
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
     transition-delay: var(--reveal-delay, 0s);
   }
 }

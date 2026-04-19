@@ -744,12 +744,12 @@
   function wrapRevealSplitChildren(container) {
     var direct = Array.prototype.slice.call(container.children);
     direct.forEach(function (child) {
-      if (child.nodeType === 1 && !child.querySelector('.split-element')) {
-        var wrap = document.createElement('div');
-        wrap.className = 'split-element';
-        child.parentNode.insertBefore(wrap, child);
-        wrap.appendChild(child);
-      }
+      if (child.nodeType !== 1 || child.querySelector('.split-element')) return;
+      if (child.matches('.service-maintenance-cta-wrap, .service-diagnostics-cta-wrap, .service-inspection-cta-wrap')) return;
+      var wrap = document.createElement('div');
+      wrap.className = 'split-element';
+      child.parentNode.insertBefore(wrap, child);
+      wrap.appendChild(child);
     });
   }
 
@@ -903,7 +903,7 @@
       copyAnimTimer = setTimeout(function () {
         copyAnimTimer = null;
         var copyEls = copyReveal.querySelectorAll('.split-element');
-        var copyStep = mqServiceMobile.matches ? 0.018 : 0.036;
+        var copyStep = mqServiceMobile.matches ? 0.026 : 0.036;
         for (var i = 0; i < copyEls.length; i++) {
           copyEls[i].style.setProperty('--reveal-delay', i * copyStep + 's');
         }
