@@ -934,7 +934,8 @@
           var nCopy = copyEls.length;
           var copyTransS = 0.3;
           var staggerEndS = nCopy > 0 ? (nCopy - 1) * copyStep : 0;
-          var afterParagraphsMs = Math.ceil((staggerEndS + copyTransS) * 1000) + 140;
+          /* CTA + border draw start right after copy lines finish revealing */
+          var afterParagraphsMs = Math.ceil((staggerEndS + copyTransS) * 1000) + 55;
           copyCtaRevealTimer = setTimeout(function () {
             copyCtaRevealTimer = null;
             if (!copyReveal.classList.contains('is-visible')) return;

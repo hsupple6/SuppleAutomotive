@@ -2215,7 +2215,7 @@ body {
 }
 
 #serviceMaintenanceCopyReveal.is-visible .service-maintenance-request .link-cta-label {
-  animation: maintenance-cta-silver-shimmer 7.5s ease-in-out infinite;
+  animation: maintenance-cta-silver-shimmer 11s ease-in-out infinite;
 }
 
 .block-service-maintenance .service-maintenance-request .link-cta-border {
@@ -2549,7 +2549,7 @@ body {
 }
 
 #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-request .link-cta-label {
-  animation: maintenance-cta-silver-shimmer 7.5s ease-in-out infinite;
+  animation: maintenance-cta-silver-shimmer 11s ease-in-out infinite;
 }
 
 .block-service-diagnostics .service-diagnostics-request .link-cta-border {
@@ -2874,7 +2874,7 @@ body {
 }
 
 #serviceInspectionCopyReveal.is-visible .service-inspection-request .link-cta-label {
-  animation: maintenance-cta-silver-shimmer 7.5s ease-in-out infinite;
+  animation: maintenance-cta-silver-shimmer 11s ease-in-out infinite;
 }
 
 .block-service-inspection .service-inspection-request .link-cta-border {
@@ -3388,63 +3388,64 @@ body {
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-t,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-t,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-t {
-    animation: service-cta-mobile-t-draw 0.25s linear forwards;
+    animation: service-cta-mobile-t-draw 0.4s linear forwards;
   }
 
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-r,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-r,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-r {
-    animation: service-cta-mobile-r-draw 0.25s linear forwards;
-    animation-delay: 0.25s;
+    animation: service-cta-mobile-r-draw 0.4s linear forwards;
+    animation-delay: 0.4s;
   }
 
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-b,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-b,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-b {
-    animation: service-cta-mobile-b-draw 0.25s linear forwards;
-    animation-delay: 0.5s;
+    animation: service-cta-mobile-b-draw 0.4s linear forwards;
+    animation-delay: 0.8s;
   }
 
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-l,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-l,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-l {
-    animation: service-cta-mobile-l-draw 0.25s linear forwards;
-    animation-delay: 0.75s;
+    animation: service-cta-mobile-l-draw 0.4s linear forwards;
+    animation-delay: 1.2s;
   }
 
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-t,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-t,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-t {
-    animation: service-cta-mobile-t-out 0.25s linear forwards;
+    animation: service-cta-mobile-t-out 0.4s linear forwards;
   }
 
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-r,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-r,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-r {
-    animation: service-cta-mobile-r-out 0.25s linear forwards;
-    animation-delay: 0.25s;
+    animation: service-cta-mobile-r-out 0.4s linear forwards;
+    animation-delay: 0.4s;
   }
 
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-b,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-b,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-b {
-    animation: service-cta-mobile-b-out 0.25s linear forwards;
-    animation-delay: 0.5s;
+    animation: service-cta-mobile-b-out 0.4s linear forwards;
+    animation-delay: 0.8s;
   }
 
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-l,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-l,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-l {
-    animation: service-cta-mobile-l-out 0.25s linear forwards;
-    animation-delay: 0.75s;
+    animation: service-cta-mobile-l-out 0.4s linear forwards;
+    animation-delay: 1.2s;
   }
 
+  /* Label pops with border draw start; shimmer slower; border keyframes unchanged */
   #serviceMaintenanceCopyReveal.is-visible .service-maintenance-request.service-cta-mobile--draw-in:not(.service-cta-mobile--draw-out) .link-cta-label,
   #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-request.service-cta-mobile--draw-in:not(.service-cta-mobile--draw-out) .link-cta-label,
   #serviceInspectionCopyReveal.is-visible .service-inspection-request.service-cta-mobile--draw-in:not(.service-cta-mobile--draw-out) .link-cta-label {
     opacity: 0;
-    animation: service-cta-mobile-label-pop 0.32s ease forwards, maintenance-cta-silver-shimmer 2.6s ease-in-out infinite;
-    animation-delay: 1.02s, 1.28s;
+    animation: service-cta-mobile-label-pop 0.36s ease forwards, maintenance-cta-silver-shimmer 8s ease-in-out infinite;
+    animation-delay: 0s, 0.34s;
   }
 
   #serviceMaintenanceCopyReveal.is-visible .service-maintenance-request.service-cta-mobile--draw-out .link-cta-label,
@@ -3475,7 +3476,7 @@ body {
   #serviceMaintenanceCopyReveal.is-visible .service-maintenance-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-label,
   #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-label,
   #serviceInspectionCopyReveal.is-visible .service-inspection-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-label {
-    animation: maintenance-cta-silver-shimmer 7.5s ease-in-out infinite;
+    animation: maintenance-cta-silver-shimmer 11s ease-in-out infinite;
   }
 }
 
@@ -3546,7 +3547,7 @@ body {
   #serviceMaintenanceCopyReveal.is-visible .service-maintenance-request .link-cta-label,
   #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-request .link-cta-label,
   #serviceInspectionCopyReveal.is-visible .service-inspection-request .link-cta-label {
-    animation: maintenance-cta-silver-shimmer 7.5s ease-in-out infinite !important;
+    animation: maintenance-cta-silver-shimmer 11s ease-in-out infinite !important;
     animation-delay: 0s !important;
     opacity: 1 !important;
     transform: none !important;
@@ -3557,7 +3558,7 @@ body {
   #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-label,
   #serviceInspectionCopyReveal.is-visible .service-inspection-request.service-cta-mobile--draw-out .link-cta-label {
     opacity: 1 !important;
-    animation: maintenance-cta-silver-shimmer 7.5s ease-in-out infinite !important;
+    animation: maintenance-cta-silver-shimmer 11s ease-in-out infinite !important;
     transform: none !important;
   }
 }
