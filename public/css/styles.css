@@ -4217,7 +4217,7 @@ body.page-request .top-bar .header-brand-chrome-top {
   min-height: calc(100dvh - 16rem);
   min-height: calc(100vh - 16rem);
   padding: clamp(2rem, 6vmin, 4.5rem) 0;
-  justify-content: flex-start;
+  justify-content: center;
   /* Avoid double-stacking a second --bg-alt over the same canvas */
   background: transparent;
 }
@@ -4783,9 +4783,11 @@ body.page-payment:has(#paymentDashboard:not([hidden])) .payment-balance-block {
   }
 
   .page-payment .payment-form-section .block.block-form {
-    min-height: 0;
+    min-height: calc(100dvh - 11rem);
+    min-height: calc(100vh - 11rem);
     padding-top: clamp(1.25rem, 5vmin, 2.5rem);
     padding-bottom: clamp(1.5rem, 6vmin, 3rem);
+    justify-content: center;
   }
 
   .payment-success-banner {
