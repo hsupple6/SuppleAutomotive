@@ -868,18 +868,23 @@
     var mqServiceMobile = window.matchMedia('(max-width: 639px)');
     var wasPastThreshold = false;
     var copyAnimTimer = null;
+    var copyCtaRevealTimer = null;
 
     function clearCopyAnimTimer() {
       if (copyAnimTimer) {
         clearTimeout(copyAnimTimer);
         copyAnimTimer = null;
       }
+      if (copyCtaRevealTimer) {
+        clearTimeout(copyCtaRevealTimer);
+        copyCtaRevealTimer = null;
+      }
     }
 
     function resetCompactText() {
       clearCopyAnimTimer();
       if (copyReveal) {
-        copyReveal.classList.remove('is-visible');
+        copyReveal.classList.remove('is-visible', 'is-cta-revealed');
         var ctaReset = copyReveal.querySelector('a.js-request-service-link');
         if (ctaReset) {
           ctaReset.classList.remove('service-cta-mobile--draw-in', 'service-cta-mobile--draw-out');
@@ -907,14 +912,35 @@
         for (var i = 0; i < copyEls.length; i++) {
           copyEls[i].style.setProperty('--reveal-delay', i * copyStep + 's');
         }
+        copyReveal.classList.remove('is-cta-revealed');
         copyReveal.classList.add('is-visible');
-        if (window.matchMedia('(max-width: 639px)').matches) {
-          var ctaIn = copyReveal.querySelector('a.js-request-service-link');
-          if (ctaIn) {
-            ctaIn.classList.remove('service-cta-mobile--draw-out');
-            void ctaIn.offsetWidth;
-            ctaIn.classList.add('service-cta-mobile--draw-in');
-          }
+
+        var ctaIn = copyReveal.querySelector('a.js-request-service-link');
+        var isMobileNav = window.matchMedia('(max-width: 639px)').matches;
+
+        function armMobileCtaDraw() {
+          if (!ctaIn) return;
+          ctaIn.classList.remove('service-cta-mobile--draw-out');
+          void ctaIn.offsetWidth;
+          ctaIn.classList.add('service-cta-mobile--draw-in');
+        }
+
+        if (!isMobileNav) {
+          copyReveal.classList.add('is-cta-revealed');
+        } else if (reduced) {
+          copyReveal.classList.add('is-cta-revealed');
+          armMobileCtaDraw();
+        } else {
+          var nCopy = copyEls.length;
+          var copyTransS = 0.3;
+          var staggerEndS = nCopy > 0 ? (nCopy - 1) * copyStep : 0;
+          var afterParagraphsMs = Math.ceil((staggerEndS + copyTransS) * 1000) + 140;
+          copyCtaRevealTimer = setTimeout(function () {
+            copyCtaRevealTimer = null;
+            if (!copyReveal.classList.contains('is-visible')) return;
+            copyReveal.classList.add('is-cta-revealed');
+            armMobileCtaDraw();
+          }, afterParagraphsMs);
         }
       }, waitMs);
     }
@@ -1028,7 +1054,7 @@
         if (!past && wasNextPast[i]) {
           cta.classList.remove('service-cta-mobile--draw-out');
           var cr = document.getElementById(serviceSectionIdToCamel(p.cur) + 'CopyReveal');
-          if (cr && cr.classList.contains('is-visible')) {
+          if (cr && cr.classList.contains('is-visible') && cr.classList.contains('is-cta-revealed')) {
             void cta.offsetWidth;
             cta.classList.add('service-cta-mobile--draw-in');
           }

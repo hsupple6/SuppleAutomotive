@@ -2125,20 +2125,51 @@ body {
   pointer-events: none;
 }
 
-#serviceMaintenanceCopyReveal.is-visible .service-maintenance-cta-wrap,
-#serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-cta-wrap,
-#serviceInspectionCopyReveal.is-visible .service-inspection-cta-wrap {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transition: opacity 0.45s ease 0.4s;
-}
-
-@media (prefers-reduced-motion: reduce) {
+@media (min-width: 640px) {
   #serviceMaintenanceCopyReveal.is-visible .service-maintenance-cta-wrap,
   #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-cta-wrap,
   #serviceInspectionCopyReveal.is-visible .service-inspection-cta-wrap {
-    transition: none;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.45s ease 0.4s;
+  }
+}
+
+@media (max-width: 639px) {
+  #serviceMaintenanceCopyReveal.is-visible:not(.is-cta-revealed) .service-maintenance-cta-wrap,
+  #serviceDiagnosticsCopyReveal.is-visible:not(.is-cta-revealed) .service-diagnostics-cta-wrap,
+  #serviceInspectionCopyReveal.is-visible:not(.is-cta-revealed) .service-inspection-cta-wrap {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  #serviceMaintenanceCopyReveal.is-visible.is-cta-revealed .service-maintenance-cta-wrap,
+  #serviceDiagnosticsCopyReveal.is-visible.is-cta-revealed .service-diagnostics-cta-wrap,
+  #serviceInspectionCopyReveal.is-visible.is-cta-revealed .service-inspection-cta-wrap {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.32s ease 0.12s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @media (min-width: 640px) {
+    #serviceMaintenanceCopyReveal.is-visible .service-maintenance-cta-wrap,
+    #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-cta-wrap,
+    #serviceInspectionCopyReveal.is-visible .service-inspection-cta-wrap {
+      transition: none;
+    }
+  }
+
+  @media (max-width: 639px) {
+    #serviceMaintenanceCopyReveal.is-visible.is-cta-revealed .service-maintenance-cta-wrap,
+    #serviceDiagnosticsCopyReveal.is-visible.is-cta-revealed .service-diagnostics-cta-wrap,
+    #serviceInspectionCopyReveal.is-visible.is-cta-revealed .service-inspection-cta-wrap {
+      transition: none;
+    }
   }
 }
 
@@ -3439,12 +3470,6 @@ body {
   .block-service-diagnostics .service-diagnostics-compact,
   .block-service-inspection .service-inspection-compact {
     transition-duration: 0.2s;
-  }
-
-  #serviceMaintenanceCopyReveal.is-visible .service-maintenance-cta-wrap,
-  #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-cta-wrap,
-  #serviceInspectionCopyReveal.is-visible .service-inspection-cta-wrap {
-    transition: opacity 0.32s ease 0.12s;
   }
 
   #serviceMaintenanceCopyReveal.is-visible .service-maintenance-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-label,
@@ -5351,31 +5376,56 @@ body.page-payment:has(#paymentDashboard:not([hidden])) .payment-balance-block {
   .mobile-nav-overlay-links {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 0;
     padding-top: 1rem;
     padding-bottom: 0;
     width: 100%;
     max-width: 100%;
-    padding-left: 0.5rem;
+    padding-left: 0.35rem;
+    padding-right: 0.75rem;
   }
 
   .mobile-nav-overlay-links a {
     margin: 0;
-    padding: 0.0454545455em 0;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.28em 0.65rem 0.28em 0.5rem;
+    min-height: 2.75rem;
     font-family: Gustavo, sans-serif;
     font-weight: 500;
-    line-height: 80%;
+    line-height: 1;
     text-transform: uppercase;
-    font-size: clamp(2rem, 5vw, 2.75rem);
+    font-size: clamp(2.2rem, 6.25vw, 3.15rem);
     color: var(--text);
-    text-decoration: none;
     text-align: left;
-    transition: color 0.2s;
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 255, 255, 0.22);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.14em;
+    border-left: 3px solid transparent;
+    border-radius: 2px;
+    -webkit-tap-highlight-color: rgba(56, 189, 248, 0.15);
+    cursor: pointer;
+    transition:
+      color 0.2s ease,
+      text-decoration-color 0.2s ease,
+      border-left-color 0.2s ease,
+      background 0.2s ease;
   }
 
-  .mobile-nav-overlay-links a:hover {
-    color: rgba(255, 255, 255, 0.9);
+  .mobile-nav-overlay-links a:hover,
+  .mobile-nav-overlay-links a:focus-visible {
+    color: #fff;
+    text-decoration-color: rgba(56, 189, 248, 0.75);
+    border-left-color: var(--accent-light);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .mobile-nav-overlay-links a:focus-visible {
+    outline: 2px solid var(--accent-light);
+    outline-offset: 3px;
   }
 
   .mobile-nav-overlay-actions {
@@ -5386,34 +5436,68 @@ body.page-payment:has(#paymentDashboard:not([hidden])) .payment-balance-block {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
-    padding-top: 0;
+    gap: 0.75rem;
+    padding: 0 1rem;
   }
 
   .mobile-nav-overlay-actions a {
-    display: block;
-    padding: 0.65rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 20rem;
+    min-height: 3rem;
+    padding: 0.85rem 1.25rem;
     font-size: 1rem;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--text);
     text-decoration: none;
     text-align: center;
-    background: transparent;
-  }
-
-  .mobile-nav-overlay-actions a:hover {
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  /* Payment button: main gray, rounded rectangle, blue inset shadow */
-  .mobile-nav-overlay-actions a:first-child {
-    background: var(--bg);
     border-radius: 12px;
-    box-shadow: inset 0 0 20px 2px var(--accent-light-dim), inset 0 0 40px 4px rgba(56, 189, 248, 0.12);
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(56, 189, 248, 0.2);
+    transition:
+      color 0.2s ease,
+      background 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
   }
 
-  .mobile-nav-overlay-actions a:first-child:hover {
-    box-shadow: inset 0 0 24px 4px var(--accent-light-dim), inset 0 0 48px 6px rgba(56, 189, 248, 0.15);
+  .mobile-nav-overlay-actions a:focus-visible {
+    outline: 2px solid var(--accent-light);
+    outline-offset: 3px;
+  }
+
+  /* User portal: neutral surface + 1px blue frame */
+  .mobile-nav-overlay-actions a:first-child {
+    background: rgba(18, 20, 24, 0.92);
+    border: 1px solid var(--accent-light);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  }
+
+  .mobile-nav-overlay-actions a:first-child:hover,
+  .mobile-nav-overlay-actions a:first-child:focus-visible {
+    background: rgba(28, 32, 40, 0.95);
+    border-color: var(--accent-light);
+    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.2);
+  }
+
+  /* Request service: reads as primary tap target */
+  .mobile-nav-overlay-actions a:last-child {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.9rem;
+    font-weight: 600;
+    background: rgba(0, 0, 0, 0.45);
+    border: 2px solid rgba(255, 255, 255, 0.88);
+    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.22);
+  }
+
+  .mobile-nav-overlay-actions a:last-child:hover,
+  .mobile-nav-overlay-actions a:last-child:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #fff;
+    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.45), 0 8px 24px rgba(0, 0, 0, 0.35);
   }
 
   .mobile-nav-slash.mobile-nav-slash-behind .mobile-nav-overlay-links a,
@@ -5518,8 +5602,15 @@ body.page-payment:has(#paymentDashboard:not([hidden])) .payment-balance-block {
     height: 170vmax;
     transform-origin: 0 0;
     transform: rotate(-45deg) scale(0);
-    background: var(--accent-light);
-    box-shadow: 0 0 80px 20px rgba(56, 189, 248, 0.25);
+    /* Dark panel with blue as edge accent — less full-screen cyan */
+    background: linear-gradient(
+      168deg,
+      #12151a 0%,
+      #0b0d11 52%,
+      #152028 88%,
+      rgba(56, 189, 248, 0.22) 100%
+    );
+    box-shadow: 0 0 56px 14px rgba(56, 189, 248, 0.1);
     will-change: transform, top, left, right, bottom;
   }
 
