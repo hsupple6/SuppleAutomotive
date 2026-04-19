@@ -1,7 +1,7 @@
 /**
  * Supple Automotive — form submission API + Supabase
  * POST /api/submit-service-request → email/SMS + create customer/vehicle/service in DB
- * POST /api/payment-lookup → find customer by contact, return balance + past services
+ * POST /api/payment-lookup → find customer by email, return balance + past services
  */
 require('dotenv').config();
 var path = require('path');
@@ -442,12 +442,11 @@ function fetchPendingSignatureBundlesForCustomer(customerId) {
 }
 
 /** Build the same JSON body as a successful payment-lookup (dashboard payload). */
-function fetchPaymentDashboardPayload(customer, referenceNumber) {
+function fetchPaymentDashboardPayload(customer) {
   var customerId = customer.id;
   var custDisplay = Object.assign({}, customer);
   if (custDisplay.phone) custDisplay.phone = phoneLast10(custDisplay.phone) || custDisplay.phone;
   var srvQ = supabase.from('services').select('*').eq('customer_id', customerId).order('created_at', { ascending: false });
-  if (referenceNumber) srvQ = srvQ.eq('reference_number', referenceNumber);
   return srvQ.then(function (srvRes) {
     if (srvRes.error) return Promise.reject(new Error(srvRes.error.message || 'Services lookup failed'));
     var services = srvRes.data || [];
@@ -872,65 +871,36 @@ app.post('/api/payment-lookup', function (req, res) {
   }
 
   var body = req.body || {};
-  var name = (body.name || '').trim();
   var email = (body.email || '').trim();
-  var phone = phoneLast10((body.phone || '').trim());
-  var referenceNumber = (body.reference_number || '').trim();
 
-  if (!name) {
-    return sendError(400, 'Name is required');
-  }
-  if (!email && !phone) {
-    return sendError(400, 'Email or phone is required');
+  if (!email) {
+    return sendError(400, 'Email is required');
   }
 
   getOrCreateShopAccount()
     .then(function (accountId) {
       if (!accountId) return Promise.reject(new Error('Database not ready'));
-      if (email) {
-        return supabase
-          .from('customers')
-          .select('*')
-          .eq('account_id', accountId)
-          .eq('email', email)
-          .maybeSingle()
-          .then(function (c) {
-            if (!c.data) {
-              return Promise.reject(new Error('No customer found for that email or phone. Submit a request service first to create your account.'));
-            }
-            return { accountId: accountId, customer: c.data };
-          });
-      }
-      if (!phone || String(phone).length < 10) {
-        return Promise.reject(new Error('Enter a valid 10-digit phone number.'));
-      }
       return supabase
         .from('customers')
         .select('*')
         .eq('account_id', accountId)
-        .then(function (cres) {
-          if (cres.error) return Promise.reject(new Error(cres.error.message || 'Lookup failed'));
-          var matches = customersMatchingPhoneLast10(cres.data || [], phone);
-          if (matches.length === 0) {
-            return Promise.reject(new Error('No customer found for that email or phone. Submit a request service first to create your account.'));
+        .eq('email', email)
+        .maybeSingle()
+        .then(function (c) {
+          if (!c.data) {
+            return Promise.reject(new Error('No customer found for that email. Submit a service request first to create your account.'));
           }
-          if (matches.length > 1) {
-            return Promise.reject(new Error('Multiple records match this phone. Please use email for lookup or contact the shop.'));
-          }
-          return { accountId: accountId, customer: matches[0] };
+          return { accountId: accountId, customer: c.data };
         });
     })
     .then(function (_) {
-      if (!normalizeNameCompare(name, _.customer.name)) {
-        return Promise.reject(new Error('Name does not match our records for this email or phone.'));
-      }
-      return fetchPaymentDashboardPayload(_.customer, referenceNumber).then(function (payload) {
+      return fetchPaymentDashboardPayload(_.customer).then(function (payload) {
         res.json(payload);
       });
     })
     .catch(function (err) {
       console.error('Payment lookup error:', err.message || err);
-      var isNotFound = err.message && (err.message.indexOf('No customer found') === 0 || err.message.indexOf('Name does not match') === 0);
+      var isNotFound = err.message && err.message.indexOf('No customer found') === 0;
       sendError(isNotFound ? 404 : 500, err.message || 'Lookup failed');
     });
 });
@@ -954,7 +924,7 @@ app.post('/api/portal-bootstrap', function (req, res) {
     .then(function (cRes) {
       if (cRes.error) return sendError(500, cRes.error.message || 'Lookup failed');
       if (!cRes.data) return sendError(404, 'Account not found');
-      return fetchPaymentDashboardPayload(cRes.data, '');
+      return fetchPaymentDashboardPayload(cRes.data);
     })
     .then(function (payload) {
       res.json(payload);

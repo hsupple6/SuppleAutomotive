@@ -30,30 +30,9 @@
               <span class="form-label">Name <em>required</em></span>
               <input type="text" name="name" required placeholder="Your full name" autocomplete="name" class="form-input">
             </label>
-            <div class="form-field form-field-contact">
-              <span class="form-label">Contact</span>
-              <div class="contact-switch" role="group" aria-label="Contact by email or phone">
-                <button type="button" class="contact-switch-option contact-switch-email active" data-mode="email" aria-pressed="true">
-                  <span class="contact-switch-text">Email</span>
-                </button>
-                <button type="button" class="contact-switch-option contact-switch-phone" data-mode="phone" aria-pressed="false">
-                  <span class="contact-switch-text">Phone</span>
-                </button>
-              </div>
-              <div class="contact-detail-wrap">
-                <label class="form-field contact-detail contact-detail-email">
-                  <span class="form-label visually-hidden">Email</span>
-                  <input type="email" name="email" placeholder="you@example.com" autocomplete="email" class="form-input" id="formEmail">
-                </label>
-                <label class="form-field contact-detail contact-detail-phone is-hidden">
-                  <span class="form-label visually-hidden">Phone</span>
-                  <input type="tel" name="phone" placeholder="(805) 555-0000" autocomplete="tel" class="form-input" id="formPhone">
-                </label>
-              </div>
-            </div>
-            <label class="form-field">
-              <span class="form-label">Reference number <em>optional</em></span>
-              <input type="text" name="reference_number" placeholder="e.g. invoice or job number" autocomplete="off" class="form-input">
+            <label class="form-field form-field-contact" for="formEmail">
+              <span class="form-label">Contact <em>required</em></span>
+              <input type="email" name="email" id="formEmail" required placeholder="you@example.com" autocomplete="email" class="form-input">
             </label>
             <div class="form-actions">
               <button type="submit" class="form-submit" id="paymentFormSubmit">Look up</button>
@@ -203,12 +182,55 @@
       return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
     }
 
+    function buildSignedDocumentToastMessage(dash) {
+      if (!dash) return "We've received your signed document.";
+      var cust = dash._paymentCustomer || {};
+      var pref = String(cust.contact_preference || '').trim().toLowerCase();
+      if (pref === 'sms') {
+        return "We've received your signed document. We've emailed you a copy and sent a text with a link to your PDF.";
+      }
+      return "We've received your signed document. We've emailed you a confirmation with a link to your signed PDF.";
+    }
+
+    function dismissPaymentSignToast(el) {
+      if (!el || !el.parentNode) return;
+      el.classList.remove('payment-sign-toast--visible');
+      window.setTimeout(function () {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }, 280);
+    }
+
+    function showSignedDocumentToast(dash) {
+      var existing = document.getElementById('paymentSignReceivedToast');
+      if (existing) dismissPaymentSignToast(existing);
+      var el = document.createElement('div');
+      el.id = 'paymentSignReceivedToast';
+      el.className = 'payment-sign-toast';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      el.setAttribute('title', 'Tap to dismiss');
+      el.textContent = buildSignedDocumentToastMessage(dash);
+      document.body.appendChild(el);
+      window.requestAnimationFrame(function () {
+        el.classList.add('payment-sign-toast--visible');
+      });
+      var timer = window.setTimeout(function () {
+        dismissPaymentSignToast(el);
+      }, 8200);
+      el.addEventListener('click', function onToastClick() {
+        el.removeEventListener('click', onToastClick);
+        window.clearTimeout(timer);
+        dismissPaymentSignToast(el);
+      });
+    }
+
     function showDashboard(data, lookupCreds) {
       if (formSection) formSection.setAttribute('hidden', '');
       if (dashboard) dashboard.removeAttribute('hidden');
       if (lookupCreds && dashboard) dashboard._lookupCredentials = lookupCreds;
 
       var c = data.customer || {};
+      if (dashboard) dashboard._paymentCustomer = c;
       var phoneVal = c.phone ? formatPhone(c.phone) : '';
       var lines = [
         { label: 'Name', value: c.name },
@@ -475,7 +497,7 @@
         return docsRowOpenPdf(d.pdf_url, escapeHtml(d.title || 'Document'), escapeHtml(when));
       }).join('') : '<p class="payment-docs-empty">No documents yet.</p>';
       documentsModalBody.innerHTML =
-        '<details class="payment-docs-fold" open>' +
+        '<details class="payment-docs-fold">' +
         '<summary class="payment-docs-fold-summary">Invoices</summary>' +
         '<div class="payment-docs-fold-inner">' + invHtml + '</div></details>' +
         '<details class="payment-docs-fold">' +
@@ -497,24 +519,10 @@
         e.preventDefault();
         if (!form.checkValidity()) { form.reportValidity(); return; }
         var emailEl = form.querySelector('[name="email"]');
-        var phoneEl = form.querySelector('[name="phone"]');
-        var contactSwitch = form.querySelector('.contact-switch');
-        var isEmail = contactSwitch && contactSwitch.querySelector('.contact-switch-email.active');
-        var email = (isEmail && emailEl) ? emailEl.value.trim() : '';
-        var phoneRaw = (!isEmail && phoneEl) ? phoneEl.value.trim() : '';
-        var phone = phoneRaw ? phoneLast10(phoneRaw) : '';
-        if (!email && !phone) {
+        var email = emailEl ? emailEl.value.trim() : '';
+        if (!email) {
           var msgEl0 = document.getElementById('paymentFormMessage');
-          if (msgEl0) { msgEl0.textContent = 'Please enter your email or phone number.'; msgEl0.hidden = false; msgEl0.className = 'form-message form-message-error'; }
-          return;
-        }
-        if (!isEmail && phone && phone.length < 10) {
-          var msgElShort = document.getElementById('paymentFormMessage');
-          if (msgElShort) {
-            msgElShort.textContent = 'Enter a full 10-digit phone number. Dashes, spaces, and parentheses are fine.';
-            msgElShort.hidden = false;
-            msgElShort.className = 'form-message form-message-error';
-          }
+          if (msgEl0) { msgEl0.textContent = 'Please enter the email address on your account.'; msgEl0.hidden = false; msgEl0.className = 'form-message form-message-error'; }
           return;
         }
         var msgEl = document.getElementById('paymentFormMessage');
@@ -526,9 +534,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: (form.querySelector('[name="name"]') || {}).value || '',
-            email: email,
-            phone: phone,
-            reference_number: (form.querySelector('[name="reference_number"]') || {}).value || ''
+            email: email
           })
         })
           .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Lookup failed'); return d; }); })
@@ -541,7 +547,7 @@
             showDashboard(data, {
               name: (form.querySelector('[name="name"]') || {}).value.trim(),
               email: email,
-              phone: phone
+              phone: ''
             });
           })
           .catch(function (err) {
@@ -942,6 +948,7 @@
               var bnr = document.getElementById('paymentPendingSignaturesBanner');
               if (bnr && dash && (!dash._pendingSignatureBundles || !dash._pendingSignatureBundles.length)) bnr.setAttribute('hidden', '');
               closeSignModal();
+              showSignedDocumentToast(dash);
             })
             .catch(function (e) {
               if (signError) { signError.textContent = e.message || 'Submit failed'; signError.hidden = false; }
