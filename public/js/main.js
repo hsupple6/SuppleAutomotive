@@ -865,10 +865,9 @@
     var charClass = sectionId + '-title-char';
     if (!section) return;
 
+    var mqServiceMobile = window.matchMedia('(max-width: 639px)');
     var wasPastThreshold = false;
     var copyAnimTimer = null;
-    var letterStaggerMs = 38;
-    var letterTransitionMs = 350;
 
     function clearCopyAnimTimer() {
       if (copyAnimTimer) {
@@ -897,11 +896,14 @@
       var chars = title.getElementsByClassName(charClass);
       var n = chars.length;
       var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      var waitMs = reduced ? 0 : Math.max(0, (n - 1) * letterStaggerMs + letterTransitionMs + 45);
+      var stagger = mqServiceMobile.matches ? 19 : 38;
+      var transition = mqServiceMobile.matches ? 175 : 350;
+      var tail = mqServiceMobile.matches ? 22 : 45;
+      var waitMs = reduced ? 0 : Math.max(0, (n - 1) * stagger + transition + tail);
       copyAnimTimer = setTimeout(function () {
         copyAnimTimer = null;
         var copyEls = copyReveal.querySelectorAll('.split-element');
-        var copyStep = 0.036;
+        var copyStep = mqServiceMobile.matches ? 0.018 : 0.036;
         for (var i = 0; i < copyEls.length; i++) {
           copyEls[i].style.setProperty('--reveal-delay', i * copyStep + 's');
         }
@@ -941,8 +943,6 @@
         });
       });
     }
-
-    var mqServiceMobile = window.matchMedia('(max-width: 639px)');
 
     function update() {
       var rect = section.getBoundingClientRect();

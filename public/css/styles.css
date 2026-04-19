@@ -3216,7 +3216,7 @@ body {
     aspect-ratio: 16 / 9;
     transform-origin: center center;
     transform: translateY(calc(-1 * clamp(0.75rem, 4vw, 1.35rem))) scale(1.22);
-    transition: transform 1s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
     background-size: cover;
     background-position: center;
   }
@@ -3321,55 +3321,55 @@ body {
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-t,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-t,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-t {
-    animation: service-cta-mobile-t-draw 0.5s linear forwards;
+    animation: service-cta-mobile-t-draw 0.25s linear forwards;
   }
 
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-r,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-r,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-r {
-    animation: service-cta-mobile-r-draw 0.5s linear forwards;
-    animation-delay: 0.5s;
+    animation: service-cta-mobile-r-draw 0.25s linear forwards;
+    animation-delay: 0.25s;
   }
 
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-b,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-b,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-b {
-    animation: service-cta-mobile-b-draw 0.5s linear forwards;
-    animation-delay: 1s;
+    animation: service-cta-mobile-b-draw 0.25s linear forwards;
+    animation-delay: 0.5s;
   }
 
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-in .link-cta-border-l,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-in .link-cta-border-l,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-in .link-cta-border-l {
-    animation: service-cta-mobile-l-draw 0.5s linear forwards;
-    animation-delay: 1.5s;
+    animation: service-cta-mobile-l-draw 0.25s linear forwards;
+    animation-delay: 0.75s;
   }
 
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-t,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-t,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-t {
-    animation: service-cta-mobile-t-out 0.5s linear forwards;
+    animation: service-cta-mobile-t-out 0.25s linear forwards;
   }
 
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-r,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-r,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-r {
-    animation: service-cta-mobile-r-out 0.5s linear forwards;
-    animation-delay: 0.5s;
+    animation: service-cta-mobile-r-out 0.25s linear forwards;
+    animation-delay: 0.25s;
   }
 
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-b,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-b,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-b {
-    animation: service-cta-mobile-b-out 0.5s linear forwards;
-    animation-delay: 1s;
+    animation: service-cta-mobile-b-out 0.25s linear forwards;
+    animation-delay: 0.5s;
   }
 
   .block-service-maintenance .service-maintenance-request.service-cta-mobile--draw-out .link-cta-border-l,
   .block-service-diagnostics .service-diagnostics-request.service-cta-mobile--draw-out .link-cta-border-l,
   .block-service-inspection .service-inspection-request.service-cta-mobile--draw-out .link-cta-border-l {
-    animation: service-cta-mobile-l-out 0.5s linear forwards;
-    animation-delay: 1.5s;
+    animation: service-cta-mobile-l-out 0.25s linear forwards;
+    animation-delay: 0.75s;
   }
 
   #serviceMaintenanceCopyReveal.is-visible .service-maintenance-request.service-cta-mobile--draw-in:not(.service-cta-mobile--draw-out) .link-cta-label,
@@ -3386,7 +3386,29 @@ body {
     animation: none !important;
     opacity: 0;
     transform: translateY(8px);
-    transition: opacity 0.32s ease, transform 0.32s ease;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+  }
+
+  .block-service-maintenance .service-maintenance-title.service-maintenance-title--letters-in .service-maintenance-title-char,
+  .block-service-diagnostics .service-diagnostics-title.service-diagnostics-title--letters-in .service-diagnostics-title-char,
+  .block-service-inspection .service-inspection-title.service-inspection-title--letters-in .service-inspection-title-char {
+    transition-duration: 0.175s;
+    transition-delay: calc(var(--i, 0) * 19ms);
+  }
+
+  .block-service-maintenance .service-maintenance-intro,
+  .block-service-diagnostics .service-diagnostics-intro,
+  .block-service-inspection .service-inspection-intro,
+  .block-service-maintenance .service-maintenance-compact,
+  .block-service-diagnostics .service-diagnostics-compact,
+  .block-service-inspection .service-inspection-compact {
+    transition-duration: 0.2s;
+  }
+
+  #serviceMaintenanceCopyReveal.is-visible .service-maintenance-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-label,
+  #serviceDiagnosticsCopyReveal.is-visible .service-diagnostics-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-label,
+  #serviceInspectionCopyReveal.is-visible .service-inspection-request:not(.service-cta-mobile--draw-in):not(.service-cta-mobile--draw-out) .link-cta-label {
+    animation: maintenance-cta-silver-shimmer 7.5s ease-in-out infinite;
   }
 }
 
@@ -5804,6 +5826,15 @@ body.page-payment:has(#paymentDashboard:not([hidden])) .payment-balance-block {
 #serviceInspectionCopyReveal .split-element {
   transition: opacity 0.38s ease-out, transform 0.38s ease-out;
   transition-delay: var(--reveal-delay, 0s);
+}
+
+@media (max-width: 639px) {
+  #serviceMaintenanceCopyReveal .split-element,
+  #serviceDiagnosticsCopyReveal .split-element,
+  #serviceInspectionCopyReveal .split-element {
+    transition: opacity 0.19s ease-out, transform 0.19s ease-out;
+    transition-delay: var(--reveal-delay, 0s);
+  }
 }
 
 /* ========== Scroll to top button ========== */
