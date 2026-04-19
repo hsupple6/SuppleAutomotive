@@ -19,5 +19,6 @@ window.SUPPLE_CONFIG = {
   social: {
     facebook: "https://www.facebook.com/profile.php?id=61577543962820",
     instagram: "https://www.instagram.com/suppleautomotive/",
+    tiktok: "https://www.tiktok.com/@suppleautomotive",
   },
 };

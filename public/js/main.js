@@ -392,6 +392,7 @@
   }
   setFooterSocialLink('footerSocialFacebook', socialCfg.facebook, true);
   setFooterSocialLink('footerSocialInstagram', socialCfg.instagram, true);
+  setFooterSocialLink('footerSocialTiktok', socialCfg.tiktok, true);
   if (email) {
     setFooterSocialLink('footerSocialEmail', 'mailto:' + email, false);
   } else if (byId('footerSocialEmail')) {
