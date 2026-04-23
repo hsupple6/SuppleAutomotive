@@ -1545,10 +1545,49 @@ body {
 }
 
 .block-car-washing,
-.block-prebuy-inspection {
+.block.block-prebuy-pair {
   min-height: auto;
   padding: 0 2rem 5rem;
   background: var(--bg);
+}
+
+/* Pair sits in normal flow (not centered viewport flex like default .block) */
+.block.block-prebuy-pair {
+  display: block;
+}
+
+.prebuy-pair-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2rem 2.5rem;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  align-items: start;
+}
+
+.prebuy-pair-panel {
+  min-width: 0;
+}
+
+.prebuy-pair-panel .prebuy-inspection-inner {
+  max-width: none;
+  margin: 0;
+}
+
+.prebuy-pair-panel .prebuy-inspection-cards {
+  max-width: none;
+}
+
+.prebuy-pair-panel .prebuy-inspection-lead {
+  max-width: none;
+}
+
+@media (max-width: 900px) {
+  .prebuy-pair-grid {
+    grid-template-columns: 1fr;
+    gap: 2.75rem;
+  }
 }
 
 .block-car-washing {
