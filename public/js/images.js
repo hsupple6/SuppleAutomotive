@@ -12,5 +12,5 @@ window.SUPPLE_IMAGES = {
   serviceMaintenance: 'images/service-maintenance.jpg',
   serviceDiagnostics: 'images/service-diagnostics.jpg',
   serviceInspection: 'images/service-inspection.jpg',
-  aboutHayden: 'images/mechanic-about.png'
+  aboutHayden: 'images/mechanic.jpg'
 };
