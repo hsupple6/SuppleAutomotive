@@ -421,7 +421,42 @@ function normalizeNameCompare(submitted, stored) {
 
 function bundleSignatureLabel(bundleKey) {
   if (bundleKey === 'Starter') return 'Starter documentation';
+  if (String(bundleKey || '').toLowerCase() === 'estimate') return 'Estimate';
   return String(bundleKey || '').replace(/[-_]/g, ' ');
+}
+
+function insertCustomerDocumentAndNotifyRelease(opts) {
+  var row = opts.customerRow;
+  var pdfUrl = String(opts.pdfUrl || '').trim();
+  if (!row || !row.id || !pdfUrl) return Promise.resolve();
+  var isEstimateBundle = !!opts.isEstimateBundle;
+  var portalTitle = isEstimateBundle ? 'Estimate (awaiting signature)' : 'Agreement (awaiting signature)';
+  return supabase
+    .from('customer_documents')
+    .insert({
+      account_id: opts.accountId,
+      customer_id: row.id,
+      title: portalTitle,
+      pdf_url: pdfUrl
+    })
+    .then(function (ins) {
+      if (ins.error) {
+        console.error('customer_documents insert on release:', ins.error.message || ins.error);
+      }
+      return trySend(function () {
+        return emailNotifications.sendDocumentsAssignedAlert({
+          email: row.email,
+          customerId: row.id,
+          phone: row.phone,
+          contact_preference: row.contact_preference,
+          documentTitle: isEstimateBundle ? 'Estimate' : 'Agreement',
+          documentType: isEstimateBundle ? 'estimate' : 'agreement',
+          documentUrl: pdfUrl,
+          pdfBuffer: opts.pdfBuf,
+          pdfFilename: opts.pdfFilename || (isEstimateBundle ? 'estimate.pdf' : 'agreement.pdf')
+        });
+      }, 'Documents assigned alert email failed');
+    });
 }
 
 function fetchPendingSignatureBundlesForCustomer(customerId) {
@@ -1074,7 +1109,7 @@ function finalizeSignedAgreementPdf(accountId, customerId, bundleId, bundleKey, 
           .then(function (up) {
             if (up.error) {
               console.error('Signed PDF upload:', up.error.message);
-              return;
+              return null;
             }
             var pub = supabase.storage.from('invoices').getPublicUrl(pathKey);
             var url = pub && pub.data && pub.data.publicUrl;
@@ -1098,7 +1133,7 @@ function finalizeSignedAgreementPdf(accountId, customerId, bundleId, bundleKey, 
                 if (ins.error) {
                   console.error('customer_documents insert after sign:', ins.error.message || ins.error);
                 }
-                return url;
+                return { url: url, pdfBuffer: buf };
               });
           });
       };
@@ -1205,7 +1240,7 @@ app.post('/api/complete-signature-bundle', function (req, res) {
         customerNameForSign,
         mode,
         payloadStr
-      ).then(function (signedPdfUrl) {
+      ).then(function (signedResult) {
         trySend(function () {
           return emailNotifications.sendSignedDocumentAlert({
             email: customerEmailForSign,
@@ -1213,10 +1248,15 @@ app.post('/api/complete-signature-bundle', function (req, res) {
             phone: customerNotifyRow && customerNotifyRow.phone,
             contact_preference: customerNotifyRow && customerNotifyRow.contact_preference,
             documentType: String(bundleKeyForSign || '').toLowerCase() === 'estimate' ? 'estimate' : 'agreement',
-            documentUrl: signedPdfUrl || ''
+            documentUrl: (signedResult && signedResult.url) || '',
+            pdfBuffer: signedResult && signedResult.pdfBuffer,
+            pdfFilename:
+              String(bundleKeyForSign || '').toLowerCase() === 'estimate'
+                ? 'signed-estimate.pdf'
+                : 'signed-agreement.pdf'
           });
         }, 'Signed document email failed');
-        res.json({ ok: true });
+        res.json({ ok: true, signedPdfUrl: signedResult && signedResult.url ? signedResult.url : null });
       });
     })
     .catch(function (err) {
@@ -2233,26 +2273,28 @@ app.post('/supplecontrols/api/customers/:customerId/signature-bundles/release', 
                   var pub = supabase.storage.from(bucket).getPublicUrl(pathKey);
                   var url = pub && pub.data && pub.data.publicUrl;
                   if (!url) throw new Error('Could not get public URL');
-                  return supabase.from('customer_signature_bundle_docs').insert([
-                    { bundle_id: bundleId, title: isEstimateBundle ? 'Estimate' : 'Agreement', pdf_url: url, sort_order: 0 }
-                  ]);
+                  return { pdfBuf: pdfBuf, url: url };
                 })
-                .then(function (docIns) {
-                  if (docIns.error) throw new Error(docIns.error.message);
-                  trySend(function () {
-                    var row = releaseCustomerRow;
-                    return emailNotifications.sendDocumentsAssignedAlert({
-                      email: row && row.email,
-                      customerId: row && row.id,
-                      phone: row && row.phone,
-                      contact_preference: row && row.contact_preference
+                .then(function (uploaded) {
+                  return supabase.from('customer_signature_bundle_docs').insert([
+                    { bundle_id: bundleId, title: isEstimateBundle ? 'Estimate' : 'Agreement', pdf_url: uploaded.url, sort_order: 0 }
+                  ]).then(function (docIns) {
+                    if (docIns.error) throw new Error(docIns.error.message);
+                    return insertCustomerDocumentAndNotifyRelease({
+                      accountId: accountId,
+                      customerRow: releaseCustomerRow,
+                      isEstimateBundle: isEstimateBundle,
+                      pdfUrl: uploaded.url,
+                      pdfBuf: uploaded.pdfBuf,
+                      pdfFilename: isEstimateBundle ? 'estimate.pdf' : 'agreement.pdf'
+                    }).then(function () {
+                      res.status(201).json({
+                        ok: true,
+                        bundleKey: safeKey,
+                        documentCount: 1,
+                        source: isEstimateBundle ? 'estimate-generated' : (agreementPdf.hasAgreementMarkdown() ? 'agreement-md' : 'agreement-default')
+                      });
                     });
-                  }, 'Documents assigned alert email failed');
-                  res.status(201).json({
-                    ok: true,
-                    bundleKey: safeKey,
-                    documentCount: 1,
-                    source: isEstimateBundle ? 'estimate-generated' : (agreementPdf.hasAgreementMarkdown() ? 'agreement-md' : 'agreement-default')
                   });
                 });
             });
@@ -2283,19 +2325,38 @@ app.post('/supplecontrols/api/customers/:customerId/signature-bundles/release', 
             });
         });
         return Promise.all(uploads).then(function (rows) {
-          return supabase.from('customer_signature_bundle_docs').insert(rows);
-        }).then(function (docIns) {
-          if (docIns.error) throw new Error(docIns.error.message);
-          trySend(function () {
-            var row = releaseCustomerRow;
-            return emailNotifications.sendDocumentsAssignedAlert({
-              email: row && row.email,
-              customerId: row && row.id,
-              phone: row && row.phone,
-              contact_preference: row && row.contact_preference
+          return supabase.from('customer_signature_bundle_docs').insert(rows).then(function (docIns) {
+            if (docIns.error) throw new Error(docIns.error.message);
+            var firstFileBuf = files.length ? fs.readFileSync(path.join(dir, files[0])) : null;
+            var firstDocUrl = rows.length ? rows[0].pdf_url : '';
+            return insertCustomerDocumentAndNotifyRelease({
+              accountId: accountId,
+              customerRow: releaseCustomerRow,
+              isEstimateBundle: isEstimateBundle,
+              pdfUrl: firstDocUrl,
+              pdfBuf: firstFileBuf,
+              pdfFilename: files[0] || 'document.pdf'
+            }).then(function () {
+              var extraDocs = rows.slice(1).map(function (row) {
+                return {
+                  account_id: accountId,
+                  customer_id: customerId,
+                  title: row.title || 'Document (awaiting signature)',
+                  pdf_url: row.pdf_url
+                };
+              });
+              if (!extraDocs.length) {
+                res.status(201).json({ ok: true, bundleKey: safeKey, documentCount: files.length, source: 'pdf' });
+                return;
+              }
+              return supabase.from('customer_documents').insert(extraDocs).then(function (extraIns) {
+                if (extraIns.error) {
+                  console.error('customer_documents extra insert on release:', extraIns.error.message || extraIns.error);
+                }
+                res.status(201).json({ ok: true, bundleKey: safeKey, documentCount: files.length, source: 'pdf' });
+              });
             });
-          }, 'Documents assigned alert email failed');
-          res.status(201).json({ ok: true, bundleKey: safeKey, documentCount: files.length, source: 'pdf' });
+          });
         });
       })
       .catch(function (err) {

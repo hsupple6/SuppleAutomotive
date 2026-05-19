@@ -473,6 +473,7 @@
       if (!documentsModal || !documentsModalBody || !dashboard) return;
       var invoices = dashboard._customerInvoices || [];
       var docs = dashboard._customerDocuments || [];
+      var pending = dashboard._pendingSignatureBundles || [];
       var svcs = dashboard._paymentServices || [];
       function docsRowOpenPdf(url, titleHtml, metaHtml) {
         var u = String(url || '').trim();
@@ -490,6 +491,18 @@
           '</span></div><span class="payment-docs-row-link">Open PDF</span></a>'
         );
       }
+      var pendingHtml = pending.length
+        ? pending
+            .map(function (bundle) {
+              return (bundle.documents || [])
+                .map(function (doc) {
+                  var label = escapeHtml(doc.title || bundle.label || 'Document');
+                  return docsRowOpenPdf(doc.pdf_url, label, 'Awaiting your signature');
+                })
+                .join('');
+            })
+            .join('')
+        : '<p class="payment-docs-empty">No documents awaiting signature.</p>';
       var invHtml = invoices.length ? invoices.map(function (inv) {
         var svc = escapeHtml(serviceNameForInvoice(inv.service_id, svcs));
         var num = escapeHtml(inv.invoice_number || 'Invoice');
@@ -501,6 +514,9 @@
         return docsRowOpenPdf(d.pdf_url, escapeHtml(d.title || 'Document'), escapeHtml(when));
       }).join('') : '<p class="payment-docs-empty">No documents yet.</p>';
       documentsModalBody.innerHTML =
+        '<details class="payment-docs-fold" open>' +
+        '<summary class="payment-docs-fold-summary">Awaiting signature</summary>' +
+        '<div class="payment-docs-fold-inner">' + pendingHtml + '</div></details>' +
         '<details class="payment-docs-fold">' +
         '<summary class="payment-docs-fold-summary">Invoices</summary>' +
         '<div class="payment-docs-fold-inner">' + invHtml + '</div></details>' +
