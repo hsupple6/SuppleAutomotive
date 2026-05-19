@@ -108,7 +108,19 @@
     .starter-field-label-text { display: block; font-size: 0.85rem; color: #bbb; margin-bottom: 0.35rem; }
     .starter-field-input { width: 100%; max-width: 100%; }
     .starter-field-input-text { max-width: 420px; }
+    .starter-service-block { background: #252525; border: 1px solid #333; border-radius: 6px; padding: 0.85rem; margin-bottom: 0.75rem; }
+    .starter-service-head { display: grid; grid-template-columns: 1fr 120px auto; gap: 0.5rem; align-items: center; margin-bottom: 0.65rem; }
+    .starter-service-parts { margin-left: 0.35rem; padding-left: 0.75rem; border-left: 2px solid #333; }
+    .starter-service-parts-title { font-size: 0.75rem; color: #888; margin-bottom: 0.45rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .starter-service-part-row { display: grid; grid-template-columns: 1fr 110px auto; gap: 0.5rem; margin-bottom: 0.45rem; }
     .email-template-editor { width: 100%; min-height: 360px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.8rem; line-height: 1.4; }
+    .controls-dev-bar { margin-bottom: 1.25rem; padding: 0.85rem 1rem; background: #1a2433; border: 1px solid #2d4260; border-radius: 6px; }
+    .controls-dev-bar h2 { margin: 0 0 0.35rem; font-size: 0.85rem; font-weight: 600; color: #cfe3ff; }
+    .controls-dev-bar p { margin: 0 0 0.65rem; font-size: 0.78rem; color: #9ab; line-height: 1.45; }
+    .controls-dev-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .controls-dev-actions a { display: inline-block; padding: 0.45rem 0.75rem; background: #243347; color: #cfe3ff; border: 1px solid #355074; border-radius: 4px; font-size: 0.8rem; text-decoration: none; }
+    .controls-dev-actions a:hover { background: #2d4260; text-decoration: none; }
+    #controlsDevEstimateFrame { width: 100%; height: 520px; border: 1px solid #333; border-radius: 4px; background: #111; margin-top: 0.65rem; display: none; }
     @media (max-width: 480px) {
       body { padding: 0.75rem; }
       .customer-card { padding: 0.9rem 1rem; }
@@ -126,6 +138,15 @@
   <div class="bar">
     <h1>Supple Controls — Customers</h1>
     <a href="/supplecontrols/logout">Sign out</a>
+  </div>
+  <div class="controls-dev-bar" id="controlsDevBar" hidden>
+    <h2>Dev — sample documents</h2>
+    <p>California BAR Write It Right format. Requires <code style="background:#252525;padding:0.12rem 0.3rem;border-radius:3px;">DEV_PDF_SAMPLES=1</code> in <code style="background:#252525;padding:0.12rem 0.3rem;border-radius:3px;">.env</code>. Set <code style="background:#252525;padding:0.12rem 0.3rem;border-radius:3px;">BAR_REGISTRATION_NUMBER</code> and <code style="background:#252525;padding:0.12rem 0.3rem;border-radius:3px;">EPA_IDENTIFICATION_NUMBER</code> for your shop.</p>
+    <div class="controls-dev-actions">
+      <a href="/supplecontrols/api/dev/demo-estimate.pdf" target="_blank" rel="noopener noreferrer" id="controlsDevEstimateOpen">Open CA BAR demo estimate</a>
+      <button type="button" class="btn" id="controlsDevEstimatePreviewBtn" style="background:#333;color:#e5e5e5;">Preview demo estimate here</button>
+    </div>
+    <iframe id="controlsDevEstimateFrame" title="CA BAR demo estimate preview"></iframe>
   </div>
   <div class="search-toolbar">
     <div class="search-row">
@@ -945,6 +966,30 @@
       releaseFieldSpec.forEach(function (f) {
         if (f.isCollection) {
           var rows = [];
+          if (f.collectionType === 'service_group') {
+            var serviceBlocks = starterWizardFields
+              ? starterWizardFields.querySelectorAll('[data-collection-key="' + f.key + '"] .starter-service-block')
+              : [];
+            serviceBlocks.forEach(function (block) {
+              var nameEl = block.querySelector('[data-role="service-name"]');
+              var hoursEl = block.querySelector('[data-role="service-hours"]');
+              var nameVal = nameEl ? nameEl.value.trim() : '';
+              var hoursVal = hoursEl ? hoursEl.value.trim() : '';
+              var parts = [];
+              block.querySelectorAll('.starter-service-part-row').forEach(function (partRow) {
+                var partNameEl = partRow.querySelector('[data-role="part-name"]');
+                var partCostEl = partRow.querySelector('[data-role="part-cost"]');
+                var partNameVal = partNameEl ? partNameEl.value.trim() : '';
+                var partCostVal = partCostEl ? partCostEl.value.trim() : '';
+                if (partNameVal || partCostVal) parts.push({ name: partNameVal, cost: partCostVal });
+              });
+              if (nameVal || hoursVal || parts.length) {
+                rows.push({ name: nameVal, labor_hours: hoursVal, parts: parts });
+              }
+            });
+            fields[f.key] = rows;
+            return;
+          }
           var rowNodes = starterWizardFields ? starterWizardFields.querySelectorAll('[data-collection-key="' + f.key + '"] .starter-collection-row') : [];
           rowNodes.forEach(function (rowEl) {
             var nameEl = rowEl.querySelector('[data-role="name"]');
@@ -982,6 +1027,95 @@
     function renderStarterFieldForm() {
       if (!starterWizardFields) return;
       function renderCollectionRows(key, collectionType) {
+        if (collectionType === 'service_group') {
+          var html = '' +
+            '<div data-collection-key="' + esc(key) + '" class="starter-collection-wrap">' +
+            '<div class="starter-service-blocks"></div>' +
+            '<button type="button" class="btn btn-ghost starter-collection-add">Add service</button>' +
+            '</div>';
+          return {
+            html: html,
+            mount: function () {
+              var wrap = starterWizardFields.querySelector('[data-collection-key="' + key + '"]');
+              if (!wrap) return;
+              var blocksWrap = wrap.querySelector('.starter-service-blocks');
+              var addBtn = wrap.querySelector('.starter-collection-add');
+
+              function wirePartRow(partRow) {
+                partRow.querySelectorAll('input').forEach(function (inputEl) {
+                  inputEl.addEventListener('input', invalidateStarterPreview);
+                });
+                var removePartBtn = partRow.querySelector('[data-role="remove-part"]');
+                if (removePartBtn) {
+                  removePartBtn.addEventListener('click', function () {
+                    partRow.remove();
+                    invalidateStarterPreview();
+                  });
+                }
+              }
+
+              function addPartRow(partsWrap, initial) {
+                initial = initial || {};
+                var partRow = document.createElement('div');
+                partRow.className = 'starter-service-part-row';
+                partRow.innerHTML =
+                  '<input type="text" data-role="part-name" aria-label="Part name" placeholder="Part name" value="' + esc(initial.name || '').replace(/"/g, '&quot;') + '" />' +
+                  '<input type="text" data-role="part-cost" aria-label="Part cost" placeholder="Cost" value="' + esc(initial.cost || '').replace(/"/g, '&quot;') + '" />' +
+                  '<button type="button" class="btn btn-ghost" data-role="remove-part">Remove</button>';
+                wirePartRow(partRow);
+                partsWrap.appendChild(partRow);
+              }
+
+              function addServiceBlock(initial) {
+                initial = initial || {};
+                var block = document.createElement('div');
+                block.className = 'starter-service-block';
+                block.innerHTML =
+                  '<div class="starter-service-head">' +
+                  '<input type="text" data-role="service-name" aria-label="Service name" placeholder="Service name" value="' + esc(initial.name || '').replace(/"/g, '&quot;') + '" />' +
+                  '<input type="text" data-role="service-hours" aria-label="Labor hours" placeholder="Labor hours" value="' + esc(initial.labor_hours || '').replace(/"/g, '&quot;') + '" />' +
+                  '<button type="button" class="btn btn-ghost" data-role="remove-service">Remove service</button>' +
+                  '</div>' +
+                  '<div class="starter-service-parts">' +
+                  '<div class="starter-service-parts-title">Parts for this service</div>' +
+                  '<div class="starter-service-parts-rows"></div>' +
+                  '<button type="button" class="btn btn-ghost" data-role="add-part">+ Add part</button>' +
+                  '</div>';
+                var partsRowsWrap = block.querySelector('.starter-service-parts-rows');
+                var addPartBtn = block.querySelector('[data-role="add-part"]');
+                var removeServiceBtn = block.querySelector('[data-role="remove-service"]');
+                block.querySelectorAll('.starter-service-head input').forEach(function (inputEl) {
+                  inputEl.addEventListener('input', invalidateStarterPreview);
+                });
+                if (addPartBtn && partsRowsWrap) {
+                  addPartBtn.addEventListener('click', function () {
+                    addPartRow(partsRowsWrap, {});
+                    invalidateStarterPreview();
+                  });
+                }
+                if (removeServiceBtn) {
+                  removeServiceBtn.addEventListener('click', function () {
+                    block.remove();
+                    invalidateStarterPreview();
+                  });
+                }
+                (Array.isArray(initial.parts) ? initial.parts : []).forEach(function (part) {
+                  addPartRow(partsRowsWrap, part);
+                });
+                if (!initial.parts || !initial.parts.length) addPartRow(partsRowsWrap, {});
+                blocksWrap.appendChild(block);
+              }
+
+              addServiceBlock({});
+              if (addBtn) {
+                addBtn.addEventListener('click', function () {
+                  addServiceBlock({});
+                  invalidateStarterPreview();
+                });
+              }
+            }
+          };
+        }
         var nameLabel = collectionType === 'service' ? 'Service name' : 'Part name';
         var valueLabel = collectionType === 'service' ? 'Labor hours' : 'Cost';
         var valuePlaceholder = collectionType === 'service' ? '1.5' : '125';
@@ -1137,7 +1271,7 @@
           starterWizardPreviewPath = '/supplecontrols/api/customers/:customerId/signature-bundles/preview-estimate';
           if (starterWizardTitle) starterWizardTitle.textContent = 'Create & Send Estimate';
           if (starterWizardIntro) {
-            starterWizardIntro.textContent = 'Add services with labor time and parts with costs. Generate a preview, review the invoice-style estimate, then submit for customer signature.';
+            starterWizardIntro.textContent = 'Set labor rate and parts tax, then add services with labor hours. Attach parts to each service with their cost. Generate a preview, review the California BAR estimate, then submit for customer signature.';
           }
           if (starterWizardSubmitBtn) starterWizardSubmitBtn.textContent = 'Send estimate for signing';
           renderStarterFieldForm();
@@ -1258,6 +1392,25 @@
             starterWizardSubmitBtn.disabled = false;
           });
       });
+    }
+
+    var controlsDevBar = document.getElementById('controlsDevBar');
+    var controlsDevEstimatePreviewBtn = document.getElementById('controlsDevEstimatePreviewBtn');
+    var controlsDevEstimateFrame = document.getElementById('controlsDevEstimateFrame');
+    if (controlsDevBar) {
+      fetch('/supplecontrols/api/dev/status', { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data || !data.pdfSamples) return;
+          controlsDevBar.hidden = false;
+          if (controlsDevEstimatePreviewBtn && controlsDevEstimateFrame) {
+            controlsDevEstimatePreviewBtn.addEventListener('click', function () {
+              controlsDevEstimateFrame.style.display = 'block';
+              controlsDevEstimateFrame.src = '/supplecontrols/api/dev/demo-estimate.pdf?t=' + Date.now();
+            });
+          }
+        })
+        .catch(function () {});
     }
 
     loadCustomers();

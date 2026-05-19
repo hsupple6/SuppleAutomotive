@@ -313,14 +313,37 @@ app.get('/api/dev/pdf-samples/estimate', function (req, res) {
   estimatePdf
     .buildEstimatePdfBuffer(cust, veh, {
       releaseFields: ef,
-      customerSignature: { mode: 'typed', payload: devPdfSamples.FILLER_DATE_TOKEN },
-      signedDateStr: devPdfSamples.FILLER_DATE_TOKEN
+      estimateId: '000001',
+      documentDate: new Date('2025-01-03T12:00:00'),
+      customerSignature: { mode: 'typed', payload: cust.name },
+      signedDateStr: '1/3/2025',
+      authMethod: 'in_person'
     })
     .then(function (buf) {
       sendDevSamplePdf(res, buf, 'dev-estimate.pdf');
     })
     .catch(function (err) {
       console.error('dev pdf estimate:', err);
+      res.status(500).type('text').send(err.message || 'PDF failed');
+    });
+});
+
+app.get('/api/dev/pdf-samples/estimate-unsigned', function (req, res) {
+  if (!devPdfSamplesEnabled()) return res.status(404).end();
+  var cust = devPdfSamples.fillerCustomer();
+  var veh = devPdfSamples.fillerVehicle();
+  var ef = estimatePdf.normalizeEstimateReleaseFields(devPdfSamples.fillerEstimateFields());
+  estimatePdf
+    .buildEstimatePdfBuffer(cust, veh, {
+      releaseFields: ef,
+      estimateId: '000001',
+      documentDate: new Date('2025-01-03T12:00:00')
+    })
+    .then(function (buf) {
+      sendDevSamplePdf(res, buf, 'dev-estimate-unsigned.pdf');
+    })
+    .catch(function (err) {
+      console.error('dev pdf estimate-unsigned:', err);
       res.status(500).type('text').send(err.message || 'PDF failed');
     });
 });
@@ -1084,7 +1107,11 @@ function finalizeSignedAgreementPdf(accountId, customerId, bundleId, bundleKey, 
         return builder(cr.data, vr.data && !vr.error ? vr.data : null, {
             releaseFields: rf,
             customerSignature: { mode: mode, payload: payloadStr },
-            signedDateStr: dateLabel
+            signedDateStr: dateLabel,
+            authMethod: isEstimateBundle ? 'email' : undefined,
+            authTimeStr: isEstimateBundle ? new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : undefined,
+            authEmailStr: isEstimateBundle ? String(cr.data.email || '').trim() : undefined,
+            authPhoneStr: isEstimateBundle ? String(cr.data.phone || '').trim() : undefined
           })
           .then(buildSignedBuf)
           .then(uploadSigned);
@@ -1942,6 +1969,33 @@ app.post('/supplecontrols/api/services/:id/invoices/submit', controlsApiAuth, fu
         controlsJson(err, res);
       });
   });
+});
+
+app.get('/supplecontrols/api/dev/status', controlsApiAuth, function (req, res) {
+  res.json({ pdfSamples: devPdfSamplesEnabled() });
+});
+
+app.get('/supplecontrols/api/dev/demo-estimate.pdf', controlsApiAuth, function (req, res) {
+  if (!devPdfSamplesEnabled()) return res.status(404).end();
+  var cust = devPdfSamples.fillerCustomer();
+  var veh = devPdfSamples.fillerVehicle();
+  var ef = estimatePdf.normalizeEstimateReleaseFields(devPdfSamples.fillerEstimateFields());
+  estimatePdf
+    .buildEstimatePdfBuffer(cust, veh, {
+      releaseFields: ef,
+      estimateId: '000001',
+      documentDate: new Date('2025-01-03T12:00:00'),
+      customerSignature: { mode: 'typed', payload: cust.name },
+      signedDateStr: '1/3/2025',
+      authMethod: 'in_person'
+    })
+    .then(function (buf) {
+      sendDevSamplePdf(res, buf, 'demo-ca-bar-estimate.pdf');
+    })
+    .catch(function (err) {
+      console.error('controls dev demo estimate:', err);
+      res.status(500).type('text').send(err.message || 'PDF failed');
+    });
 });
 
 app.get('/supplecontrols/api/signature-release-options', controlsApiAuth, function (req, res) {

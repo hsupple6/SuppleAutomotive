@@ -432,7 +432,8 @@
       { path: '/api/dev/pdf-samples/agreement-typed', label: 'Service agreement (typed customer signature)' },
       { path: '/api/dev/pdf-samples/agreement-drawn', label: 'Service agreement (drawn placeholder image)' },
       { path: '/api/dev/pdf-samples/agreement-bundle', label: 'Agreement + extra signature page (pdf-lib bundle)' },
-      { path: '/api/dev/pdf-samples/estimate', label: 'Estimate (typed customer signature)' },
+      { path: '/api/dev/pdf-samples/estimate', label: 'Estimate — CA BAR (signed demo)' },
+      { path: '/api/dev/pdf-samples/estimate-unsigned', label: 'Estimate — CA BAR (blank authorization)' },
       { path: '/api/dev/pdf-samples/invoice', label: 'Invoice' }
     ];
     var checkUrl = (apiBaseForDev || '') + '/api/dev/pdf-samples/check';
