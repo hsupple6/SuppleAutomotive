@@ -9,9 +9,14 @@ var fs = require('fs');
 var buildInvoicePdfBuffer = require(path.join(__dirname, 'lib', 'invoice-pdf')).buildInvoicePdfBuffer;
 var agreementPdf = require(path.join(__dirname, 'lib', 'agreement-pdf'));
 var estimatePdf = require(path.join(__dirname, 'lib', 'estimate-pdf'));
+var vehicleReleaseFields = require(path.join(__dirname, 'lib', 'vehicle-release-fields'));
 var signedAgreementPdf = require(path.join(__dirname, 'lib', 'signed-agreement-pdf'));
 var devPdfSamples = require(path.join(__dirname, 'lib', 'dev-pdf-samples'));
 var emailNotifications = require(path.join(__dirname, 'lib', 'email-notifications'));
+var googleReceiptTracker = require(path.join(__dirname, 'lib', 'google-receipt-tracker'));
+var documentBuilder = require(path.join(__dirname, 'lib', 'document-builder'));
+var invoiceNumberLib = require(path.join(__dirname, 'lib', 'invoice-number'));
+var customerExportFiles = require(path.join(__dirname, 'lib', 'customer-export-files'));
 var portalMagic = require(path.join(__dirname, 'lib', 'portal-magic'));
 var express = require('express');
 var session = require('express-session');
@@ -171,6 +176,16 @@ app.get('/supplecontrols', function (req, res) {
   sendControlsLogin(res);
 });
 
+app.get('/supplecontrols/estimate-builder', function (req, res) {
+  if (!controlsAuth(req)) return sendControlsLogin(res);
+  sendControlsView(res, 'supplecontrols-estimate-builder.html');
+});
+
+app.get('/supplecontrols/invoice-builder', function (req, res) {
+  if (!controlsAuth(req)) return sendControlsLogin(res);
+  sendControlsView(res, 'supplecontrols-invoice-builder.html');
+});
+
 app.post('/supplecontrols/login', function (req, res) {
   if (controlsAuth(req)) return res.redirect(302, '/supplecontrols');
   var username = (req.body && req.body.username || '').trim();
@@ -193,20 +208,61 @@ app.post('/supplecontrols/logout', function (req, res) {
 
 // Controls panel: serve panel HTML when logged in (from views folder to avoid static exposure)
 var viewsPath = path.join(__dirname, 'views');
-function sendControlsPanel(res) {
-  var panelPath = path.join(viewsPath, 'supplecontrols-panel.html');
-  require('fs').exists(panelPath, function (exists) {
+function sendControlsView(res, filename) {
+  var viewPath = path.join(viewsPath, filename || 'supplecontrols-panel.html');
+  require('fs').exists(viewPath, function (exists) {
     if (exists) {
-      res.sendFile(panelPath);
+      res.sendFile(viewPath);
     } else {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.send(
         '<!DOCTYPE html><html><head><title>Supple Controls</title></head><body>' +
-        '<h1>Supple Controls</h1><p>Panel view not found. Create views/supplecontrols-panel.html</p>' +
+        '<h1>Supple Controls</h1><p>View not found: ' + escapeHtmlControl(String(filename || '')) + '</p>' +
         '<a href="/supplecontrols/logout">Sign out</a></body></html>'
       );
     }
   });
+}
+
+function sendControlsPanel(res) {
+  sendControlsView(res, 'supplecontrols-panel.html');
+}
+
+function customerFromEstimateBuilderBody(raw) {
+  return documentBuilder.customerFromBuilderBody(raw);
+}
+
+function saveBuilderDocumentRow(accountId, body) {
+  var parsed = documentBuilder.normalizeSavePayload(body);
+  var documentType = String(body.documentType || 'estimate').toLowerCase();
+  if (documentType !== 'estimate' && documentType !== 'invoice') {
+    return Promise.reject(new Error('Invalid document type'));
+  }
+  if (!parsed.customer.name) return Promise.reject(new Error('Customer name is required'));
+  var payload = {
+    customer: parsed.customer,
+    fields: parsed.fields,
+    invoiceNumber: parsed.invoiceNumber || null
+  };
+  var row = {
+    account_id: accountId,
+    document_type: documentType,
+    title: documentBuilder.buildSaveTitle(parsed.customer, parsed.fields),
+    customer_name: parsed.customer.name,
+    payload: payload,
+    source_estimate_id: parsed.sourceEstimateId || null
+  };
+  var existingId = body.id ? String(body.id).trim() : '';
+  if (existingId) {
+    return supabase
+      .from('builder_document_saves')
+      .update(row)
+      .eq('id', existingId)
+      .eq('account_id', accountId)
+      .select()
+      .single();
+  }
+  return supabase.from('builder_document_saves').insert(row).select().single();
 }
 
 function devPdfSamplesEnabled() {
@@ -1138,8 +1194,12 @@ function finalizeSignedAgreementPdf(accountId, customerId, bundleId, bundleKey, 
           });
       };
       if (missing.length === 0) {
+        var dbVeh = vr.data && !vr.error ? vr.data : null;
+        var resolvedVeh = isEstimateBundle
+          ? estimatePdf.resolveVehicleForDocument(rf, dbVeh)
+          : dbVeh;
         var builder = isEstimateBundle ? estimatePdf.buildEstimatePdfBuffer : agreementPdf.buildAgreementPdfBuffer;
-        return builder(cr.data, vr.data && !vr.error ? vr.data : null, {
+        return builder(cr.data, resolvedVeh, {
             releaseFields: rf,
             customerSignature: { mode: mode, payload: payloadStr },
             signedDateStr: dateLabel,
@@ -1790,14 +1850,18 @@ app.post('/supplecontrols/api/services/:id/parts', controlsApiAuth, function (re
   getAccountThen(req, res, function (accountId) {
     supabase.from('services').select('id, customer_id').eq('id', serviceId).eq('account_id', accountId).single().then(function (r) {
       if (r.error || !r.data) return res.status(404).json({ error: 'Service not found' });
-      supabase.from('service_parts').insert({
+      var partRow = {
         service_id: serviceId,
         part_name: (body.part_name || '').trim() || 'Part',
         part_number: body.part_number ? String(body.part_number).trim() : null,
         quantity: parseFloat(body.quantity) || 1,
         unit_price: parseFloat(body.unit_price) || 0,
         notes: body.notes ? String(body.notes).trim() : null
-      }).select().single().then(function (p) {
+      };
+      if (body.unit_cost !== undefined && body.unit_cost !== null && String(body.unit_cost).trim() !== '') {
+        partRow.unit_cost = parseFloat(body.unit_cost) || 0;
+      }
+      supabase.from('service_parts').insert(partRow).select().single().then(function (p) {
         if (p.error) return controlsJson(new Error(p.error.message), res);
         sendAccountUpdateByCustomerId(r.data.customer_id, 'Parts were added to a service on your account.');
         res.status(201).json(p.data);
@@ -1817,7 +1881,7 @@ app.patch('/supplecontrols/api/service-parts/:id', controlsApiAuth, function (re
       supabase.from('services').select('id, customer_id').eq('id', part.service_id).eq('account_id', accountId).single().then(function (s) {
         if (s.error || !s.data) return res.status(404).json({ error: 'Service not found' });
         var upd = {};
-        ['part_name', 'part_number', 'quantity', 'unit_price', 'notes'].forEach(function (k) {
+        ['part_name', 'part_number', 'quantity', 'unit_price', 'unit_cost', 'notes'].forEach(function (k) {
           if (body[k] !== undefined) upd[k] = body[k];
         });
         if (Object.keys(upd).length === 0) return res.json(part);
@@ -1950,19 +2014,48 @@ function loadServiceInvoiceBundle(serviceId, accountId) {
     });
 }
 
+function applyVehicleOverrideToInvoiceBundle(bundle, body) {
+  if (!bundle) return bundle;
+  var vehicleInput = body && body.vehicle ? body.vehicle : body;
+  bundle.vehicle = vehicleReleaseFields.resolveVehicleForDocument(vehicleInput || {}, bundle.vehicle);
+  return bundle;
+}
+
+function sendInvoicePdfResponse(res, bundle, filename) {
+  var invNo = filename || 'invoice-preview.pdf';
+  return buildInvoicePdfBuffer(bundle).then(function (buf) {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Content-Disposition', 'inline; filename="' + String(invNo).replace(/"/g, '') + '"');
+    res.send(buf);
+  });
+}
+
 app.get('/supplecontrols/api/services/:id/invoice.pdf', controlsApiAuth, function (req, res) {
   var serviceId = req.params.id;
   if (!supabase) return res.status(503).send('Database not configured');
   getAccountThen(req, res, function (accountId) {
     loadServiceInvoiceBundle(serviceId, accountId)
       .then(function (bundle) {
+        applyVehicleOverrideToInvoiceBundle(bundle, req.query || {});
         var invNo = 'PREVIEW-' + String(serviceId).replace(/-/g, '').slice(0, 8).toUpperCase();
-        return buildInvoicePdfBuffer(Object.assign({ invoiceNumber: invNo }, bundle));
+        return sendInvoicePdfResponse(res, Object.assign({ invoiceNumber: invNo }, bundle), 'invoice-preview.pdf');
       })
-      .then(function (buf) {
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', 'inline; filename="invoice-preview.pdf"');
-        res.send(buf);
+      .catch(function (err) {
+        res.status(err.message === 'Service not found' ? 404 : 500).send(err.message || 'Error');
+      });
+  });
+});
+
+app.post('/supplecontrols/api/services/:id/invoice.pdf', controlsApiAuth, function (req, res) {
+  var serviceId = req.params.id;
+  if (!supabase) return res.status(503).send('Database not configured');
+  getAccountThen(req, res, function (accountId) {
+    loadServiceInvoiceBundle(serviceId, accountId)
+      .then(function (bundle) {
+        applyVehicleOverrideToInvoiceBundle(bundle, (req.body && req.body.vehicle) || req.body || {});
+        var invNo = 'PREVIEW-' + String(serviceId).replace(/-/g, '').slice(0, 8).toUpperCase();
+        return sendInvoicePdfResponse(res, Object.assign({ invoiceNumber: invNo }, bundle), 'invoice-preview.pdf');
       })
       .catch(function (err) {
         res.status(err.message === 'Service not found' ? 404 : 500).send(err.message || 'Error');
@@ -1976,10 +2069,12 @@ app.post('/supplecontrols/api/services/:id/invoices/submit', controlsApiAuth, fu
   getAccountThen(req, res, function (accountId) {
     loadServiceInvoiceBundle(serviceId, accountId)
       .then(function (bundle) {
+        applyVehicleOverrideToInvoiceBundle(bundle, (req.body && req.body.vehicle) || req.body || {});
         var d = new Date();
         var mo = d.getMonth() + 1;
         var dy = d.getDate();
         var invNo = 'INV-' + d.getFullYear() + (mo < 10 ? '0' : '') + mo + (dy < 10 ? '0' : '') + dy + '-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+        var receiptTrackerWarning = null;
         return buildInvoicePdfBuffer(Object.assign({ invoiceNumber: invNo }, bundle))
           .then(function (buf) {
             var bucket = 'invoices';
@@ -2000,9 +2095,31 @@ app.post('/supplecontrols/api/services/:id/invoices/submit', controlsApiAuth, fu
                 pdf_url: url
               }).select().single().then(function (ins) {
                 if (ins.error) throw new Error(ins.error.message || 'Save failed');
-                res.status(201).json(ins.data);
+                return googleReceiptTracker
+                  .appendInvoicePartRows({
+                    invoiceNumber: invNo,
+                    customer: bundle.customer,
+                    parts: bundle.parts,
+                    invoiceDate: d
+                  })
+                  .then(function (sheetResult) {
+                    if (sheetResult && sheetResult.skipped && sheetResult.reason === 'no_parts') {
+                      receiptTrackerWarning = 'Invoice submitted; no parts on this service, so the receipt tracker sheet was not updated.';
+                    }
+                    return ins.data;
+                  })
+                  .catch(function (sheetErr) {
+                    console.error('Receipt tracker sheet update failed:', sheetErr);
+                    receiptTrackerWarning = 'Invoice submitted, but the Google receipt tracker could not be updated.';
+                    return ins.data;
+                  });
               });
             });
+          })
+          .then(function (invoiceRow) {
+            var payload = invoiceRow;
+            if (receiptTrackerWarning) payload = Object.assign({}, invoiceRow, { receiptTrackerWarning: receiptTrackerWarning });
+            res.status(201).json(payload);
           });
       })
       .catch(function (err) {
@@ -2051,6 +2168,267 @@ app.get('/supplecontrols/api/estimate-release-options', controlsApiAuth, functio
     requiresEstimateFields: true,
     fieldSpec: estimatePdf.ESTIMATE_RELEASE_FIELD_SPEC
   });
+});
+
+app.post('/supplecontrols/api/estimate-builder/preview', controlsApiAuth, function (req, res) {
+  var body = req.body || {};
+  var customer = customerFromEstimateBuilderBody(body.customer);
+  var fields = (body && body.fields) || {};
+  if (!customer.name) {
+    return res.status(400).json({ error: 'Customer name is required.', missing: ['customer.name'] });
+  }
+  var missing = estimatePdf.validateEstimateReleaseFieldsComplete(fields);
+  if (missing.length) {
+    return res.status(400).json({
+      error: 'Every estimate field is required before generating the document.',
+      missing: missing
+    });
+  }
+  var normalized = estimatePdf.normalizeEstimateReleaseFields(fields);
+  var resolvedVeh = estimatePdf.resolveVehicleForDocument(normalized, null);
+  estimatePdf
+    .buildEstimatePdfBuffer(customer, resolvedVeh, { releaseFields: normalized })
+    .then(function (pdfBuf) {
+      if (!Buffer.isBuffer(pdfBuf)) {
+        throw new Error('Estimate PDF could not be generated');
+      }
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Cache-Control', 'private, no-store');
+      var saved = customerExportFiles.trySaveCustomerExport({
+        documentType: 'estimate',
+        customer: customer,
+        extension: 'pdf',
+        content: pdfBuf
+      });
+      customerExportFiles.attachExportHeaders(res, saved);
+      res.send(pdfBuf);
+    })
+    .catch(function (err) {
+      if (!res.headersSent) controlsJson(err, res);
+    });
+});
+
+app.get('/supplecontrols/api/document-builder/saves', controlsApiAuth, function (req, res) {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  var docType = String((req.query && req.query.type) || 'estimate').toLowerCase();
+  if (docType !== 'estimate' && docType !== 'invoice') {
+    return res.status(400).json({ error: 'Invalid type' });
+  }
+  getAccountThen(req, res, function (accountId) {
+    supabase
+      .from('builder_document_saves')
+      .select('id, title, customer_name, document_type, source_estimate_id, created_at, updated_at')
+      .eq('account_id', accountId)
+      .eq('document_type', docType)
+      .order('updated_at', { ascending: false })
+      .limit(100)
+      .then(function (r) {
+        if (r.error) return controlsJson(new Error(r.error.message), res);
+        res.json({ saves: r.data || [] });
+      })
+      .catch(function (err) {
+        controlsJson(err, res);
+      });
+  });
+});
+
+app.get('/supplecontrols/api/document-builder/saves/:id', controlsApiAuth, function (req, res) {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  var saveId = req.params.id;
+  getAccountThen(req, res, function (accountId) {
+    supabase
+      .from('builder_document_saves')
+      .select('*')
+      .eq('id', saveId)
+      .eq('account_id', accountId)
+      .single()
+      .then(function (r) {
+        if (r.error || !r.data) return res.status(404).json({ error: 'Saved document not found' });
+        var row = r.data;
+        var payload = row.payload || {};
+        res.json({
+          id: row.id,
+          documentType: row.document_type,
+          title: row.title,
+          customerName: row.customer_name,
+          sourceEstimateId: row.source_estimate_id,
+          customer: payload.customer || {},
+          fields: payload.fields || {},
+          invoiceNumber: payload.invoiceNumber || null,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at
+        });
+      })
+      .catch(function (err) {
+        controlsJson(err, res);
+      });
+  });
+});
+
+app.post('/supplecontrols/api/document-builder/saves', controlsApiAuth, function (req, res) {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  var body = req.body || {};
+  getAccountThen(req, res, function (accountId) {
+    saveBuilderDocumentRow(accountId, body)
+      .then(function (r) {
+        if (r.error) throw new Error(r.error.message || 'Save failed');
+        res.status(body.id ? 200 : 201).json(r.data);
+      })
+      .catch(function (err) {
+        controlsJson(err, res);
+      });
+  });
+});
+
+app.get('/supplecontrols/api/invoice-builder/next-invoice-number', controlsApiAuth, function (req, res) {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  getAccountThen(req, res, function (accountId) {
+    invoiceNumberLib
+      .getNextInvoiceNumber(supabase, accountId)
+      .then(function (invoiceNumber) {
+        res.json({ invoiceNumber: invoiceNumber });
+      })
+      .catch(function (err) {
+        controlsJson(err, res);
+      });
+  });
+});
+
+app.post('/supplecontrols/api/invoice-builder/preview', controlsApiAuth, function (req, res) {
+  var body = req.body || {};
+  var customer = customerFromEstimateBuilderBody(body.customer);
+  var fields = (body && body.fields) || {};
+  if (!customer.name) {
+    return res.status(400).json({ error: 'Customer name is required.', missing: ['customer.name'] });
+  }
+  var missing = estimatePdf.validateEstimateReleaseFieldsComplete(fields);
+  if (missing.length) {
+    return res.status(400).json({
+      error: 'Fill in all required fields before generating the invoice.',
+      missing: missing
+    });
+  }
+  var bundle = documentBuilder.builderFieldsToInvoiceBundle(customer, fields);
+  var invNo = String(body.invoiceNumber || '').trim() || 'DRAFT';
+  buildInvoicePdfBuffer(Object.assign({ invoiceNumber: invNo }, bundle))
+    .then(function (pdfBuf) {
+      if (!Buffer.isBuffer(pdfBuf)) throw new Error('Invoice PDF could not be generated');
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Cache-Control', 'private, no-store');
+      var saved = customerExportFiles.trySaveCustomerExport({
+        documentType: 'invoice',
+        customer: customer,
+        invoiceNumber: invNo,
+        extension: 'pdf',
+        content: pdfBuf
+      });
+      customerExportFiles.attachExportHeaders(res, saved);
+      res.send(pdfBuf);
+    })
+    .catch(function (err) {
+      if (!res.headersSent) controlsJson(err, res);
+    });
+});
+
+app.post('/supplecontrols/api/invoice-builder/export-spreadsheet', controlsApiAuth, function (req, res) {
+  var body = req.body || {};
+  var customer = customerFromEstimateBuilderBody(body.customer);
+  var fields = (body && body.fields) || {};
+  if (!customer.name) {
+    return res.status(400).json({ error: 'Customer name is required.', missing: ['customer.name'] });
+  }
+  if (!googleReceiptTracker.isConfigured()) {
+    return res.status(503).json({ error: 'Google Receipt Tracker is not configured. Set Google service account env vars.' });
+  }
+  var missing = estimatePdf.validateEstimateReleaseFieldsComplete(fields);
+  if (missing.length) {
+    return res.status(400).json({
+      error: 'Fill in all required fields before exporting to the spreadsheet.',
+      missing: missing
+    });
+  }
+  var bundle = documentBuilder.builderFieldsToInvoiceBundle(customer, fields);
+  if (!bundle.parts.length) {
+    return res.status(400).json({ error: 'Add at least one part before exporting to the spreadsheet.' });
+  }
+  var invNo = String(body.invoiceNumber || '').trim() || 'DRAFT';
+  googleReceiptTracker
+    .appendInvoicePartRows({
+      invoiceNumber: invNo,
+      customer: bundle.customer,
+      parts: bundle.parts,
+      invoiceDate: new Date()
+    })
+    .then(function (result) {
+      if (result && result.skipped) {
+        return res.status(400).json({ error: 'No parts to export.' });
+      }
+      var rows = googleReceiptTracker.buildPartRows({
+        invoiceNumber: invNo,
+        customer: bundle.customer,
+        parts: bundle.parts,
+        invoiceDate: new Date()
+      });
+      var csvSaved = customerExportFiles.trySaveCustomerExport({
+        documentType: 'invoice',
+        customer: customer,
+        invoiceNumber: invNo,
+        extension: 'csv',
+        suffix: '-spreadsheet',
+        content: customerExportFiles.buildSpreadsheetCsv(rows)
+      });
+      var payload = {
+        ok: true,
+        rowCount: result.rowCount,
+        updatedRange: result.updatedRange
+      };
+      if (csvSaved.ok) {
+        payload.savedExport = {
+          path: csvSaved.result.path,
+          filename: csvSaved.result.filename,
+          displayPath: customerExportFiles.displayPath(csvSaved.result.path)
+        };
+      }
+      res.json(payload);
+    })
+    .catch(function (err) {
+      var msg = err && err.message ? String(err.message) : 'Export failed';
+      if (/private key|service account|GOOGLE_SERVICE_ACCOUNT|not configured|API key/i.test(msg)) {
+        return res.status(503).json({ error: msg });
+      }
+      controlsJson(err, res);
+    });
+});
+
+app.post('/supplecontrols/api/export/save-customer-file', controlsApiAuth, function (req, res) {
+  var body = req.body || {};
+  var customer = customerFromEstimateBuilderBody(body.customer);
+  if (!customer.name) {
+    return res.status(400).json({ error: 'Customer name is required.' });
+  }
+  if (!body.contentBase64) {
+    return res.status(400).json({ error: 'Export content is required.' });
+  }
+  try {
+    var saved = customerExportFiles.saveCustomerExport({
+      documentType: body.documentType,
+      customer: customer,
+      invoiceNumber: body.invoiceNumber,
+      extension: body.extension || 'bin',
+      pageSuffix: body.pageSuffix || '',
+      suffix: body.suffix || '',
+      contentBase64: body.contentBase64
+    });
+    res.json({
+      ok: true,
+      path: saved.path,
+      filename: saved.filename,
+      directory: saved.directory,
+      displayPath: customerExportFiles.displayPath(saved.path)
+    });
+  } catch (err) {
+    controlsJson(err, res);
+  }
 });
 
 app.post(
@@ -2143,8 +2521,11 @@ app.post(
             .limit(1)
             .maybeSingle()
             .then(function (vr) {
-              return estimatePdf.buildEstimatePdfBuffer(cust, vr.data && !vr.error ? vr.data : null, {
-                releaseFields: estimatePdf.normalizeEstimateReleaseFields(fields)
+              var dbVeh = vr.data && !vr.error ? vr.data : null;
+              var normalized = estimatePdf.normalizeEstimateReleaseFields(fields);
+              var resolvedVeh = estimatePdf.resolveVehicleForDocument(normalized, dbVeh);
+              return estimatePdf.buildEstimatePdfBuffer(cust, resolvedVeh, {
+                releaseFields: normalized
               });
             })
             .then(function (pdfBuf) {
@@ -2251,8 +2632,12 @@ app.post('/supplecontrols/api/customers/:customerId/signature-bundles/release', 
             .limit(1)
             .maybeSingle()
             .then(function (vr) {
+              var dbVeh = vr.data || null;
+              var resolvedVeh = isEstimateBundle
+                ? estimatePdf.resolveVehicleForDocument(normalizedFields, dbVeh)
+                : dbVeh;
               var builder = isEstimateBundle ? estimatePdf.buildEstimatePdfBuffer : agreementPdf.buildAgreementPdfBuffer;
-              return builder(releaseCustomerRow, vr.data || null, {
+              return builder(releaseCustomerRow, resolvedVeh, {
                 releaseFields: normalizedFields
               });
             })

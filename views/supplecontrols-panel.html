@@ -108,6 +108,10 @@
     .starter-field-label-text { display: block; font-size: 0.85rem; color: #bbb; margin-bottom: 0.35rem; }
     .starter-field-input { width: 100%; max-width: 100%; }
     .starter-field-input-text { max-width: 420px; }
+    .starter-section-title { font-size: 0.95rem; font-weight: 600; color: #ddd; margin: 1rem 0 0.65rem; padding-bottom: 0.35rem; border-bottom: 1px solid #333; }
+    .invoice-vehicle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.65rem; margin-bottom: 1rem; }
+    .invoice-vehicle-grid label { display: block; font-size: 0.75rem; color: #999; margin-bottom: 0.25rem; }
+    .invoice-vehicle-grid input { width: 100%; box-sizing: border-box; }
     .starter-service-block { background: #252525; border: 1px solid #333; border-radius: 6px; padding: 0.85rem; margin-bottom: 0.75rem; }
     .starter-service-head { display: grid; grid-template-columns: 1fr 120px auto; gap: 0.5rem; align-items: center; margin-bottom: 0.65rem; }
     .starter-service-parts { margin-left: 0.35rem; padding-left: 0.75rem; border-left: 2px solid #333; }
@@ -154,6 +158,8 @@
       <button type="button" id="searchBtn">Search</button>
     </div>
     <button type="button" class="btn-doc-release" id="documentReleaseBtn">Document release</button>
+    <a href="/supplecontrols/estimate-builder" class="btn-doc-release" style="display:inline-block;text-decoration:none;text-align:center;line-height:1.2;">Estimate builder</a>
+    <a href="/supplecontrols/invoice-builder" class="btn-doc-release" style="display:inline-block;text-decoration:none;text-align:center;line-height:1.2;">Invoice builder</a>
     <button type="button" class="btn-email-template" id="emailTemplateBtn">Email template</button>
   </div>
   <div id="customerList"></div>
@@ -203,7 +209,10 @@
   <div class="modal-box" id="invoiceModalBox" style="display: none;">
     <button type="button" class="modal-close" id="invoiceModalClose" aria-label="Close">&times;</button>
     <h2 style="margin:0 0 1rem;font-size:1.1rem;">Invoice preview</h2>
-    <p style="font-size:0.8rem;color:#999;margin:0 0 0.75rem;">Review the PDF below, then submit to add it to this customer&rsquo;s Documents in the user portal.</p>
+    <p style="font-size:0.8rem;color:#999;margin:0 0 0.75rem;">Enter or edit vehicle information for the receipt, update the preview, then submit to add it to this customer&rsquo;s Documents in the user portal.</p>
+    <div class="starter-section-title" style="margin-top:0;">Vehicle information</div>
+    <div id="invoiceVehicleFields" class="invoice-vehicle-grid"></div>
+    <button type="button" class="btn btn-ghost" id="invoiceUpdatePreview" style="margin-bottom:0.75rem;">Update preview</button>
     <iframe id="invoicePdfFrame" title="Invoice PDF"></iframe>
     <div class="invoice-modal-actions">
       <a href="#" id="invoiceOpenTab" class="btn btn-ghost" target="_blank" rel="noopener">Open PDF in new tab</a>
@@ -262,6 +271,78 @@
     var invoiceSubmitCustomer = document.getElementById('invoiceSubmitCustomer');
     var invoiceContextServiceId = null;
     var invoiceContextCustomerId = null;
+    var invoicePreviewBlobUrl = null;
+    var VEHICLE_FORM_KEYS = [
+      { key: 'vehicle_year', label: 'Year' },
+      { key: 'vehicle_make', label: 'Make' },
+      { key: 'vehicle_model', label: 'Model' },
+      { key: 'vehicle_trim', label: 'Engine / trim' },
+      { key: 'vehicle_vin', label: 'VIN' },
+      { key: 'vehicle_license_plate', label: 'License plate' },
+      { key: 'vehicle_mileage', label: 'Odometer' }
+    ];
+
+    function dbVehicleToFormValues(vehicle) {
+      var v = vehicle || {};
+      return {
+        vehicle_year: v.year != null && v.year !== '' ? String(v.year) : '',
+        vehicle_make: String(v.make || '').trim(),
+        vehicle_model: String(v.model || '').trim(),
+        vehicle_trim: String(v.trim || '').trim(),
+        vehicle_vin: String(v.vin || '').trim(),
+        vehicle_license_plate: String(v.license_plate || '').trim(),
+        vehicle_mileage: v.mileage != null && v.mileage !== '' ? String(v.mileage) : ''
+      };
+    }
+
+    function renderInvoiceVehicleFields(values) {
+      var wrap = document.getElementById('invoiceVehicleFields');
+      if (!wrap) return;
+      values = values || {};
+      wrap.innerHTML = VEHICLE_FORM_KEYS.map(function (f) {
+        var id = 'inv-' + f.key;
+        var val = values[f.key] != null ? String(values[f.key]) : '';
+        return '<div><label for="' + esc(id) + '">' + esc(f.label) + '</label>' +
+          '<input type="text" id="' + esc(id) + '" value="' + esc(val).replace(/"/g, '&quot;') + '" /></div>';
+      }).join('');
+    }
+
+    function collectInvoiceVehicleFields() {
+      var out = {};
+      VEHICLE_FORM_KEYS.forEach(function (f) {
+        var el = document.getElementById('inv-' + f.key);
+        out[f.key] = el ? el.value.trim() : '';
+      });
+      return out;
+    }
+
+    function revokeInvoicePreviewBlob() {
+      if (invoicePreviewBlobUrl) {
+        URL.revokeObjectURL(invoicePreviewBlobUrl);
+        invoicePreviewBlobUrl = null;
+      }
+    }
+
+    function refreshInvoicePreview() {
+      if (!invoiceContextServiceId) return Promise.resolve();
+      revokeInvoicePreviewBlob();
+      var vehicle = collectInvoiceVehicleFields();
+      return fetch('/supplecontrols/api/services/' + encodeURIComponent(invoiceContextServiceId) + '/invoice.pdf', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vehicle: vehicle })
+      })
+        .then(function (r) {
+          if (!r.ok) return r.text().then(function (t) { throw new Error(t || 'Preview failed'); });
+          return r.blob();
+        })
+        .then(function (blob) {
+          invoicePreviewBlobUrl = URL.createObjectURL(blob);
+          if (invoicePdfFrame) invoicePdfFrame.src = invoicePreviewBlobUrl;
+          if (invoiceOpenTab) invoiceOpenTab.href = invoicePreviewBlobUrl;
+        });
+    }
     var customerEmailBackdrop = document.getElementById('customerEmailBackdrop');
     var customerEmailBox = document.getElementById('customerEmailBox');
     var customerEmailClose = document.getElementById('customerEmailClose');
@@ -436,7 +517,7 @@
       html += '<div class="form-row"><div><label>Phone</label><input type="tel" id="editPhone" value="' + formatPhone(c.phone) + '"></div><div><label>Address</label><input type="text" id="editAddress" value="' + esc(c.address_line1 || '') + '" placeholder="Street"></div></div>';
       html += '<div class="form-row"><div><label>City</label><input type="text" id="editCity" value="' + esc(c.city || '') + '"></div><div><label>State / ZIP</label><input type="text" id="editStateZip" value="' + esc([c.state, c.postal_code].filter(Boolean).join(' ')) + '"></div></div>';
       html += '<div class="form-row one"><div><label>Notes</label><textarea id="editNotes" rows="2">' + esc(c.notes || '') + '</textarea></div></div>';
-      html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;"><button type="button" class="btn btn-primary" id="saveDetails">Save details</button><button type="button" class="btn btn-ghost" id="emailCustomerBtn">Email customer</button></div></div>';
+      html += '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;"><button type="button" class="btn btn-primary" id="saveDetails">Save details</button><button type="button" class="btn btn-ghost" id="emailCustomerBtn">Email customer</button><a class="btn btn-ghost" href="/supplecontrols/estimate-builder?customerId=' + esc(customerId) + '" style="text-decoration:none;line-height:1.35;">Estimate builder</a></div></div>';
 
       html += '<div class="section"><div class="section-title">Vehicles</div>';
       vehicles.forEach(function (v) {
@@ -764,11 +845,12 @@
           if (!sid) return;
           invoiceContextServiceId = sid;
           invoiceContextCustomerId = customerId;
-          var pdfUrl = '/supplecontrols/api/services/' + encodeURIComponent(sid) + '/invoice.pdf';
-          if (invoicePdfFrame) invoicePdfFrame.src = pdfUrl;
-          if (invoiceOpenTab) invoiceOpenTab.href = pdfUrl;
+          var svc = services.find(function (x) { return x.id === sid; });
+          var veh = svc && svc.vehicle_id ? vehicles.find(function (x) { return x.id === svc.vehicle_id; }) : (vehicles[0] || null);
+          renderInvoiceVehicleFields(dbVehicleToFormValues(veh));
           if (invoiceModalBackdrop) { invoiceModalBackdrop.style.display = 'block'; invoiceModalBackdrop.classList.add('open'); }
           if (invoiceModalBox) invoiceModalBox.style.display = 'block';
+          refreshInvoicePreview().catch(function (e) { showToast(e.message || 'Could not load preview', true); });
         });
       });
     }
@@ -776,8 +858,10 @@
     function closeInvoiceModal() {
       if (invoiceModalBackdrop) { invoiceModalBackdrop.style.display = 'none'; invoiceModalBackdrop.classList.remove('open'); }
       if (invoiceModalBox) invoiceModalBox.style.display = 'none';
+      revokeInvoicePreviewBlob();
       if (invoicePdfFrame) invoicePdfFrame.src = 'about:blank';
       invoiceContextServiceId = null;
+      invoiceContextCustomerId = null;
     }
 
     function openEmailTemplateModal() {
@@ -799,6 +883,15 @@
 
     if (invoiceModalClose) invoiceModalClose.addEventListener('click', closeInvoiceModal);
     if (invoiceModalBackdrop) invoiceModalBackdrop.addEventListener('click', closeInvoiceModal);
+    var invoiceUpdatePreviewBtn = document.getElementById('invoiceUpdatePreview');
+    if (invoiceUpdatePreviewBtn) {
+      invoiceUpdatePreviewBtn.addEventListener('click', function () {
+        invoiceUpdatePreviewBtn.disabled = true;
+        refreshInvoicePreview()
+          .catch(function (e) { showToast(e.message || 'Preview failed', true); })
+          .finally(function () { invoiceUpdatePreviewBtn.disabled = false; });
+      });
+    }
 
     if (invoiceSubmitCustomer) {
       invoiceSubmitCustomer.addEventListener('click', function () {
@@ -808,12 +901,13 @@
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
-          body: '{}'
+          body: JSON.stringify({ vehicle: collectInvoiceVehicleFields() })
         })
           .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Submit failed'); return d; }); })
-          .then(function () {
+          .then(function (data) {
             var cid = invoiceContextCustomerId;
-            showToast('Invoice submitted. Customer will see it under Documents.');
+            if (data && data.receiptTrackerWarning) showToast(data.receiptTrackerWarning, true);
+            else showToast('Invoice submitted. Customer will see it under Documents.');
             closeInvoiceModal();
             if (cid) openCustomer(cid);
           })
@@ -961,9 +1055,18 @@
       starterWizardPreviewPath = '/supplecontrols/api/customers/:customerId/signature-bundles/preview-agreement';
     }
 
+    function prefillStarterVehicleFields(vehicle) {
+      var map = dbVehicleToFormValues(vehicle);
+      Object.keys(map).forEach(function (k) {
+        var el = document.getElementById('starter-field-' + k);
+        if (el) el.value = map[k];
+      });
+    }
+
     function collectStarterFields() {
       var fields = {};
       releaseFieldSpec.forEach(function (f) {
+        if (f.isSection) return;
         if (f.isCollection) {
           var rows = [];
           if (f.collectionType === 'service_group') {
@@ -1173,6 +1276,9 @@
       }
       var mounts = [];
       starterWizardFields.innerHTML = releaseFieldSpec.map(function (f) {
+        if (f.isSection) {
+          return '<div class="starter-section-title">' + esc(f.label) + '</div>';
+        }
         var id = 'starter-field-' + f.key;
         var defVal = f.defaultValue != null && f.defaultValue !== '' ? String(f.defaultValue) : '';
         if (f.isCollection) {
@@ -1187,7 +1293,7 @@
       }).join('');
       mounts.forEach(function (fn) { fn(); });
       releaseFieldSpec.forEach(function (f) {
-        if (f.isCollection) return;
+        if (f.isCollection || f.isSection) return;
         var el = document.getElementById('starter-field-' + f.key);
         if (el) el.addEventListener('input', invalidateStarterPreview);
       });
@@ -1271,11 +1377,17 @@
           starterWizardPreviewPath = '/supplecontrols/api/customers/:customerId/signature-bundles/preview-estimate';
           if (starterWizardTitle) starterWizardTitle.textContent = 'Create & Send Estimate';
           if (starterWizardIntro) {
-            starterWizardIntro.textContent = 'Set labor rate and parts tax, then add services with labor hours. Attach parts to each service with their cost. Generate a preview, review the California BAR estimate, then submit for customer signature.';
+            starterWizardIntro.textContent = 'Set labor rate, parts tax, and vehicle information, then add services with labor hours. Attach parts to each service with their cost. Generate a preview, review the California BAR estimate, then submit for customer signature.';
           }
           if (starterWizardSubmitBtn) starterWizardSubmitBtn.textContent = 'Send estimate for signing';
           renderStarterFieldForm();
           invalidateStarterPreview();
+          return api('/customers/' + docReleaseSelectedId).then(function (custData) {
+            var vehList = (custData && custData.vehicles) || [];
+            prefillStarterVehicleFields(vehList[0] || null);
+          });
+        })
+        .then(function () {
           if (starterWizardBackdrop) {
             starterWizardBackdrop.style.display = 'block';
             starterWizardBackdrop.classList.add('open');

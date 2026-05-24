@@ -95,3 +95,23 @@ The **Pay Now** button on the Payment Portal redirects customers to Stripe Check
 | `STRIPE_WEBHOOK_SECRET` | Webhook signing secret from the Stripe Dashboard. Create a webhook endpoint with URL `https://your-domain.com/api/stripe-webhook` and event **checkout.session.completed**; copy the "Signing secret" (starts with `whsec_...`) here. |
 
 **Local testing:** Use the Stripe CLI to forward webhooks: `stripe listen --forward-to localhost:3000/api/stripe-webhook`. Use the secret it prints as `STRIPE_WEBHOOK_SECRET`.
+
+## Google Receipt Tracker (invoice → spreadsheet)
+
+When you **Submit to customer** on an invoice in Supple Controls, the server appends one row per part on the service to the **Customer** tab of **Receipt Tracker - {year}** (columns B–I starting after the header row).
+
+Drive layout expected: **Supple Automotive** → **Receipts** → **{year}** → spreadsheet **Receipt Tracker - {year}**.
+
+| Variable | Description |
+|----------|-------------|
+| `GOOGLE_SERVICE_ACCOUNT_CLIENT_EMAIL` | Service account email (from Google Cloud JSON key). |
+| `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | Private key from JSON; use `\n` for line breaks in `.env`. |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Alternative: entire service account JSON on one line. |
+| `GOOGLE_RECEIPT_TRACKER_SPREADSHEET_ID` | Optional. Spreadsheet ID from the URL; skips Drive folder lookup. |
+| `GOOGLE_DRIVE_ROOT_FOLDER_ID` | Optional. Folder ID of **Supple Automotive** (shared with the service account). |
+| `GOOGLE_DRIVE_RECEIPTS_FOLDER_ID` | Optional. Folder ID of **Receipts** if you prefer not to use the root folder. |
+| `GOOGLE_RECEIPT_PARTS_TAX_PERCENT` | Parts sales tax % for the **Collected Sales Tax** column (default `7.25`). |
+
+**Setup:** Enable **Google Sheets API** and **Google Drive API** on your GCP project. Share the Drive folder with the service account as **Editor**. Add the same variables in **Vercel** → Project → Settings → Environment Variables.
+
+Apply migration **`20250523120000_service_parts_unit_cost.sql`** if you want to store shop **unit cost** on parts (`unit_cost`); otherwise that column is left blank in the sheet.
