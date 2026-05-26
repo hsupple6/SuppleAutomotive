@@ -161,7 +161,7 @@
       openPdfBtn.classList.remove('hidden');
       docTitle.textContent = meta.title || 'Document';
       docSubtitle.textContent = meta.customerName
-        ? 'Prepared for ' + meta.customerName + (meta.signedAt ? ' · Signed ' + formatSignedAt(meta.signedAt) : '')
+        ? 'Prepared for ' + meta.customerName + (meta.signedAt ? ' · Signed ' + new Date(meta.signedAt).toLocaleString() : '')
         : '';
 
       if (meta.requiresSignature) {
@@ -172,18 +172,12 @@
       return renderPdfInto(document.getElementById('pdfScroll'), pdfUrl);
     }
 
-    function formatSignedAt(iso) {
-      if (!iso) return '';
-      return new Date(iso).toLocaleString('en-US', { timeZone: 'America/Los_Angeles', timeZoneName: 'short' });
-    }
-
-    function afterSigned(signedAtIso) {
+    function afterSigned() {
       signSection.classList.add('hidden');
       viewSection.classList.remove('hidden');
       meta.requiresSignature = false;
       meta.isSigned = true;
-      if (signedAtIso) meta.signedAt = signedAtIso;
-      docSubtitle.textContent = 'Signed ' + formatSignedAt(meta.signedAt || new Date().toISOString());
+      docSubtitle.textContent = 'Signed ' + new Date().toLocaleString();
       return renderPdfInto(document.getElementById('pdfScroll'), apiBase + '/api/public-document/' + encodeURIComponent(token) + '/pdf');
     }
 
@@ -290,8 +284,8 @@
             return d;
           });
         })
-        .then(function (d) {
-          return afterSigned(d && d.signedAt);
+        .then(function () {
+          return afterSigned();
         })
         .then(function () {
           showEmailPrompt();

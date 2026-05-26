@@ -1110,11 +1110,12 @@ app.post('/api/signable-pdf', function (req, res) {
 
 function finalizeSignedAgreementPdf(accountId, customerId, bundleId, bundleKey, customerName, mode, payloadStr) {
   if (!supabase) return Promise.resolve();
-  var shopDatetime = require('./lib/shop-datetime');
-  var signedAt = new Date();
-  var signedAtLabel = shopDatetime.formatSignedDateTime(signedAt);
-  var dateLabel = shopDatetime.formatDocumentDate(signedAt);
-  var timeLabel = shopDatetime.formatDocumentTime(signedAt);
+  var signedAtLabel = new Date().toISOString();
+  var dateLabel = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
   return Promise.all([
     supabase
       .from('customer_signature_bundle_docs')
@@ -1204,7 +1205,7 @@ function finalizeSignedAgreementPdf(accountId, customerId, bundleId, bundleKey, 
             customerSignature: { mode: mode, payload: payloadStr },
             signedDateStr: dateLabel,
             authMethod: isEstimateBundle ? 'email' : undefined,
-            authTimeStr: isEstimateBundle ? timeLabel : undefined,
+            authTimeStr: isEstimateBundle ? new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : undefined,
             authEmailStr: isEstimateBundle ? String(cr.data.email || '').trim() : undefined,
             authPhoneStr: isEstimateBundle ? String(cr.data.phone || '').trim() : undefined
           })
