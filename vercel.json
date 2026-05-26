@@ -1,5 +1,7 @@
 {
   "rewrites": [
-    { "source": "/", "destination": "/index.html" }
+    { "source": "/supplecontrols", "destination": "/server.js" },
+    { "source": "/supplecontrols/:path*", "destination": "/server.js" },
+    { "source": "/api/:path*", "destination": "/server.js" }
   ]
 }

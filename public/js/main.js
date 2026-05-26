@@ -347,6 +347,8 @@
 
   setText('footerName', businessName);
   setText('footerYear', String(new Date().getFullYear()));
+  var footerNameLink = byId('footerNameLink');
+  if (footerNameLink) footerNameLink.setAttribute('href', '/supplecontrols');
 
   var telHref = 'tel:' + phoneDisplay.replace(/\s/g, '').replace(/[^\d+]/g, '');
   setHref('contactPhone', telHref);
