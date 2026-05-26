@@ -50,6 +50,7 @@
     .toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: #2a2a2a; border: 1px solid #444; color: #e5e5e5; padding: 0.75rem 1.25rem; border-radius: 6px; z-index: 1000; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
     .toast.error { border-color: #744; color: #f88; }
     #formErr { color: #f88; font-size: 0.85rem; margin: 0.75rem 0 0; display: none; }
+    .hidden { display: none !important; }
     @media (max-width: 960px) {
       .layout { grid-template-columns: 1fr; }
       .form-pane { border-right: none; border-bottom: 1px solid #252525; max-height: none; }
@@ -141,6 +142,15 @@
         <a href="#" class="btn btn-ghost" id="openPdfLink" target="_blank" rel="noopener" style="display:none;text-decoration:none;line-height:1.4;">Open PDF</a>
         <button type="button" class="btn btn-ghost" id="exportPngBtn" disabled>Export PNG</button>
         <button type="button" class="btn btn-ghost" id="exportSpreadsheetBtn">Export to spreadsheet</button>
+        <button type="button" class="btn btn-ghost" id="createReleaseLinkBtn">Release invoice link</button>
+      </div>
+      <div id="releaseLinkBox" class="hidden" style="margin-top:0.75rem;padding:0.65rem 0.75rem;background:#1a1a1a;border:1px solid #333;border-radius:8px;">
+        <label style="font-size:0.72rem;color:#888;display:block;margin-bottom:0.35rem;">Customer invoice link (view PDF)</label>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <input type="text" id="releaseLinkUrl" readonly style="flex:1;min-width:200px;padding:0.45rem 0.55rem;font-size:0.82rem;background:#111;border:1px solid #444;border-radius:6px;color:#ddd;" />
+          <button type="button" class="btn btn-ghost" id="copyReleaseLinkBtn">Copy</button>
+          <a href="#" class="btn btn-ghost" id="openReleaseLinkBtn" target="_blank" rel="noopener" style="text-decoration:none;line-height:1.4;">Open</a>
+        </div>
       </div>
       <iframe id="docPdfFrame" title="Invoice preview"></iframe>
     </div>
@@ -158,6 +168,9 @@
     var previewBtn = document.getElementById('previewBtn');
     var exportPngBtn = document.getElementById('exportPngBtn');
     var exportSpreadsheetBtn = document.getElementById('exportSpreadsheetBtn');
+    var createReleaseLinkBtn = document.getElementById('createReleaseLinkBtn');
+    var releaseLinkBox = document.getElementById('releaseLinkBox');
+    var releaseLinkUrl = document.getElementById('releaseLinkUrl');
     var openPdfLink = document.getElementById('openPdfLink');
     var docPdfFrame = document.getElementById('docPdfFrame');
     var customerSearchInput = document.getElementById('customerSearchInput');
@@ -664,6 +677,61 @@
       return api('/invoice-builder/next-invoice-number').then(function (data) {
         var invEl = document.getElementById('invoice-number');
         if (invEl && !invEl.value.trim()) invEl.value = (data && data.invoiceNumber) || '';
+      });
+    }
+
+    function showReleaseLink(url) {
+      if (!releaseLinkBox || !releaseLinkUrl) return;
+      releaseLinkUrl.value = url || '';
+      releaseLinkBox.classList.remove('hidden');
+      var openBtn = document.getElementById('openReleaseLinkBtn');
+      if (openBtn) openBtn.href = url || '#';
+    }
+
+    function createReleaseLink() {
+      showFormErr('');
+      if (createReleaseLinkBtn) createReleaseLinkBtn.disabled = true;
+      return api('/invoice-builder/create-release-link', {
+        method: 'POST',
+        body: {
+          customer: collectCustomer(),
+          fields: collectEstimateFields(),
+          invoiceNumber: (document.getElementById('invoice-number') || {}).value || ''
+        }
+      })
+        .then(function (d) {
+          showReleaseLink(d.url);
+          showToast('Invoice link ready — customer can view the PDF.');
+          return saveCurrentInvoice();
+        })
+        .then(function () {
+          if (navigator.clipboard && releaseLinkUrl && releaseLinkUrl.value) {
+            return navigator.clipboard.writeText(releaseLinkUrl.value).then(function () {
+              showToast('Link copied to clipboard.');
+            }).catch(function () {});
+          }
+        })
+        .catch(function (e) {
+          showFormErr(e.message || 'Could not create link');
+          showToast(e.message || 'Could not create link', true);
+        })
+        .finally(function () {
+          if (createReleaseLinkBtn) createReleaseLinkBtn.disabled = false;
+        });
+    }
+
+    if (createReleaseLinkBtn) createReleaseLinkBtn.addEventListener('click', createReleaseLink);
+    var copyReleaseLinkBtn = document.getElementById('copyReleaseLinkBtn');
+    if (copyReleaseLinkBtn) {
+      copyReleaseLinkBtn.addEventListener('click', function () {
+        if (!releaseLinkUrl || !releaseLinkUrl.value) return showToast('Release an invoice link first.', true);
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(releaseLinkUrl.value).then(function () {
+            showToast('Link copied.');
+          }).catch(function () {
+            showToast('Copy failed — select the link and copy manually.', true);
+          });
+        }
       });
     }
 

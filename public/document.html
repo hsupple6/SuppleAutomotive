@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Supple Automotive — Document</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #0f0f0f; color: #e8e8e8; min-height: 100vh; }
+    .bar { padding: 0.85rem 1.25rem; border-bottom: 1px solid #2a2a2a; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .bar h1 { margin: 0; font-size: 1rem; font-weight: 600; }
+    .bar p { margin: 0.2rem 0 0; font-size: 0.8rem; color: #888; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 1rem 1.25rem 3rem; }
+    .card { background: #1a1a1a; border: 1px solid #333; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
+    .pdf-scroll { max-height: 55vh; overflow: auto; background: #111; border-radius: 8px; padding: 0.5rem; }
+    .pdf-scroll canvas { display: block; margin: 0 auto 12px; max-width: 100%; height: auto; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .tabs button { background: #252525; border: 1px solid #444; color: #ccc; padding: 0.45rem 0.85rem; border-radius: 6px; cursor: pointer; }
+    .tabs button.active { background: #3a3a3a; color: #fff; border-color: #666; }
+    input[type="text"], input[type="email"] { width: 100%; padding: 0.55rem 0.65rem; border-radius: 6px; border: 1px solid #444; background: #111; color: #eee; font-size: 1rem; }
+    canvas#signCanvas { width: 100%; max-width: 480px; height: 140px; background: #fff; border-radius: 6px; display: block; touch-action: none; cursor: crosshair; }
+    .btn { display: inline-block; padding: 0.55rem 1rem; border-radius: 6px; border: none; font-size: 0.9rem; cursor: pointer; }
+    .btn-primary { background: #e8e8e8; color: #111; font-weight: 600; }
+    .btn-ghost { background: transparent; color: #aaa; border: 1px solid #444; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .err { color: #f87171; font-size: 0.88rem; margin: 0.5rem 0 0; }
+    .ok { color: #86efac; font-size: 0.88rem; }
+    .hidden { display: none !important; }
+    .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    label { font-size: 0.78rem; color: #888; display: block; margin-bottom: 0.35rem; }
+    .email-prompt { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #333; }
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <div>
+      <h1 id="docTitle">Document</h1>
+      <p id="docSubtitle"></p>
+    </div>
+    <a id="openPdfBtn" class="btn btn-ghost hidden" href="#" target="_blank" rel="noopener">Open PDF</a>
+  </header>
+  <main class="wrap">
+    <p id="loadErr" class="err hidden"></p>
+    <div id="viewSection" class="hidden">
+      <div class="card">
+        <div id="pdfScroll" class="pdf-scroll"></div>
+      </div>
+    </div>
+    <div id="signSection" class="hidden">
+      <div class="card">
+        <p style="margin:0 0 0.75rem;font-size:0.9rem;color:#aaa;">Review the estimate below, then sign to approve.</p>
+        <div id="signPdfScroll" class="pdf-scroll" style="max-height:40vh;"></div>
+      </div>
+      <div class="card">
+        <div class="tabs">
+          <button type="button" id="tabType" class="active">Type signature</button>
+          <button type="button" id="tabDraw">Draw signature</button>
+        </div>
+        <div id="typePanel">
+          <label for="typedName">Type your full legal name</label>
+          <input type="text" id="typedName" autocomplete="name" placeholder="Full name" />
+        </div>
+        <div id="drawPanel" class="hidden">
+          <label>Draw your signature</label>
+          <canvas id="signCanvas" width="480" height="140"></canvas>
+          <div class="actions"><button type="button" class="btn btn-ghost" id="clearCanvas">Clear</button></div>
+        </div>
+        <p id="signErr" class="err hidden"></p>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="submitSignBtn">Submit signature</button>
+        </div>
+      </div>
+    </div>
+    <div id="emailSection" class="hidden">
+      <div class="card email-prompt">
+        <p style="margin:0 0 0.75rem;">Would you like a copy emailed to you?</p>
+        <div id="emailForm">
+          <label for="copyEmail">Email address</label>
+          <input type="email" id="copyEmail" placeholder="you@example.com" />
+          <div class="actions" style="margin-top:0.75rem;">
+            <button type="button" class="btn btn-primary" id="sendEmailBtn">Send copy</button>
+            <button type="button" class="btn btn-ghost" id="skipEmailBtn">No thanks</button>
+          </div>
+          <p id="emailErr" class="err hidden"></p>
+        </div>
+        <p id="doneMsg" class="ok hidden"></p>
+      </div>
+    </div>
+  </main>
+  <script>
+  (function () {
+    var params = new URLSearchParams(window.location.search);
+    var token = params.get('t') || '';
+    var apiBase = '';
+    var meta = null;
+    var useDraw = false;
+    var drawing = false;
+
+    var loadErr = document.getElementById('loadErr');
+    var docTitle = document.getElementById('docTitle');
+    var docSubtitle = document.getElementById('docSubtitle');
+    var viewSection = document.getElementById('viewSection');
+    var signSection = document.getElementById('signSection');
+    var emailSection = document.getElementById('emailSection');
+    var openPdfBtn = document.getElementById('openPdfBtn');
+    var signCanvas = document.getElementById('signCanvas');
+
+    function showErr(el, msg) {
+      if (!el) return;
+      el.textContent = msg || '';
+      el.hidden = !msg;
+    }
+
+    function renderPdfInto(container, pdfUrl) {
+      if (!container || typeof pdfjsLib === 'undefined') return Promise.reject(new Error('PDF viewer unavailable'));
+      container.innerHTML = '';
+      return fetch(pdfUrl).then(function (r) {
+        if (!r.ok) throw new Error('Could not load PDF');
+        return r.arrayBuffer();
+      }).then(function (buf) {
+        return pdfjsLib.getDocument({ data: buf }).promise;
+      }).then(function (pdf) {
+        var chain = Promise.resolve();
+        for (var p = 1; p <= pdf.numPages; p++) {
+          (function (pageNum) {
+            chain = chain.then(function () {
+              return pdf.getPage(pageNum).then(function (page) {
+                var viewport = page.getViewport({ scale: 1.2 });
+                var canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                return page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise.then(function () {
+                  container.appendChild(canvas);
+                });
+              });
+            });
+          })(p);
+        }
+        return chain;
+      });
+    }
+
+    function loadMeta() {
+      if (!token) {
+        showErr(loadErr, 'Invalid link — missing document token.');
+        return Promise.reject(new Error('no token'));
+      }
+      return fetch(apiBase + '/api/public-document/' + encodeURIComponent(token))
+        .then(function (r) {
+          return r.json().then(function (d) {
+            if (!r.ok) throw new Error((d && d.error) || 'Document not found');
+            return d;
+          });
+        });
+    }
+
+    function showDocument() {
+      var pdfUrl = apiBase + '/api/public-document/' + encodeURIComponent(token) + '/pdf';
+      openPdfBtn.href = pdfUrl;
+      openPdfBtn.classList.remove('hidden');
+      docTitle.textContent = meta.title || 'Document';
+      docSubtitle.textContent = meta.customerName
+        ? 'Prepared for ' + meta.customerName + (meta.signedAt ? ' · Signed ' + new Date(meta.signedAt).toLocaleString() : '')
+        : '';
+
+      if (meta.requiresSignature) {
+        signSection.classList.remove('hidden');
+        return renderPdfInto(document.getElementById('signPdfScroll'), pdfUrl);
+      }
+      viewSection.classList.remove('hidden');
+      return renderPdfInto(document.getElementById('pdfScroll'), pdfUrl);
+    }
+
+    function afterSigned() {
+      signSection.classList.add('hidden');
+      viewSection.classList.remove('hidden');
+      meta.requiresSignature = false;
+      meta.isSigned = true;
+      docSubtitle.textContent = 'Signed ' + new Date().toLocaleString();
+      return renderPdfInto(document.getElementById('pdfScroll'), apiBase + '/api/public-document/' + encodeURIComponent(token) + '/pdf');
+    }
+
+    function showEmailPrompt() {
+      emailSection.classList.remove('hidden');
+      document.getElementById('emailForm').classList.remove('hidden');
+      document.getElementById('doneMsg').classList.add('hidden');
+    }
+
+    document.getElementById('tabType').addEventListener('click', function () {
+      useDraw = false;
+      document.getElementById('tabType').classList.add('active');
+      document.getElementById('tabDraw').classList.remove('active');
+      document.getElementById('typePanel').classList.remove('hidden');
+      document.getElementById('drawPanel').classList.add('hidden');
+    });
+    document.getElementById('tabDraw').addEventListener('click', function () {
+      useDraw = true;
+      document.getElementById('tabDraw').classList.add('active');
+      document.getElementById('tabType').classList.remove('active');
+      document.getElementById('drawPanel').classList.remove('hidden');
+      document.getElementById('typePanel').classList.add('hidden');
+    });
+
+    if (signCanvas) {
+      var ctx = signCanvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, signCanvas.width, signCanvas.height);
+      document.getElementById('clearCanvas').addEventListener('click', function () {
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, signCanvas.width, signCanvas.height);
+      });
+      function pos(e) {
+        var r = signCanvas.getBoundingClientRect();
+        var x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+        var y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+        var sx = signCanvas.width / r.width;
+        var sy = signCanvas.height / r.height;
+        return { x: x * sx, y: y * sy };
+      }
+      signCanvas.addEventListener('mousedown', function (e) {
+        drawing = true;
+        var p = pos(e);
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+      });
+      signCanvas.addEventListener('mousemove', function (e) {
+        if (!drawing) return;
+        var p = pos(e);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+      });
+      signCanvas.addEventListener('mouseup', function () { drawing = false; });
+      signCanvas.addEventListener('mouseleave', function () { drawing = false; });
+      signCanvas.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        drawing = true;
+        var p = pos(e);
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+      }, { passive: false });
+      signCanvas.addEventListener('touchmove', function (e) {
+        e.preventDefault();
+        if (!drawing) return;
+        var p = pos(e);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+      }, { passive: false });
+      signCanvas.addEventListener('touchend', function () { drawing = false; });
+    }
+
+    document.getElementById('submitSignBtn').addEventListener('click', function () {
+      var signErr = document.getElementById('signErr');
+      showErr(signErr, '');
+      var body = { signatureMode: useDraw ? 'drawn' : 'typed' };
+      if (useDraw && signCanvas) {
+        body.signaturePayload = signCanvas.toDataURL('image/png');
+      } else {
+        body.signaturePayload = document.getElementById('typedName').value.trim();
+      }
+      if (!useDraw && (!body.signaturePayload || body.signaturePayload.length < 2)) {
+        showErr(signErr, 'Please type your full name.');
+        return;
+      }
+      if (useDraw && (!body.signaturePayload || body.signaturePayload.length < 80)) {
+        showErr(signErr, 'Please draw your signature.');
+        return;
+      }
+      var btn = document.getElementById('submitSignBtn');
+      btn.disabled = true;
+      fetch(apiBase + '/api/public-document/' + encodeURIComponent(token) + '/sign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+        .then(function (r) {
+          return r.json().then(function (d) {
+            if (!r.ok) throw new Error((d && d.error) || 'Submit failed');
+            return d;
+          });
+        })
+        .then(function () {
+          return afterSigned();
+        })
+        .then(function () {
+          showEmailPrompt();
+        })
+        .catch(function (e) {
+          showErr(signErr, e.message || 'Submit failed');
+        })
+        .finally(function () {
+          btn.disabled = false;
+        });
+    });
+
+    document.getElementById('sendEmailBtn').addEventListener('click', function () {
+      var email = document.getElementById('copyEmail').value.trim();
+      var emailErr = document.getElementById('emailErr');
+      showErr(emailErr, '');
+      if (!email || email.indexOf('@') < 1) {
+        showErr(emailErr, 'Enter a valid email address.');
+        return;
+      }
+      document.getElementById('sendEmailBtn').disabled = true;
+      fetch(apiBase + '/api/public-document/' + encodeURIComponent(token) + '/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email })
+      })
+        .then(function (r) {
+          return r.json().then(function (d) {
+            if (!r.ok) throw new Error((d && d.error) || 'Email failed');
+            return d;
+          });
+        })
+        .then(function () {
+          document.getElementById('emailForm').classList.add('hidden');
+          var done = document.getElementById('doneMsg');
+          done.textContent = 'Copy sent to ' + email + '.';
+          done.classList.remove('hidden');
+        })
+        .catch(function (e) {
+          showErr(emailErr, e.message || 'Email failed');
+        })
+        .finally(function () {
+          document.getElementById('sendEmailBtn').disabled = false;
+        });
+    });
+
+    document.getElementById('skipEmailBtn').addEventListener('click', function () {
+      document.getElementById('emailForm').classList.add('hidden');
+      var done = document.getElementById('doneMsg');
+      done.textContent = 'Thank you — your signed estimate is saved.';
+      done.classList.remove('hidden');
+    });
+
+    loadMeta()
+      .then(function (d) {
+        meta = d;
+        return showDocument();
+      })
+      .catch(function (e) {
+        showErr(loadErr, e.message || 'Could not load document');
+      });
+  })();
+  </script>
+</body>
+</html>

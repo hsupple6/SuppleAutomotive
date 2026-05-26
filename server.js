@@ -17,6 +17,7 @@ var googleReceiptTracker = require(path.join(__dirname, 'lib', 'google-receipt-t
 var documentBuilder = require(path.join(__dirname, 'lib', 'document-builder'));
 var invoiceNumberLib = require(path.join(__dirname, 'lib', 'invoice-number'));
 var customerExportFiles = require(path.join(__dirname, 'lib', 'customer-export-files'));
+var documentPublicLink = require(path.join(__dirname, 'lib', 'document-public-link'));
 var portalMagic = require(path.join(__dirname, 'lib', 'portal-magic'));
 var express = require('express');
 var session = require('express-session');
@@ -2429,6 +2430,203 @@ app.post('/supplecontrols/api/export/save-customer-file', controlsApiAuth, funct
   } catch (err) {
     controlsJson(err, res);
   }
+});
+
+app.post('/supplecontrols/api/estimate-builder/create-signing-link', controlsApiAuth, function (req, res) {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  var body = req.body || {};
+  var customer = customerFromEstimateBuilderBody(body.customer);
+  var fields = body.fields || {};
+  if (!customer.name) {
+    return res.status(400).json({ error: 'Customer name is required.', missing: ['customer.name'] });
+  }
+  var missing = estimatePdf.validateEstimateReleaseFieldsComplete(fields);
+  if (missing.length) {
+    return res.status(400).json({
+      error: 'Fill in all required fields before creating a signing link.',
+      missing: missing
+    });
+  }
+  getAccountThen(req, res, function (accountId) {
+    documentPublicLink
+      .createEstimateSigningLink(supabase, accountId, customer, fields)
+      .then(function (ins) {
+        if (ins.error) throw new Error(ins.error.message || 'Could not create link');
+        var row = ins.data;
+        res.status(201).json({
+          ok: true,
+          id: row.id,
+          token: row.token,
+          url: documentPublicLink.publicDocumentUrl(row.token),
+          status: row.status
+        });
+      })
+      .catch(function (err) {
+        controlsJson(err, res);
+      });
+  });
+});
+
+app.post('/supplecontrols/api/invoice-builder/create-release-link', controlsApiAuth, function (req, res) {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  var body = req.body || {};
+  var customer = customerFromEstimateBuilderBody(body.customer);
+  var fields = body.fields || {};
+  if (!customer.name) {
+    return res.status(400).json({ error: 'Customer name is required.', missing: ['customer.name'] });
+  }
+  var missing = estimatePdf.validateEstimateReleaseFieldsComplete(fields);
+  if (missing.length) {
+    return res.status(400).json({
+      error: 'Fill in all required fields before releasing the invoice link.',
+      missing: missing
+    });
+  }
+  var invNo = String(body.invoiceNumber || '').trim() || 'DRAFT';
+  getAccountThen(req, res, function (accountId) {
+    documentPublicLink
+      .createInvoiceReleaseLink(supabase, accountId, customer, fields, invNo)
+      .then(function (ins) {
+        if (ins.error) throw new Error(ins.error.message || 'Could not create link');
+        var row = ins.data;
+        res.status(201).json({
+          ok: true,
+          id: row.id,
+          token: row.token,
+          url: documentPublicLink.publicDocumentUrl(row.token),
+          status: row.status
+        });
+      })
+      .catch(function (err) {
+        controlsJson(err, res);
+      });
+  });
+});
+
+app.get('/api/public-document/:token', function (req, res) {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  var token = String(req.params.token || '').trim();
+  documentPublicLink.getByToken(supabase, token).then(function (r) {
+    if (r.error) return controlsJson(new Error(r.error.message), res);
+    if (!r.data) return res.status(404).json({ error: 'Document not found' });
+    res.json(documentPublicLink.linkToPublicMeta(r.data));
+  });
+});
+
+app.get('/api/public-document/:token/pdf', function (req, res) {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  var token = String(req.params.token || '').trim();
+  documentPublicLink
+    .getByToken(supabase, token)
+    .then(function (r) {
+      if (r.error || !r.data) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
+      var url = documentPublicLink.pdfUrlForLink(r.data);
+      if (!url) return res.status(404).json({ error: 'PDF not available' });
+      return fetch(url).then(function (pdfRes) {
+        if (!pdfRes.ok) throw new Error('PDF unavailable');
+        return pdfRes.arrayBuffer();
+      });
+    })
+    .then(function (ab) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Cache-Control', 'private, no-store');
+      res.send(Buffer.from(ab));
+    })
+    .catch(function (err) {
+      res.status(500).json({ error: err.message || 'Failed' });
+    });
+});
+
+app.post('/api/public-document/:token/sign', function (req, res) {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  var token = String(req.params.token || '').trim();
+  var body = req.body || {};
+  var mode = String(body.signatureMode || '').toLowerCase();
+  var payload = body.signaturePayload;
+  if (mode !== 'typed' && mode !== 'drawn') {
+    return res.status(400).json({ error: 'signatureMode must be typed or drawn' });
+  }
+  if (mode === 'typed' && (!payload || String(payload).trim().length < 2)) {
+    return res.status(400).json({ error: 'Please type your full name' });
+  }
+  if (mode === 'drawn' && (!payload || String(payload).length < 80)) {
+    return res.status(400).json({ error: 'Please draw your signature' });
+  }
+  var payloadStr = typeof payload === 'string' ? payload : String(payload);
+  documentPublicLink
+    .getByToken(supabase, token)
+    .then(function (r) {
+      if (r.error || !r.data) {
+        var e = new Error('Document not found');
+        e.status = 404;
+        throw e;
+      }
+      return documentPublicLink.completeEstimateSignature(supabase, r.data, mode, payloadStr);
+    })
+    .then(function (result) {
+      res.json({
+        ok: true,
+        signedAt: result.row.signed_at,
+        status: result.row.status
+      });
+    })
+    .catch(function (err) {
+      var st = err.status || 500;
+      if (st !== 404 && st !== 409) st = 500;
+      res.status(st).json({ error: err.message || 'Failed' });
+    });
+});
+
+app.post('/api/public-document/:token/email', function (req, res) {
+  if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+  var token = String(req.params.token || '').trim();
+  var email = String((req.body && req.body.email) || '').trim();
+  if (!email || email.indexOf('@') < 1) {
+    return res.status(400).json({ error: 'Valid email is required' });
+  }
+  documentPublicLink
+    .getByToken(supabase, token)
+    .then(function (r) {
+      if (r.error || !r.data) {
+        var e = new Error('Document not found');
+        e.status = 404;
+        throw e;
+      }
+      var row = r.data;
+      if (row.document_type === 'estimate' && row.status !== 'signed') {
+        var e2 = new Error('Sign the document before requesting email');
+        e2.status = 400;
+        throw e2;
+      }
+      var url = documentPublicLink.pdfUrlForLink(row);
+      return fetch(url).then(function (pdfRes) {
+        if (!pdfRes.ok) throw new Error('PDF unavailable');
+        return pdfRes.arrayBuffer();
+      }).then(function (ab) {
+        var buf = Buffer.from(ab);
+        var docType = row.document_type;
+        return emailNotifications.sendDocumentPdfCopy({
+          email: email,
+          documentType: docType,
+          documentUrl: url,
+          pdfBuffer: buf,
+          pdfFilename: docType === 'invoice' ? 'invoice.pdf' : 'signed-estimate.pdf',
+          subject: docType === 'invoice' ? 'Your invoice from Supple Automotive' : 'Your signed estimate from Supple Automotive'
+        }).then(function () {
+          return supabase.from('document_public_links').update({ signer_email: email }).eq('id', row.id);
+        });
+      });
+    })
+    .then(function () {
+      res.json({ ok: true });
+    })
+    .catch(function (err) {
+      var st = err.status || 500;
+      if (st !== 400 && st !== 404) st = 500;
+      res.status(st).json({ error: err.message || 'Failed' });
+    });
 });
 
 app.post(

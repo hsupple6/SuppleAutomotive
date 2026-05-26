@@ -50,6 +50,7 @@
     .toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: #2a2a2a; border: 1px solid #444; color: #e5e5e5; padding: 0.75rem 1.25rem; border-radius: 6px; z-index: 1000; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
     .toast.error { border-color: #744; color: #f88; }
     #formErr { color: #f88; font-size: 0.85rem; margin: 0.75rem 0 0; display: none; }
+    .hidden { display: none !important; }
     @media (max-width: 960px) {
       .layout { grid-template-columns: 1fr; }
       .form-pane { border-right: none; border-bottom: 1px solid #252525; max-height: none; }
@@ -134,7 +135,16 @@
         <button type="button" class="btn btn-primary" id="previewBtn">Generate preview</button>
         <a href="#" class="btn btn-ghost" id="openPdfLink" target="_blank" rel="noopener" style="display:none;text-decoration:none;line-height:1.4;">Open PDF</a>
         <button type="button" class="btn btn-ghost" id="exportPngBtn" disabled>Export PNG</button>
+        <button type="button" class="btn btn-ghost" id="createSigningLinkBtn">Create signing link</button>
         <a href="/supplecontrols/invoice-builder" class="btn btn-ghost" id="createInvoiceLink" style="display:none;text-decoration:none;line-height:1.4;">Create invoice from this</a>
+      </div>
+      <div id="signingLinkBox" class="hidden" style="margin-top:0.75rem;padding:0.65rem 0.75rem;background:#1a1a1a;border:1px solid #333;border-radius:8px;">
+        <label style="font-size:0.72rem;color:#888;display:block;margin-bottom:0.35rem;">Customer signing link</label>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <input type="text" id="signingLinkUrl" readonly style="flex:1;min-width:200px;padding:0.45rem 0.55rem;font-size:0.82rem;background:#111;border:1px solid #444;border-radius:6px;color:#ddd;" />
+          <button type="button" class="btn btn-ghost" id="copySigningLinkBtn">Copy</button>
+          <a href="#" class="btn btn-ghost" id="openSigningLinkBtn" target="_blank" rel="noopener" style="text-decoration:none;line-height:1.4;">Open</a>
+        </div>
       </div>
       <iframe id="estimatePdfFrame" title="Estimate preview"></iframe>
     </div>
@@ -151,6 +161,9 @@
     var estimateFieldsWrap = document.getElementById('estimateFieldsWrap');
     var previewBtn = document.getElementById('previewBtn');
     var exportPngBtn = document.getElementById('exportPngBtn');
+    var createSigningLinkBtn = document.getElementById('createSigningLinkBtn');
+    var signingLinkBox = document.getElementById('signingLinkBox');
+    var signingLinkUrl = document.getElementById('signingLinkUrl');
     var openPdfLink = document.getElementById('openPdfLink');
     var estimatePdfFrame = document.getElementById('estimatePdfFrame');
     var customerSearchInput = document.getElementById('customerSearchInput');
@@ -625,6 +638,57 @@
       a.download = filename;
       a.click();
       URL.revokeObjectURL(a.href);
+    }
+
+    function showSigningLink(url) {
+      if (!signingLinkBox || !signingLinkUrl) return;
+      signingLinkUrl.value = url || '';
+      signingLinkBox.classList.remove('hidden');
+      var openBtn = document.getElementById('openSigningLinkBtn');
+      if (openBtn) openBtn.href = url || '#';
+    }
+
+    function createSigningLink() {
+      showFormErr('');
+      if (createSigningLinkBtn) createSigningLinkBtn.disabled = true;
+      return api('/estimate-builder/create-signing-link', {
+        method: 'POST',
+        body: {
+          customer: collectCustomer(),
+          fields: collectEstimateFields()
+        }
+      })
+        .then(function (d) {
+          showSigningLink(d.url);
+          showToast('Signing link ready — send this to your customer.');
+          if (navigator.clipboard && d.url) {
+            return navigator.clipboard.writeText(d.url).then(function () {
+              showToast('Link copied to clipboard.');
+            }).catch(function () {});
+          }
+        })
+        .catch(function (e) {
+          showFormErr(e.message || 'Could not create link');
+          showToast(e.message || 'Could not create link', true);
+        })
+        .finally(function () {
+          if (createSigningLinkBtn) createSigningLinkBtn.disabled = false;
+        });
+    }
+
+    if (createSigningLinkBtn) createSigningLinkBtn.addEventListener('click', createSigningLink);
+    var copySigningLinkBtn = document.getElementById('copySigningLinkBtn');
+    if (copySigningLinkBtn) {
+      copySigningLinkBtn.addEventListener('click', function () {
+        if (!signingLinkUrl || !signingLinkUrl.value) return showToast('Create a signing link first.', true);
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(signingLinkUrl.value).then(function () {
+            showToast('Link copied.');
+          }).catch(function () {
+            showToast('Copy failed — select the link and copy manually.', true);
+          });
+        }
+      });
     }
 
     function exportPreviewPng() {
