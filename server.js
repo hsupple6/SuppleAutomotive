@@ -417,16 +417,23 @@ app.get('/api/dev/pdf-samples/invoice', function (req, res) {
     });
 });
 
-// SEO: keyword URLs → same homepage (canonical in index.html points to /)
-var seoLandingPaths = require(path.join(__dirname, 'lib', 'seo-landing-paths.js'));
-var publicIndexHtml = path.join(__dirname, 'public', 'index.html');
-var seoSeen = {};
-seoLandingPaths.forEach(function (segment) {
-  if (!segment || typeof segment !== 'string' || segment.indexOf('/') !== -1) return;
-  if (seoSeen[segment]) return;
-  seoSeen[segment] = true;
-  app.get('/' + segment, function (req, res) {
-    res.sendFile(publicIndexHtml);
+// SEO: server-rendered content pages (guides, locations, pricing)
+var seoContent = require(path.join(__dirname, 'lib', 'seo-content.js'));
+var seoRender = require(path.join(__dirname, 'lib', 'seo-render.js'));
+
+app.get('/sitemap.xml', function (req, res) {
+  res.type('application/xml').send(seoRender.renderSitemapXml());
+});
+
+var seoPageSeen = {};
+seoContent.getAllPages().forEach(function (page) {
+  if (!page || !page.path || seoPageSeen[page.path]) return;
+  seoPageSeen[page.path] = true;
+  var routePath = '/' + page.path;
+  app.get(routePath, function (req, res) {
+    var html = seoRender.renderSeoPage(page);
+    if (!html) return res.status(404).end();
+    res.type('html').send(html);
   });
 });
 

@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://suppleautomotive.com/sitemap.xml
+
+Disallow: /supplecontrols/
+Disallow: /api/
+Disallow: /flier.html
+Disallow: /document.html
+Disallow: /images.html

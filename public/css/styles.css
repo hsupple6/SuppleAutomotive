@@ -5256,6 +5256,22 @@ body.page-payment:has(#paymentDashboard:not([hidden])) .payment-balance-block {
   color: var(--text);
 }
 
+.footer-dev-flier-link {
+  display: inline-block;
+  margin-top: 1.25rem;
+  font-size: 0.78rem;
+  color: var(--accent-light, #38bdf8);
+  text-decoration: none;
+}
+
+.footer-dev-flier-link:hover {
+  text-decoration: underline;
+}
+
+.footer-dev-flier-link[hidden] {
+  display: none !important;
+}
+
 .footer-dev-controls {
   margin-top: 1.75rem;
   padding-top: 1.25rem;

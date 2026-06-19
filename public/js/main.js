@@ -405,6 +405,14 @@
     footerStripSocial.hidden = !footerStripSocial.querySelector('.footer-strip-social-link:not([hidden])');
   }
 
+  var footerDevFlierLink = byId('footerDevFlierLink');
+  if (footerDevFlierLink) {
+    var devHost = window.location.hostname || '';
+    if (devHost === 'localhost' || devHost === '127.0.0.1' || devHost === '[::1]') {
+      footerDevFlierLink.hidden = false;
+    }
+  }
+
   var apiBaseForDev = (CONFIG.apiBaseUrl != null && CONFIG.apiBaseUrl !== '') ? CONFIG.apiBaseUrl.replace(/\/$/, '') : '';
   var footerDevControls = byId('footerDevControls');
   var footerDevAdminBtn = byId('footerDevAdminBtn');
@@ -1317,7 +1325,9 @@
   }
 
   function showFormMessage(form, text, isError) {
-    var el = form ? form.querySelector('#serviceFormMessage') || byId('serviceFormMessage') : byId('serviceFormMessage');
+    var el = form
+      ? form.querySelector('.form-message') || form.querySelector('#serviceFormMessage') || byId('serviceFormMessage')
+      : byId('serviceFormMessage');
     if (!el) return;
     el.textContent = text || '';
     el.hidden = !text;
@@ -1331,48 +1341,47 @@
     }
   }
 
-  // Form submit: POST to API → email + SMS to config email/phone
-  var serviceForm = byId('serviceForm');
-  if (serviceForm) {
-    serviceForm.addEventListener('submit', function (e) {
+  function bindServiceFormSubmit(form) {
+    if (!form) return;
+    form.addEventListener('submit', function (e) {
       e.preventDefault();
-      if (!serviceForm.checkValidity()) {
-        serviceForm.reportValidity();
+      if (!form.checkValidity()) {
+        form.reportValidity();
         return;
       }
-      var submitBtn = serviceForm.querySelector('.form-submit');
+      var submitBtn = form.querySelector('.form-submit');
       var apiBase = (CONFIG.apiBaseUrl != null && CONFIG.apiBaseUrl !== '') ? CONFIG.apiBaseUrl.replace(/\/$/, '') : '';
-      var enteredEmail = (serviceForm.querySelector('[name="email"]') || {}).value || '';
-      var hiddenPref = (serviceForm.querySelector('[name="contact_preference"]') || {}).value || 'email';
-      var activeContactBtn = serviceForm.querySelector('.contact-switch .contact-switch-option.active');
+      var enteredEmail = (form.querySelector('[name="email"]') || {}).value || '';
+      var hiddenPref = (form.querySelector('[name="contact_preference"]') || {}).value || 'email';
+      var activeContactBtn = form.querySelector('.contact-switch .contact-switch-option.active');
       var activeMode = activeContactBtn && activeContactBtn.getAttribute('data-mode');
       var contactPref =
         activeMode === 'sms' ? 'sms' : activeMode === 'email' ? 'email' : hiddenPref === 'sms' ? 'sms' : 'email';
-      var prefInput = serviceForm.querySelector('[name="contact_preference"]');
+      var prefInput = form.querySelector('[name="contact_preference"]');
       if (prefInput) prefInput.value = contactPref;
       var payload = {
-        name: (serviceForm.querySelector('[name="name"]') || {}).value || '',
+        name: (form.querySelector('[name="name"]') || {}).value || '',
         email: enteredEmail,
-        phone: (serviceForm.querySelector('[name="phone"]') || {}).value || '',
+        phone: (form.querySelector('[name="phone"]') || {}).value || '',
         contact_preference: contactPref,
-        contact_via_ok: !!((serviceForm.querySelector('[name="contact_via_ok"]') || {}).checked),
-        service_address: (serviceForm.querySelector('[name="service_address"]') || {}).value || '',
-        work_location: (serviceForm.querySelector('[name="work_location"]') || {}).value || '',
-        vehicle_year: (serviceForm.querySelector('[name="vehicle_year"]') || {}).value || '',
-        vehicle_make: (serviceForm.querySelector('[name="vehicle_make"]') || {}).value || '',
-        vehicle_model: (serviceForm.querySelector('[name="vehicle_model"]') || {}).value || '',
-        service_type: (serviceForm.querySelector('[name="service_type"]') || {}).value || '',
-        details: (serviceForm.querySelector('[name="details"]') || {}).value || '',
-        preferred_date: (serviceForm.querySelector('[name="preferred_date"]') || {}).value || '',
-        preferred_time: (serviceForm.querySelector('[name="preferred_time"]') || {}).value || '',
-        notes: (serviceForm.querySelector('[name="notes"]') || {}).value || ''
+        contact_via_ok: !!((form.querySelector('[name="contact_via_ok"]') || {}).checked),
+        service_address: (form.querySelector('[name="service_address"]') || {}).value || '',
+        work_location: (form.querySelector('[name="work_location"]') || {}).value || '',
+        vehicle_year: (form.querySelector('[name="vehicle_year"]') || {}).value || '',
+        vehicle_make: (form.querySelector('[name="vehicle_make"]') || {}).value || '',
+        vehicle_model: (form.querySelector('[name="vehicle_model"]') || {}).value || '',
+        service_type: (form.querySelector('[name="service_type"]') || {}).value || '',
+        details: (form.querySelector('[name="details"]') || {}).value || '',
+        preferred_date: (form.querySelector('[name="preferred_date"]') || {}).value || '',
+        preferred_time: (form.querySelector('[name="preferred_time"]') || {}).value || '',
+        notes: (form.querySelector('[name="notes"]') || {}).value || ''
       };
       if (!String(payload.email || '').trim()) {
-        showFormMessage(serviceForm, 'Email is required.', true);
+        showFormMessage(form, 'Email is required.', true);
         return;
       }
       if (!String(payload.service_address || '').trim()) {
-        showFormMessage(serviceForm, 'Service address is required.', true);
+        showFormMessage(form, 'Service address is required.', true);
         return;
       }
       var btnText = submitBtn ? submitBtn.textContent : '';
@@ -1380,7 +1389,7 @@
         submitBtn.disabled = true;
         submitBtn.textContent = 'Sending…';
       }
-      showFormMessage(serviceForm, '');
+      showFormMessage(form, '');
       fetch(apiBase + '/api/submit-service-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1408,11 +1417,17 @@
             window.location.href = 'index.html';
             return;
           }
-          showFormMessage(serviceForm, 'Thanks. We’ll be in touch soon.', false);
-          serviceForm.reset();
+          showFormMessage(form, 'Thanks. We’ll be in touch soon.', false);
+          form.reset();
+          var slideout = byId('appointmentSlideout');
+          if (slideout && slideout.classList.contains('is-open')) {
+            setTimeout(function () {
+              closeAppointmentSlideout();
+            }, 2200);
+          }
         })
         .catch(function (err) {
-          showFormMessage(serviceForm, 'Something went wrong: ' + (err.message || 'Please try again.'), true);
+          showFormMessage(form, 'Something went wrong: ' + (err.message || 'Please try again.'), true);
         })
         .finally(function () {
           if (submitBtn) {
@@ -1421,6 +1436,68 @@
           }
         });
     });
+  }
+
+  // Form submit: POST to API → email + SMS to config email/phone
+  bindServiceFormSubmit(byId('serviceForm'));
+  bindServiceFormSubmit(byId('appointmentSlideoutForm'));
+
+  // Appointment slideout (SEO pages)
+  var appointmentSlideout = byId('appointmentSlideout');
+  var seoStickyCta = byId('seoStickyCta');
+
+  function openAppointmentSlideout() {
+    if (!appointmentSlideout) return;
+    appointmentSlideout.classList.add('is-open');
+    appointmentSlideout.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('appointment-slideout-open');
+    var firstInput = appointmentSlideout.querySelector('input, textarea, select');
+    if (firstInput) setTimeout(function () { firstInput.focus(); }, 300);
+  }
+
+  function closeAppointmentSlideout() {
+    if (!appointmentSlideout) return;
+    appointmentSlideout.classList.remove('is-open');
+    appointmentSlideout.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('appointment-slideout-open');
+  }
+
+  document.querySelectorAll('.js-open-appointment').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      openAppointmentSlideout();
+    });
+  });
+
+  document.querySelectorAll('.js-close-appointment').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      closeAppointmentSlideout();
+    });
+  });
+
+  if (appointmentSlideout) {
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && appointmentSlideout.classList.contains('is-open')) {
+        closeAppointmentSlideout();
+      }
+    });
+  }
+
+  if (seoStickyCta) {
+    var stickyShown = false;
+    window.addEventListener(
+      'scroll',
+      function () {
+        var y = window.scrollY || window.pageYOffset;
+        var show = y > 320;
+        if (show !== stickyShown) {
+          stickyShown = show;
+          seoStickyCta.classList.toggle('is-visible', show);
+        }
+      },
+      { passive: true }
+    );
   }
 
   // ========== Reviews section: fetch, render, auto-scroll, add form ==========

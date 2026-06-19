@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base href="/">
+  <title>Supple Automotive — Flier</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="logo/tablogo.png">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/flier.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="flier-page">
+  <div class="flier-toolbar">
+    <a href="/" class="flier-toolbar-back">&larr; Home</a>
+    <p class="flier-toolbar-hint">Scroll and screenshot, or print to PDF — same look as the website.</p>
+    <button type="button" class="flier-toolbar-btn" id="flierPrintBtn">Print</button>
+  </div>
+
+  <main class="flier-export" id="flierExport">
+    <section class="block hero flier-hero" aria-label="Supple Automotive">
+      <a href="/" class="logo site-logo flier-hero-logo" aria-label="Supple Automotive">
+        <img src="logo/logo.png" alt="" class="site-logo-img site-logo-img-main" width="auto" height="44">
+      </a>
+      <div class="hero-bg">
+        <div class="hero-img" id="flierHeroImg">
+          <div class="img-placeholder hero-placeholder" aria-hidden="true"></div>
+        </div>
+      </div>
+      <div class="hero-mobile-stack">
+        <div class="hero-credibility" aria-label="Service area and hours">
+          <p class="hero-credibility-overline">Ventura County · Mobile</p>
+          <p class="hero-credibility-headline" id="flierHeroHeadline">805 drivers, we come to you for every automotive need.</p>
+          <p class="hero-credibility-hours">Open <span class="hero-credibility-24">24</span> hours</p>
+        </div>
+        <aside class="hero-mechanic" aria-labelledby="flierMechanicTitle">
+          <div class="hero-mechanic-photo">
+            <img src="images/mechanic.jpg" alt="Hayden Supple" width="320" height="400" class="hero-mechanic-img" loading="eager" decoding="async">
+          </div>
+          <h2 class="hero-mechanic-title" id="flierMechanicTitle">Meet the Mechanic</h2>
+          <p class="hero-mechanic-bio" id="flierMechanicBio">Purdue-trained engineer—honest work from oil changes to engine builds, at your door.</p>
+        </aside>
+      </div>
+      <div class="hero-content">
+        <h1 class="visually-hidden" id="flierBusinessName">Supple Automotive</h1>
+      </div>
+    </section>
+
+    <section class="section-black" aria-hidden="true"></section>
+
+    <section class="block block-copy">
+      <div class="copy-inner">
+        <p class="copy-overline">Our services</p>
+        <h2 class="copy-title">Your Couch is the Best Waiting Room</h2>
+        <p class="copy-body">Oil changes, brakes, diagnostics, inspections—we do the work at your home, job, or wherever the vehicle is. Same standard every time: honest work, clear communication, and quality parts. We keep your vehicle running safely—no shop waiting room required.</p>
+      </div>
+    </section>
+
+    <section class="block block-services-grid" aria-label="Services we offer">
+      <p class="copy-overline" style="text-align:center;margin:0 auto 1rem;max-width:640px;">What we work on</p>
+      <div class="services-grid-inner">
+        <div class="service-card"><span class="service-card-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2.69c-2.5 3.5-5 6.5-5 9.5a5 5 0 1 0 10 0c0-3-2.5-6-5-9.5z"/></svg></span><span class="service-card-label">Oil Change</span></div>
+        <div class="service-card"><span class="service-card-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 122.88 122.29" fill="currentColor"><path d="M18.86,59.43l-4.25-1.19c-0.26,2.11-0.4,4.26-0.4,6.44c0,6.93,1.37,13.53,3.86,19.53v0.01 c2.59,6.24,6.38,11.86,11.09,16.56l0.01,0.01c4.7,4.71,10.32,8.5,16.56,11.09h0.01c6,2.49,12.6,3.86,19.53,3.86 c6.93,0,13.53-1.37,19.53-3.86c6.23-2.58,11.85-6.38,16.57-11.1h0.01c4.71-4.7,8.5-10.32,11.09-16.56V84.2 c2.49-6,3.86-12.6,3.86-19.53c0-6.93-1.37-13.53-3.86-19.53c-2.58-6.23-6.38-11.85-11.1-16.57v-0.01 c-4.7-4.71-10.32-8.5-16.56-11.09h-0.01c-4.19-1.74-8.67-2.93-13.36-3.49v5.62C46.4,19.6,25.3,36.45,18.86,59.43z"/></svg></span><span class="service-card-label">Brake System</span></div>
+        <div class="service-card"><span class="service-card-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span><span class="service-card-label">Ignition System</span></div>
+        <div class="service-card"><span class="service-card-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></span><span class="service-card-label">Cooling System</span></div>
+        <div class="service-card"><span class="service-card-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 512 512" fill="currentColor"><path d="M426.669,256h-42.667c-35.285,0-64,28.715-64,64h-21.333v-64h21.333c11.797,0,21.333-9.557,21.333-21.333V192 c35.285,0,64-28.715,64-64c0-11.776-9.536-21.333-21.333-21.333s-21.333,9.557-21.333,21.333s-9.557,21.333-21.333,21.333v-42.667 c35.285,0,64-28.715,64-64c0-11.776-9.536-21.333-21.333-21.333s-21.333,9.557-21.333,21.333S353.112,64,341.336,64V21.333 C341.336,9.557,331.8,0,320.002,0h-85.333c-11.797,0-21.333,9.557-21.333,21.333V64c-35.285,0-64,28.715-64,64 c0,11.776,9.536,21.333,21.333,21.333c11.797,0,21.333-9.557,21.333-21.333c0-11.755,9.557-21.333,21.333-21.333v42.667 c-35.285,0-64,28.715-64,64c0,11.776,9.536,21.333,21.333,21.333c11.797,0,21.333-9.557,21.333-21.333 c0-11.755,9.557-21.333,21.333-21.333v42.667c0,11.776,9.536,21.333,21.333,21.333h21.333v85.333v9.536L51.501,257.92 c-10.859-4.928-23.403-0.128-28.245,10.581c-4.885,10.731-0.149,23.381,10.581,28.245l145.024,65.92H42.669 c-11.797,0-21.333,9.557-21.333,21.333s9.536,21.333,21.333,21.333h213.333v21.333c0,11.776,9.536,21.333,21.333,21.333h42.667 c0,35.285,28.715,64,64,64h42.667c35.285,0,64-28.715,64-64V320C490.669,284.715,461.954,256,426.669,256z"/></svg></span><span class="service-card-label">Suspension</span></div>
+        <div class="service-card"><span class="service-card-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="10" rx="1"/><path d="M6 7V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v2"/></svg></span><span class="service-card-label">Electrical</span></div>
+        <div class="service-card"><span class="service-card-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 214.989 214.989" fill="currentColor"><path d="M135.629,122.482v3.763c0,15.827-12.877,28.704-28.705,28.704h-26.49c-9.599,0-18.122-5.721-21.713-14.574c-2.614-6.442-6.696-13.968-12.131-22.368C34.546,99.394,10.478,98.857,7.773,98.857l-0.128,0.001c-1.994,0.023-3.96-0.744-5.394-2.153C0.819,95.294,0,93.368,0,91.359V23.99c0-2.188,0.956-4.268,2.617-5.692c1.661-1.424,3.861-2.052,6.024-1.721l78.915,12.145c15.966,2.458,27.553,15.966,27.553,32.118v42.514h1.392C127.048,103.354,135.629,111.935,135.629,122.482z"/></svg></span><span class="service-card-label">Exhaust</span></div>
+        <div class="service-card"><span class="service-card-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16H12.01M12 11V13M14 8V5M11 5H17M6 12H3M3 9V15M21 11V19M6 8V16H8L10 19H18V10L16 8H6Z"/></svg></span><span class="service-card-label">Engine Work</span></div>
+        <div class="service-card"><span class="service-card-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/></svg></span><span class="service-card-label">Other</span></div>
+        <div class="service-card"><span class="service-card-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span><span class="service-card-label">Diagnostics</span></div>
+      </div>
+      <p class="services-engine-disclaimer">*Engine work: top end (heads and up, intake, etc.) and bottom end (oil pan gasket). Other services by discretion of mechanic.*</p>
+    </section>
+
+    <section class="block block-pricing" aria-label="Pricing">
+      <div class="pricing-inner">
+        <p class="copy-overline">Pricing</p>
+        <h2 class="pricing-title">Rates &amp; Fees</h2>
+        <div class="pricing-cards">
+          <div class="pricing-card">
+            <span class="pricing-card-label">Labor</span>
+            <span class="pricing-card-value">$70<span class="pricing-card-unit">/hr</span></span>
+            <span class="pricing-card-note">Time is billed from arrival until departure, rounded to the nearest minute.</span>
+            <span class="pricing-card-note">Time for diagnosis not counted towards labor.</span>
+          </div>
+          <div class="pricing-card">
+            <span class="pricing-card-label">Drive-up</span>
+            <span class="pricing-card-value">$15 base <span class="pricing-card-unit">· $2/mi after 15 mi</span></span>
+            <span class="pricing-card-note">From Carmen Drive and E Ponderosa Drive, Camarillo. One-way mileage.</span>
+          </div>
+          <div class="pricing-card">
+            <span class="pricing-card-label">Parts pickup</span>
+            <span class="pricing-card-value">$2 <span class="pricing-card-unit">/mi</span></span>
+            <span class="pricing-card-note">To the nearest AutoZone. Miles only—no labor charge for the run.</span>
+          </div>
+          <div class="pricing-card">
+            <span class="pricing-card-label">Diagnosis</span>
+            <span class="pricing-card-value">$125</span>
+            <span class="pricing-card-note">Fee waived when the repair is completed by us.</span>
+            <span class="pricing-card-note">Flat rate. Diagnosis time not counted towards labor.</span>
+          </div>
+        </div>
+
+        <h3 class="pricing-subtitle">Common service costs</h3>
+        <p class="pricing-subtitle-desc">Typical labor estimates based on common job times.</p>
+        <ul class="flier-cost-list" aria-label="Common service cost estimates">
+          <li><strong>Oil change</strong>Conventional or synthetic: ~0.5 hr labor + parts (filter &amp; oil)</li>
+          <li><strong>Brake pads (front or rear)</strong>One axle: ~1–1.5 hrs labor + parts · Both axles: ~2–2.5 hrs + parts</li>
+          <li><strong>Battery replacement</strong>~0.5 hr labor + battery cost</li>
+          <li><strong>Spark plugs</strong>4-cyl: ~1 hr · 6-cyl: ~1–1.5 hrs · 8-cyl: ~1.5–2 hrs + parts</li>
+          <li><strong>Air filter</strong>Engine: ~0.25 hr + parts · Cabin: ~0.25–0.5 hr + parts</li>
+          <li><strong>Coolant flush</strong>~1 hr labor + coolant</li>
+          <li><strong>Tire rotation</strong>~0.5 hr labor</li>
+        </ul>
+        <p class="pricing-disclaimer">Prices may vary depending on vehicle make, model, and condition. All estimates are subject to inspection and approval before work begins.</p>
+      </div>
+    </section>
+
+    <section class="block block-car-washing" aria-label="Auto detailing tiers">
+      <div class="car-washing-inner">
+        <p class="copy-overline">Auto detailing</p>
+        <h3 class="car-washing-title">Detail Packages Add-On</h3>
+        <div class="car-washing-cards">
+          <div class="car-washing-card">
+            <span class="car-washing-card-tier">Essential Detail</span>
+            <span class="car-washing-card-price">$50</span>
+            <ul class="car-washing-card-services">
+              <li>Foam hand wash and microfiber dry</li>
+              <li>Wheel face clean and tire shine</li>
+              <li>Interior quick vacuum and dust wipe</li>
+              <li>Streak-free exterior glass cleaning</li>
+            </ul>
+          </div>
+          <div class="car-washing-card">
+            <span class="car-washing-card-tier">Signature Detail</span>
+            <span class="car-washing-card-price">$65</span>
+            <ul class="car-washing-card-services">
+              <li>Everything in Essential Detail</li>
+              <li>Door jambs, trim, and vents cleaned</li>
+              <li>Dashboard and console conditioning</li>
+              <li>Spray sealant for paint protection</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block block-prebuy-pair" aria-label="Pre-purchase inspection and headlight restoration">
+      <div class="prebuy-pair-grid">
+        <section class="prebuy-pair-panel" aria-label="Pre-purchase vehicle inspection">
+          <div class="prebuy-inspection-inner">
+            <p class="copy-overline">Buying a used car</p>
+            <h3 class="prebuy-inspection-title">Pre-purchase inspection</h3>
+            <p class="prebuy-inspection-lead">We meet you at the car and tell you plainly what you’re buying. <strong class="prebuy-inspection-lead-strong">$100</strong> for the inspection, plus our <strong class="prebuy-inspection-lead-strong">standard drive-out fee</strong>.</p>
+            <div class="prebuy-inspection-cards">
+              <div class="prebuy-inspection-card">
+                <span class="prebuy-inspection-card-tier">What we check</span>
+                <span class="prebuy-inspection-card-price">$100</span>
+                <ul class="prebuy-inspection-card-services">
+                  <li><strong>Brakes, suspension &amp; steering</strong> — Wear, leaks, and safety concerns.</li>
+                  <li><strong>Safety &amp; under the hood</strong> — Lights, tires, fluids, belts, battery, obvious red flags.</li>
+                  <li><strong>OBD-II scan</strong> — Codes, readiness monitors, plain-language takeaways.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="prebuy-pair-panel" aria-label="Headlight restoration service">
+          <div class="prebuy-inspection-inner">
+            <p class="copy-overline">Lighting &amp; clarity</p>
+            <h3 class="prebuy-inspection-title">Headlight restoration</h3>
+            <p class="prebuy-inspection-lead">Restore yellowed or hazy lenses where you’re parked. <strong class="prebuy-inspection-lead-strong">$100</strong> plus standard drive-out.</p>
+            <div class="prebuy-inspection-cards">
+              <div class="prebuy-inspection-card">
+                <span class="prebuy-inspection-card-tier">What’s included</span>
+                <span class="prebuy-inspection-card-price">$100</span>
+                <ul class="prebuy-inspection-card-services">
+                  <li><strong>Deoxidize</strong> — Remove oxidized layers.</li>
+                  <li><strong>Polish</strong> — Restore clarity and even finish.</li>
+                  <li><strong>UV protection</strong> — Seal to slow future yellowing.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="block block-about" aria-label="About Hayden Supple">
+      <div class="about-inner">
+        <div class="about-image-wrap">
+          <img src="images/mechanic.jpg" alt="Hayden Supple, mobile mechanic" width="800" height="1000" loading="lazy" decoding="async">
+        </div>
+        <div class="about-copy">
+          <p class="copy-overline">About</p>
+          <h2 class="copy-title">Hayden Supple</h2>
+          <p class="copy-body">Purdue-trained automotive engineer with years under the hood. From oil changes and brake jobs to transmission work and engine builds—if it rolls, he can fix it. The shop comes to you.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block block-contact" id="flier-contact" aria-label="Contact">
+      <div class="contact-inner">
+        <h2 class="contact-title">Contact</h2>
+        <p class="contact-intro">Schedule an appointment or get a quote.</p>
+        <a href="tel:+18054434181" class="contact-call-btn" id="flierPhone">Call +1 (805) 443-4181</a>
+        <a href="mailto:hlsbusiness@suppleautomotive.com" class="contact-email-underline" id="flierEmail">hlsbusiness@suppleautomotive.com</a>
+        <p class="contact-intro" style="margin-top:1.25rem;">
+          <a href="https://suppleautomotive.com" id="flierWebsite" style="color:inherit;">suppleautomotive.com</a>
+          · <a href="request-service.html" style="color:inherit;">Request service</a>
+        </p>
+      </div>
+    </section>
+
+    <section class="block block-footer-strip">
+      <div class="footer-strip-inner">
+        <nav class="footer-strip-social" id="flierStripSocial" aria-label="Social links"></nav>
+        <p class="footer-strip-text">Soft and Supple</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="js/hero-crop-config.js"></script>
+  <script>
+  (function () {
+    var cfg = window.SUPPLE_CONFIG || {};
+    var crop = (window.HERO_CROP_CONFIG && window.HERO_CROP_CONFIG.hero) || { x: 60, y: 67 };
+    var heroImg = document.getElementById('flierHeroImg');
+    if (heroImg) {
+      heroImg.style.backgroundPosition = (crop.x != null ? crop.x : 60) + '% ' + (crop.y != null ? crop.y : 67) + '%';
+    }
+
+    var name = cfg.businessName || 'Supple Automotive';
+    var phone = cfg.phone || '+1 (805) 443-4181';
+    var email = cfg.email || 'hlsbusiness@suppleautomotive.com';
+    var elName = document.getElementById('flierBusinessName');
+    var elPhone = document.getElementById('flierPhone');
+    var elEmail = document.getElementById('flierEmail');
+    if (elName) elName.textContent = name;
+    if (elPhone) {
+      elPhone.textContent = 'Call ' + phone.replace(/^\+1\s*/, '+1 ');
+      var digits = phone.replace(/\D/g, '');
+      if (digits.length === 11 && digits.charAt(0) === '1') digits = digits.slice(1);
+      if (digits.length === 10) elPhone.setAttribute('href', 'tel:+1' + digits);
+    }
+    if (elEmail) {
+      elEmail.textContent = email;
+      elEmail.setAttribute('href', 'mailto:' + email);
+    }
+    document.title = name + ' — Flier';
+
+    var social = cfg.social || {};
+    var strip = document.getElementById('flierStripSocial');
+    if (strip) {
+      var links = [
+        { key: 'facebook', href: social.facebook, img: '/img/Facebook.png', label: 'Facebook' },
+        { key: 'instagram', href: social.instagram, img: '/img/instagram.png', label: 'Instagram' },
+        { key: 'tiktok', href: social.tiktok, img: '/img/Tiktok.png', label: 'TikTok' }
+      ];
+      links.forEach(function (item) {
+        if (!item.href) return;
+        var a = document.createElement('a');
+        a.className = 'footer-strip-social-link';
+        a.href = item.href;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.setAttribute('aria-label', item.label);
+        var img = document.createElement('img');
+        img.src = item.img;
+        img.alt = '';
+        img.width = 56;
+        img.height = 56;
+        img.loading = 'lazy';
+        a.appendChild(img);
+        strip.appendChild(a);
+      });
+      if (email) {
+        var mail = document.createElement('a');
+        mail.className = 'footer-strip-social-link';
+        mail.href = 'mailto:' + email;
+        mail.setAttribute('aria-label', 'Email');
+        var mailImg = document.createElement('img');
+        mailImg.src = '/img/Gmail.png';
+        mailImg.alt = '';
+        mailImg.width = 56;
+        mailImg.height = 56;
+        mail.appendChild(mailImg);
+        strip.appendChild(mail);
+      }
+    }
+
+    var printBtn = document.getElementById('flierPrintBtn');
+    if (printBtn) printBtn.addEventListener('click', function () { window.print(); });
+  })();
+  </script>
+</body>
+</html>

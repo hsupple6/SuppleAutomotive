@@ -2,6 +2,11 @@
   "rewrites": [
     { "source": "/supplecontrols", "destination": "/server.js" },
     { "source": "/supplecontrols/:path*", "destination": "/server.js" },
-    { "source": "/api/:path*", "destination": "/server.js" }
+    { "source": "/api/:path*", "destination": "/server.js" },
+    { "source": "/sitemap.xml", "destination": "/server.js" },
+    { "source": "/learn", "destination": "/server.js" },
+    { "source": "/learn/:path*", "destination": "/server.js" },
+    { "source": "/mobile-:path*", "destination": "/server.js" },
+    { "source": "/at-home-:path*", "destination": "/server.js" }
   ]
 }
