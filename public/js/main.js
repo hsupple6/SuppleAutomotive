@@ -1113,9 +1113,9 @@
     }
   }
 
-  // About section: when image block enters view, slide overlay away (45° down-right)
-  var revealImageEl = document.querySelector('[data-reveal-image]');
-  if (revealImageEl && typeof IntersectionObserver !== 'undefined') {
+  // About / SEO sections: when image blocks enter view, slide overlay away (45° down-right)
+  var revealImageEls = document.querySelectorAll('[data-reveal-image]');
+  if (revealImageEls.length && typeof IntersectionObserver !== 'undefined') {
     var imageRevealObserver = new IntersectionObserver(
       function (entries) {
         entries.forEach(function (entry) {
@@ -1124,9 +1124,13 @@
       },
       { rootMargin: '0px', threshold: 0.15 }
     );
-    imageRevealObserver.observe(revealImageEl);
-  } else if (revealImageEl) {
-    revealImageEl.classList.add('is-revealed');
+    revealImageEls.forEach(function (el) {
+      imageRevealObserver.observe(el);
+    });
+  } else if (revealImageEls.length) {
+    revealImageEls.forEach(function (el) {
+      el.classList.add('is-revealed');
+    });
   }
 
   // Process slideshow: stacked images, transparent by default; 45° clip sweep on change
