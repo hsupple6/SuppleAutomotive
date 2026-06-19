@@ -60,10 +60,21 @@ body.page-seo-hub .top-bar .header-brand-chrome {
   pointer-events: none;
 }
 
+/* Learn hub: no animated mobile Schedule chip (sticky bottom CTA remains) */
+body.page-seo-hub .mobile-logo-cta {
+  display: none !important;
+  animation: none !important;
+  pointer-events: none;
+}
+
 @media (max-width: 900px) {
   body.page-seo .mobile-logo-cta {
     display: inline-flex;
     margin-left: auto;
+  }
+
+  body.page-seo-hub .mobile-logo-cta {
+    display: none !important;
   }
 }
 
