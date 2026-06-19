@@ -50,32 +50,9 @@ body.page-seo .top-bar .nav-toggle-icon::after {
   background: var(--header-scrolled-white);
 }
 
-body.page-seo .mobile-logo-cta {
-  display: none;
-}
-
-/* Hub page: hide header chrome only — logo stays, hero has expanded brand */
 body.page-seo-hub .top-bar .header-brand-chrome {
   visibility: hidden;
   pointer-events: none;
-}
-
-/* Learn hub: no animated mobile Schedule chip (sticky bottom CTA remains) */
-body.page-seo-hub .mobile-logo-cta {
-  display: none !important;
-  animation: none !important;
-  pointer-events: none;
-}
-
-@media (max-width: 900px) {
-  body.page-seo .mobile-logo-cta {
-    display: inline-flex;
-    margin-left: auto;
-  }
-
-  body.page-seo-hub .mobile-logo-cta {
-    display: none !important;
-  }
 }
 
 .seo-mobile-nav-cta {
@@ -98,8 +75,7 @@ body.page-seo button.link-cta {
   appearance: none;
 }
 
-body.page-seo .link-cta.js-open-appointment,
-body.page-seo .mobile-logo-cta.js-open-appointment {
+body.page-seo .link-cta.js-open-appointment {
   cursor: pointer;
   background: rgba(8, 8, 10, 0.9);
   color: #fff;
@@ -107,21 +83,18 @@ body.page-seo .mobile-logo-cta.js-open-appointment {
   transition: background 0.2s ease, box-shadow 0.2s ease, opacity 0.2s;
 }
 
-body.page-seo .link-cta.js-open-appointment:hover,
-body.page-seo .mobile-logo-cta.js-open-appointment:hover {
+body.page-seo .link-cta.js-open-appointment:hover {
   background: #000;
   color: #fff;
   opacity: 1;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
 }
 
-body.page-seo .link-cta.js-open-appointment .link-cta-label,
-body.page-seo .mobile-logo-cta.js-open-appointment .link-cta-label {
+body.page-seo .link-cta.js-open-appointment .link-cta-label {
   color: #fff;
 }
 
-body.page-seo .link-cta.js-open-appointment .link-cta-border,
-body.page-seo .mobile-logo-cta.js-open-appointment .link-cta-border {
+body.page-seo .link-cta.js-open-appointment .link-cta-border {
   background: rgba(255, 255, 255, 0.85);
 }
 
