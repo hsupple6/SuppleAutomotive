@@ -1,4 +1,7 @@
 {
+  "redirects": [
+    { "source": "/hayden-supple", "destination": "/hayden-supple/", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/supplecontrols", "destination": "/server.js" },
     { "source": "/supplecontrols/:path*", "destination": "/server.js" },
