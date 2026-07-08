@@ -437,15 +437,21 @@ seoContent.getAllPages().forEach(function (page) {
   });
 });
 
-// Hayden Supple portfolio (git submodule at hayden-supple/)
-var haydenSupplePublic = path.join(__dirname, 'hayden-supple', 'public');
-if (fs.existsSync(haydenSupplePublic)) {
+// Hayden Supple portfolio at /hayden-supple/ (public/hayden-supple, or submodule fallback)
+var haydenSuppleCandidates = [
+  path.join(__dirname, 'public', 'hayden-supple'),
+  path.join(__dirname, 'hayden-supple', 'public'),
+];
+var haydenSupplePublic = haydenSuppleCandidates.find(function (dir) {
+  return fs.existsSync(path.join(dir, 'index.html'));
+});
+if (haydenSupplePublic) {
   app.get('/hayden-supple', function (req, res) {
     res.redirect(301, '/hayden-supple/');
   });
   app.use('/hayden-supple', express.static(haydenSupplePublic, { index: 'index.html' }));
 } else {
-  console.warn('hayden-supple submodule missing; run: git submodule update --init --recursive');
+  console.warn('hayden-supple not found in public/hayden-supple or hayden-supple submodule');
 }
 
 // Static files after /api routes so API paths are never ambiguous with public files

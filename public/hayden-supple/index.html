@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hayden Supple | Mechanical Engineer</title>
+  <meta name="description" content="Hayden Supple, Mechanical Engineering student at Purdue. Hardware, software, autonomous systems, and product design.">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <script src="config.js"></script>
+</head>
+<body>
+
+  <header class="top-bar">
+    <a href="#" class="logo">Hayden<span class="logo-accent">.</span></a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#experience">Experience</a>
+      <a href="#projects">Projects</a>
+      <a href="#about">About</a>
+      <a href="#education">Education</a>
+      <a href="#skills">Skills</a>
+      <a href="#resume">Resume</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false">
+      <span class="nav-toggle-icon"></span>
+    </button>
+  </header>
+
+  <nav class="mobile-nav-overlay" aria-label="Mobile">
+    <a href="#experience">Experience</a>
+    <a href="#projects">Projects</a>
+    <a href="#about">About</a>
+    <a href="#education">Education</a>
+    <a href="#skills">Skills</a>
+    <a href="#resume">Resume</a>
+    <a href="#contact">Contact</a>
+  </nav>
+
+  <!-- Hero: ASCII layer → tint → content -->
+  <section class="block block-hero" id="hero">
+    <div class="hero-ascii-layer" aria-hidden="true">
+      <video
+        class="hero-ascii-video"
+        id="asciiVideo"
+        src="ASCII/ascii-animation.mp4"
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="auto"
+      ></video>
+    </div>
+    <div class="hero-tint" aria-hidden="true"></div>
+    <div class="hero-content reveal-on-scroll" id="heroReveal">
+      <p class="hero-overline" data-split-lines>Mechanical Engineer</p>
+      <h1 class="hero-title" data-split-lines>Hayden Supple</h1>
+      <p class="hero-tagline" data-split-lines>Motor drives, powertrains, and vehicle systems.</p>
+      <div class="hero-cta-row" data-reveal-split-only>
+        <a href="#projects" class="link-discover">View Projects</a>
+        <a href="#resume" class="link-discover" id="heroResume">Resume</a>
+        <a href="#contact" class="link-cta">
+          <span class="link-cta-label">Get in Touch</span>
+          <span class="link-cta-border link-cta-border-t"></span>
+          <span class="link-cta-border link-cta-border-r"></span>
+          <span class="link-cta-border link-cta-border-b"></span>
+          <span class="link-cta-border link-cta-border-l"></span>
+        </a>
+      </div>
+    </div>
+    <p class="hero-scroll-hint" aria-hidden="true">Scroll</p>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- Intro -->
+  <section class="block block-intro">
+    <div class="intro-inner reveal-on-scroll">
+      <p class="copy-overline" data-split-lines>Overview</p>
+      <h2 class="copy-title" data-split-lines>Electromechanical Systems</h2>
+      <p class="copy-body">Purdue Mechanical Engineering student, graduating 2027. I work where mechanical and electrical systems meet, with a focus on transportation: motor drives, powertrains, battery systems, and embedded vehicle control.</p>
+      <p class="copy-body">Machine learning and automated systems are a core part of that work, from on-device vision to autonomous vehicle telemetry.</p>
+    </div>
+  </section>
+
+  <!-- Experience -->
+  <section class="block-section-header" id="experience">
+    <p class="section-label reveal-on-scroll">Professional Experience</p>
+    <h2 class="section-header-title reveal-on-scroll" data-split-lines>Where I've Built</h2>
+  </section>
+
+  <section class="block block-entry" id="bedrock">
+    <div class="entry-inner">
+      <div class="entry-media">
+        <div class="image-stack image-stack--entry" data-reveal-image data-image-section="bedrock" data-placeholder-label="Bedrock AI"></div>
+      </div>
+      <div class="entry-copy reveal-on-scroll" data-buzz-highlight>
+        <div class="entry-meta">
+          <span>March 2025 – Present</span>
+          <span class="entry-meta-sep">Palo Alto, CA</span>
+        </div>
+        <h3 class="entry-title" data-split-lines>Design Engineering Intern</h3>
+        <p class="entry-subtitle" data-split-lines>Bedrock AI · GalOS &amp; Galaxy Server</p>
+        <div class="entry-framing">
+          <p class="entry-block-label">Problem</p>
+          <p class="entry-problem">Personal AI tools push data to the cloud and break existing desktop file workflows.</p>
+          <p class="entry-problem">A home AI platform needs enclosure design, secure device networking, and integrated hardware to run locally at scale.</p>
+          <p class="entry-block-label">Solution</p>
+          <p class="entry-solution">Build GalOS and the Galaxy in-home server: local AI file management and document editing streamed to every device with privacy-first, on-prem compute.</p>
+        </div>
+        <p class="entry-engineering-label">Engineering</p>
+        <ul class="entry-bullets">
+          <li>Custom <span class="buzz-target">sheet</span> <span class="buzz-target">aluminum</span> Galaxy enclosure with dual OLED displays (13.3" &amp; 5.5"), internal layout, and assembly.</li>
+          <li><span class="buzz-target">Toleranced</span> enclosure geometry, display mounts, and internal packaging for fit, alignment, and service access.</li>
+          <li><span class="buzz-target">Network</span> <span class="buzz-target">infrastructure</span> and secure <span class="buzz-target">IP</span> configuration for low-latency streaming to laptops, desktops, and phones.</li>
+          <li>Cross-platform Electron client for desktop control of the local AI server.</li>
+          <li>Integrated backend <span class="buzz-target">AI</span> <span class="buzz-target">APIs</span> for on-prem file analysis and <span class="buzz-target">semantic</span> <span class="buzz-target">search</span>.</li>
+          <li>GalOS front-end for intelligent file navigation and <span class="buzz-target">context-aware</span> document editing across the local data ecosystem.</li>
+        </ul>
+        <div class="entry-tags">
+          <span class="entry-tag">Sheet Metal</span>
+          <span class="entry-tag">GD&amp;T</span>
+          <span class="entry-tag">Network</span>
+          <span class="entry-tag">AI Systems</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block block-entry">
+    <div class="entry-inner entry-inner--reverse">
+      <div class="entry-media">
+        <div class="image-stack image-stack--entry" data-reveal-image data-image-section="par" data-placeholder-label="Purdue Autonomous Racing"></div>
+      </div>
+      <div class="entry-copy reveal-on-scroll" data-buzz-highlight>
+        <div class="entry-meta">
+          <span>January 2025 – Present</span>
+          <span class="entry-meta-sep">West Lafayette, IN</span>
+        </div>
+        <h3 class="entry-title" data-split-lines>Vehicle Systems Engineer</h3>
+        <p class="entry-subtitle" data-split-lines>Purdue Autonomous Racing</p>
+        <div class="entry-framing">
+          <p class="entry-block-label">Problem</p>
+          <p class="entry-problem">Autonomous race car subsystems generate high-rate data that is difficult to monitor live at track speeds above 150 MPH.</p>
+          <p class="entry-problem">Engineers need real-time visibility into vehicle state and track position during test runs, not post-session log review.</p>
+          <p class="entry-block-label">Solution</p>
+          <p class="entry-solution">Built a live ROS2 telemetry and GPS mapping stack to stream, visualize, and track vehicle data in real time from the pit.</p>
+        </div>
+        <p class="entry-engineering-label">Engineering</p>
+        <ul class="entry-bullets">
+          <li><span class="buzz-target">ROS2</span> telemetry app subscribing to powertrain, sensing, and control topics across vehicle subsystems at <span class="buzz-target">150+</span> <span class="buzz-target">MPH</span>.</li>
+          <li>Unified <span class="buzz-target">live</span> <span class="buzz-target">dashboard</span> for multi-subsystem vehicle state during <span class="buzz-target">high-speed</span> test sessions.</li>
+          <li><span class="buzz-target">GPS</span>-based live track mapping with <span class="buzz-target">coordinate-flattening</span> for accurate race-line visualization.</li>
+          <li><span class="buzz-target">Low-latency</span> data pipeline tuned for pit-side monitoring on test days.</li>
+          <li>Coordinate transforms and <span class="buzz-target">map</span> <span class="buzz-target">rendering</span> for <span class="buzz-target">precise</span> on-track position feedback.</li>
+        </ul>
+        <div class="entry-tags">
+          <span class="entry-tag">ROS2</span>
+          <span class="entry-tag">Telemetry</span>
+          <span class="entry-tag">GPS</span>
+          <span class="entry-tag">Python</span>
+          <span class="entry-tag">C++</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Projects -->
+  <section class="block-section-header" id="projects">
+    <p class="section-label reveal-on-scroll">Engineering Projects</p>
+    <h2 class="section-header-title reveal-on-scroll" data-split-lines>What I've Built</h2>
+  </section>
+
+  <!-- Tool logos marquee -->
+  <section class="block block-logo-marquee" aria-label="Tools and platforms">
+    <p class="logo-marquee-label">Platforms &amp; tools I'm proficient in</p>
+    <div class="logo-marquee">
+      <div class="logo-marquee-track" id="logoMarqueeTrack">
+        <div class="logo-marquee-set" id="logoMarqueeSetA"></div>
+        <div class="logo-marquee-set" id="logoMarqueeSetB" aria-hidden="true"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block block-entry" id="unlate">
+    <div class="entry-inner">
+      <div class="entry-media">
+        <div class="image-stack image-stack--entry" data-reveal-image data-image-section="unlate" data-placeholder-label="UnLate Skateboard"></div>
+      </div>
+      <div class="entry-copy reveal-on-scroll" data-buzz-highlight>
+        <div class="entry-meta">
+          <span>May – September 2025</span>
+        </div>
+        <h3 class="entry-title" data-split-lines>UnLate: Autonomous Skateboard</h3>
+        <p class="entry-subtitle" data-split-lines>Swift iOS App &amp; Edge AI</p>
+        <div class="entry-framing">
+          <p class="entry-block-label">Problem</p>
+          <p class="entry-problem">Autonomous navigation on a skateboard requires vision, compute, and motor control in one compact platform.</p>
+          <p class="entry-problem">Cloud inference adds latency; the drivetrain and steering hardware must respond to ML outputs in real time.</p>
+          <p class="entry-block-label">Solution</p>
+          <p class="entry-solution">Pair ESP32-CAM edge sensing with on-device CoreML inference on iOS and a custom BLDC powertrain with rack-and-pinion steering.</p>
+        </div>
+        <p class="entry-engineering-label">Engineering</p>
+        <ul class="entry-bullets">
+          <li><span class="buzz-target">ESP32-CAM</span> + custom <span class="buzz-target">C</span> firmware for low-latency <span class="buzz-target">video</span> <span class="buzz-target">streaming</span>.</li>
+          <li><span class="buzz-target">Swift</span> app running <span class="buzz-target">YOLOv5L</span> through <span class="buzz-target">CoreML</span> for on-device inference.</li>
+          <li>CV pipeline translating detections into <span class="buzz-target">real-time</span> motor and steering commands.</li>
+          <li>Dual <span class="buzz-target">6384</span> <span class="buzz-target">BLDC</span> motors for rear-wheel drive with torque control.</li>
+          <li>Custom <span class="buzz-target">12S3P</span> pack (<span class="buzz-target">44.4V</span>, <span class="buzz-target">~540</span> <span class="buzz-target">Wh</span>) with integrated <span class="buzz-target">BMS</span>.</li>
+          <li><span class="buzz-target">CNC</span> <span class="buzz-target">6061</span> aluminum trucks with <span class="buzz-target">rack-and-pinion</span> front steering via servo.</li>
+        </ul>
+        <div class="entry-tags">
+          <span class="entry-tag">ESP32-CAM</span>
+          <span class="entry-tag">CoreML</span>
+          <span class="entry-tag">YOLOv5</span>
+          <span class="entry-tag">BLDC</span>
+          <span class="entry-tag">CNC</span>
+          <span class="entry-tag">Swift</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block block-entry">
+    <div class="entry-inner entry-inner--reverse">
+      <div class="entry-media">
+        <div class="image-stack image-stack--entry" data-reveal-image data-image-section="nmhs" data-placeholder-label="NMHS ESL"></div>
+      </div>
+      <div class="entry-copy reveal-on-scroll" data-buzz-highlight>
+        <div class="entry-meta">
+          <span>September 2025 – Present</span>
+        </div>
+        <h3 class="entry-title" data-split-lines>NMHS Electronic Shelf Labeling</h3>
+        <p class="entry-subtitle" data-split-lines>E-Ink Digital Shelf Labels</p>
+        <div class="entry-framing">
+          <p class="entry-block-label">Problem</p>
+          <p class="entry-problem">Stores spend dozens of labor hours per week swapping paper shelf tags, especially as price update frequency increases.</p>
+          <p class="entry-problem">Most digital shelf label systems force retailers to abandon existing tagging PDF workflows and overhaul store processes.</p>
+          <p class="entry-block-label">Solution</p>
+          <p class="entry-solution">E-ink shelf labels with a PDF digitization pipeline, YOLO field detection, and WiFi distribution to on-chip firmware on each tag.</p>
+        </div>
+        <p class="entry-engineering-label">Engineering</p>
+        <ul class="entry-bullets">
+          <li><span class="buzz-target">Digitalization</span> <span class="buzz-target">pipeline</span> ingests existing retailer tagging <span class="buzz-target">PDFs</span> and extracts pricing and product data.</li>
+          <li><span class="buzz-target">YOLO</span> pattern detection maps label fields to e-ink layouts without manual reformatting.</li>
+          <li>Store-wide updates over <span class="buzz-target">WiFi</span> to <span class="buzz-target">on-chip</span> <span class="buzz-target">firmware</span> on each label for <span class="buzz-target">local</span> <span class="buzz-target">rendering</span>.</li>
+          <li><span class="buzz-target">Light-powered</span> e-ink displays run on ambient indoor lighting with no battery replacements.</li>
+          <li><span class="buzz-target">Quick</span> <span class="buzz-target">Clip</span> front panel for promo cards, barcodes, and discounts without replacing the tag.</li>
+          <li><span class="buzz-target">Shelf-integrated</span> <span class="buzz-target">hardware</span> designed for mass production; saves <span class="buzz-target">10+</span> <span class="buzz-target">labor</span> <span class="buzz-target">hours/week</span> at <span class="buzz-target">~50%</span> competitor pricing.</li>
+        </ul>
+        <div class="entry-tags">
+          <span class="entry-tag">E-Ink</span>
+          <span class="entry-tag">YOLO</span>
+          <span class="entry-tag">WiFi</span>
+          <span class="entry-tag">IoT</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Education -->
+  <section class="block block-education" id="education">
+    <div class="education-inner">
+      <div class="education-copy reveal-on-scroll">
+        <p class="copy-overline" data-split-lines>Education</p>
+        <h2 class="copy-title" data-split-lines>B.S. Mechanical Engineering</h2>
+        <p class="copy-body" data-split-lines>Purdue University</p>
+        <p class="copy-body" data-split-lines>West Lafayette, Indiana</p>
+        <p class="copy-body" data-split-lines>August 2024 – May 2027</p>
+      </div>
+      <div class="education-media">
+        <div class="image-stack image-stack--education reveal-from-left-full" data-reveal-image data-image-section="purdue" data-placeholder-label="Purdue University" data-variant="full-slide"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Leadership -->
+  <section class="block block-leadership" id="leadership">
+    <div class="leadership-inner">
+      <header class="leadership-header reveal-on-scroll">
+        <p class="copy-overline" data-split-lines>Leadership</p>
+        <h3 class="leadership-title" data-split-lines>Governmental Relations Executive Director</h3>
+        <p class="entry-subtitle" data-split-lines>Purdue Student Government</p>
+        <div class="entry-meta leadership-meta">
+          <span>November 2024 – Present</span>
+          <span class="entry-meta-sep">West Lafayette, IN</span>
+        </div>
+      </header>
+
+      <div class="leadership-tree" data-leadership-timeline>
+        <div class="leadership-tree-canvas">
+          <div class="leadership-tree-axis" aria-hidden="true">
+            <span class="lt-dot"></span>
+            <span class="lt-line lt-stem-1"></span>
+            <span class="lt-line lt-branch-left"></span>
+            <span class="lt-line lt-stem-2"></span>
+            <span class="lt-line lt-branch-right"></span>
+          </div>
+
+          <article class="leadership-milestone lt-card lt-card--1">
+            <div class="leadership-milestone-media" data-leadership-image="0">
+              <div class="leadership-milestone-placeholder">+</div>
+            </div>
+            <div class="leadership-milestone-body">
+              <h4 class="leadership-milestone-title">Indiana Lifeline Bill</h4>
+              <p class="leadership-milestone-date">Indiana State Senate · SB74 · 9–0 Passage</p>
+              <p class="leadership-milestone-bio">Lobbied for the Indiana Lifeline Bill, achieving unanimous 9–0 passage in the state senate and advancing student safety policy at the state level.</p>
+            </div>
+          </article>
+
+          <article class="leadership-milestone lt-card lt-card--2">
+            <div class="leadership-milestone-media" data-leadership-image="1">
+              <div class="leadership-milestone-placeholder">+</div>
+            </div>
+            <div class="leadership-milestone-body">
+              <h4 class="leadership-milestone-title">Big Ten on the Hill</h4>
+              <p class="leadership-milestone-date">Washington, D.C. · 2025</p>
+              <p class="leadership-milestone-bio">Represented Purdue at Big Ten on the Hill, advocating for 50,000+ students in direct meetings with U.S. senators on higher education and student priorities.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Skills -->
+  <section class="block block-skills" id="skills">
+    <div class="skills-inner reveal-on-scroll">
+      <p class="copy-overline" data-split-lines style="text-align: center;">Technical Skills</p>
+      <h2 class="copy-title" data-split-lines style="text-align: center;">Tools & Technologies</h2>
+      <div class="skills-grid">
+        <div>
+          <h3 class="skills-group-title">Programming & Software</h3>
+          <div class="skills-list">
+            <span class="skill-pill">C++</span>
+            <span class="skill-pill">Python</span>
+            <span class="skill-pill">JavaScript</span>
+            <span class="skill-pill">React</span>
+            <span class="skill-pill">Swift</span>
+            <span class="skill-pill">ROS2</span>
+            <span class="skill-pill">CoreML</span>
+            <span class="skill-pill">YOLO</span>
+            <span class="skill-pill">MATLAB</span>
+          </div>
+        </div>
+        <div>
+          <h3 class="skills-group-title">Mechanical & Electronics</h3>
+          <div class="skills-list">
+            <span class="skill-pill">CAD (Fusion 360, NX)</span>
+            <span class="skill-pill">CNC</span>
+            <span class="skill-pill">Motor/Powertrain Design</span>
+            <span class="skill-pill">Battery Systems</span>
+            <span class="skill-pill">Microcontrollers</span>
+            <span class="skill-pill">Motor Drivers</span>
+            <span class="skill-pill">On-Board Computing</span>
+            <span class="skill-pill">FEA (Ansys)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- About / Hobbies -->
+  <section class="block-section-header" id="about">
+    <p class="section-label reveal-on-scroll">About</p>
+    <h2 class="section-header-title reveal-on-scroll" data-split-lines>Beyond Engineering</h2>
+  </section>
+
+  <div class="hobby-panels">
+
+    <article class="hobby-panel">
+      <div class="hobby-panel-media">
+        <div class="image-stack image-stack--bleed" data-reveal-image data-image-section="outdoors" data-placeholder-label="Outdoors"></div>
+        <div class="hobby-panel-gradient" aria-hidden="true"></div>
+        <div class="hobby-panel-copy reveal-on-scroll">
+          <p class="hobby-overline" data-split-lines>Outdoors</p>
+          <h3 class="hobby-title" data-split-lines>Hiking &amp; Mountain Biking</h3>
+          <p class="hobby-body" data-split-lines>Most of my best thinking happens off the pavement. I grew up around California trails and still chase elevation whenever I can: long hikes to clear my head, mountain biking when I want speed without a roof. It's the same instinct that pulls me toward engineering: read the terrain, commit to the line, and figure it out as you go.</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="hobby-panel">
+      <div class="hobby-panel-media">
+        <div class="image-stack image-stack--bleed" data-reveal-image data-image-section="cars" data-placeholder-label="Cars"></div>
+        <div class="hobby-panel-gradient" aria-hidden="true"></div>
+        <div class="hobby-panel-copy reveal-on-scroll">
+          <p class="hobby-overline" data-split-lines>Cars</p>
+          <h3 class="hobby-title" data-split-lines>Under the Hood</h3>
+          <p class="hobby-body" data-split-lines>Cars were my first real laboratory. Before CAD and code, it was socket wrenches, blown gaskets, and learning why things break by taking them apart. That hands-on obsession never left, whether it's a daily driver, a project car, or the mobile repair work I do through Supple Automotive. If it has an engine and wheels, I'm interested.</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="hobby-panel">
+      <div class="hobby-panel-media">
+        <div class="image-stack image-stack--bleed" data-reveal-image data-image-section="gym" data-placeholder-label="The Gym"></div>
+        <div class="hobby-panel-gradient" aria-hidden="true"></div>
+        <div class="hobby-panel-copy reveal-on-scroll">
+          <p class="hobby-overline" data-split-lines>The Gym</p>
+          <h3 class="hobby-title" data-split-lines>Training &amp; Discipline</h3>
+          <p class="hobby-body" data-split-lines>The gym is the other side of the build schedule: structured, repetitive, and honest about progress. Lifting keeps me grounded when projects get heavy: show up, put in the work, track the numbers. Same mindset I bring to engineering: consistency compounds, and there's no shortcut around the hard reps.</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="hobby-panel">
+      <div class="hobby-panel-media">
+        <div class="image-stack image-stack--bleed" data-reveal-image data-image-section="cooking" data-placeholder-label="Cooking"></div>
+        <div class="hobby-panel-gradient" aria-hidden="true"></div>
+        <div class="hobby-panel-copy reveal-on-scroll">
+          <p class="hobby-overline" data-split-lines>Cooking</p>
+          <h3 class="hobby-title" data-split-lines>In the Kitchen</h3>
+          <p class="hobby-body" data-split-lines>Engineering doesn't stop at the workbench. I cook the same way I build: iterate, taste, adjust. There's something satisfying about nailing a recipe from scratch: prep, heat, timing, and plating. It's creative without a CAD file, and the feedback loop is immediate.</p>
+        </div>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- Resume -->
+  <section class="block block-resume" id="resume">
+    <div class="resume-inner reveal-on-scroll">
+      <p class="copy-overline" data-split-lines>Resume</p>
+      <h2 class="copy-title" data-split-lines>CV</h2>
+      <div class="resume-viewer">
+        <iframe id="resumeViewer" title="Hayden Supple resume" src="resume/HaydenSupple_Resume.pdf"></iframe>
+      </div>
+      <div class="resume-actions">
+        <a href="resume/HaydenSupple_Resume.pdf" class="link-cta" id="resumeDownload" download>
+          <span class="link-cta-label">Download PDF</span>
+          <span class="link-cta-border link-cta-border-t"></span>
+          <span class="link-cta-border link-cta-border-r"></span>
+          <span class="link-cta-border link-cta-border-b"></span>
+          <span class="link-cta-border link-cta-border-l"></span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section class="block block-contact" id="contact">
+    <div class="contact-inner reveal-on-scroll">
+      <h2 class="contact-title" data-split-lines>Contact</h2>
+      <p class="contact-intro" data-split-lines>Open to internships, collaborations, and interesting problems.</p>
+      <div class="contact-links">
+        <a href="mailto:hsupple@purdue.edu" class="contact-link" id="contactEmail">hsupple@purdue.edu</a>
+        <a href="tel:+18054434181" class="contact-link" id="contactPhone">+1 (805) 443-4181</a>
+        <a href="https://linkedin.com/in/hayden-supple" class="contact-link link-discover" id="contactLinkedin" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <a href="resume/HaydenSupple_Resume.pdf" class="footer-resume link-discover" id="footerResume" download>Download Resume</a>
+      <p class="footer-text">© <span id="footerYear">2026</span> Hayden Supple</p>
+    </div>
+  </footer>
+
+  <script src="js/ascii-player.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
