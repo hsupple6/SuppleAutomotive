@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "postinstall": "git submodule update --init --recursive",
     "static": "live-server --port=3000 --open=/",
     "business-card": "node business-card/server.js",
     "web:dev": "npm run dev --prefix web",

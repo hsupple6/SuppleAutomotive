@@ -1,0 +1,3 @@
+[submodule "hayden-supple"]
+	path = hayden-supple
+	url = git@github.com:hsupple6/HaydenSupple.git

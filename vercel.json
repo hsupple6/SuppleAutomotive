@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/hayden-supple", "destination": "/hayden-supple/" },
+    { "source": "/hayden-supple/:path*", "destination": "/server.js" },
     { "source": "/supplecontrols", "destination": "/server.js" },
     { "source": "/supplecontrols/:path*", "destination": "/server.js" },
     { "source": "/api/:path*", "destination": "/server.js" },
