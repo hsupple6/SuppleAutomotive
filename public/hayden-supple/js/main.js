@@ -378,17 +378,51 @@
     });
   }
 
+  function getAnchorHash(link) {
+    var raw = link.getAttribute('href') || '';
+    var hashIndex = raw.indexOf('#');
+    return hashIndex >= 0 ? raw.slice(hashIndex) : raw;
+  }
+
+  function getScrollOffset() {
+    var header = document.querySelector('.top-bar');
+    return header ? header.offsetHeight + 16 : 80;
+  }
+
+  function scrollToAnchor(target) {
+    if (!target) return;
+    var top = target.getBoundingClientRect().top + window.scrollY - getScrollOffset();
+    window.scrollTo({
+      top: Math.max(0, top),
+      behavior: prefersReduced ? 'auto' : 'smooth',
+    });
+  }
+
   function initSmoothAnchors() {
-    document.querySelectorAll('a[href^="#"]').forEach(function (link) {
+    document.querySelectorAll('a[href*="#"]').forEach(function (link) {
       link.addEventListener('click', function (e) {
-        var id = link.getAttribute('href');
-        if (!id || id === '#') return;
-        var target = document.querySelector(id);
+        var hash = getAnchorHash(link);
+        if (!hash || hash === '#') return;
+        var target = document.querySelector(hash);
         if (!target) return;
         e.preventDefault();
-        target.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth' });
+        scrollToAnchor(target);
+        if (history.replaceState) {
+          history.replaceState(null, '', hash);
+        } else {
+          location.hash = hash;
+        }
       });
     });
+
+    if (location.hash) {
+      var initialTarget = document.querySelector(location.hash);
+      if (initialTarget) {
+        requestAnimationFrame(function () {
+          scrollToAnchor(initialTarget);
+        });
+      }
+    }
   }
 
   function initImageStacks() {
@@ -640,6 +674,59 @@
     hero.classList.add('is-visible');
   }
 
+  function initCarsSpecCallout() {
+    var callout = document.querySelector('[data-car-spec-callout]');
+    if (!callout) return;
+
+    function showAllSteps() {
+      callout.dataset.played = 'true';
+      callout.classList.add('cs-step-dot', 'cs-step-diag', 'cs-step-horiz', 'cs-step-card');
+      callout.removeAttribute('aria-hidden');
+    }
+
+    function playCallout() {
+      if (callout.dataset.played === 'true') return;
+      callout.dataset.played = 'true';
+
+      var steps = ['cs-step-dot', 'cs-step-diag', 'cs-step-horiz', 'cs-step-card'];
+      var delays = [0, 220, 520, 760];
+
+      steps.forEach(function (step, index) {
+        setTimeout(function () {
+          callout.classList.add(step);
+          if (step === 'cs-step-card') {
+            callout.removeAttribute('aria-hidden');
+          }
+        }, delays[index]);
+      });
+    }
+
+    if (prefersReduced) {
+      showAllSteps();
+      return;
+    }
+
+    if (typeof IntersectionObserver === 'undefined') {
+      playCallout();
+      return;
+    }
+
+    var played = false;
+    var observer = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting || played) return;
+          played = true;
+          playCallout();
+          observer.disconnect();
+        });
+      },
+      { threshold: 0.35, rootMargin: '0px' }
+    );
+
+    observer.observe(callout.closest('.hobby-panel') || callout);
+  }
+
   function initLeadershipTree() {
     var section = document.getElementById('leadership');
     if (!section) return;
@@ -754,5 +841,6 @@
   });
   initLogoMarquee();
   initLeadershipTree();
+  initCarsSpecCallout();
   revealHero();
 })();

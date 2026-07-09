@@ -24,13 +24,13 @@
 <body>
 
   <header class="top-bar">
-    <a href="#" class="logo">Hayden<span class="logo-accent">.</span></a>
+    <a href="#hero" class="logo">Hayden<span class="logo-accent">.</span></a>
     <nav class="nav-links" aria-label="Primary">
-      <a href="#experience">Experience</a>
       <a href="#projects">Projects</a>
-      <a href="#about">About</a>
+      <a href="#experience">Experience</a>
       <a href="#education">Education</a>
       <a href="#skills">Skills</a>
+      <a href="#about">About</a>
       <a href="#resume">Resume</a>
       <a href="#contact">Contact</a>
     </nav>
@@ -40,11 +40,11 @@
   </header>
 
   <nav class="mobile-nav-overlay" aria-label="Mobile">
-    <a href="#experience">Experience</a>
     <a href="#projects">Projects</a>
-    <a href="#about">About</a>
+    <a href="#experience">Experience</a>
     <a href="#education">Education</a>
     <a href="#skills">Skills</a>
+    <a href="#about">About</a>
     <a href="#resume">Resume</a>
     <a href="#contact">Contact</a>
   </nav>
@@ -67,7 +67,7 @@
     <div class="hero-content reveal-on-scroll" id="heroReveal">
       <p class="hero-overline" data-split-lines>Mechanical Engineer</p>
       <h1 class="hero-title" data-split-lines>Hayden Supple</h1>
-      <p class="hero-tagline" data-split-lines>Motor drives, powertrains, and vehicle systems.</p>
+      <p class="hero-tagline" data-split-lines> Hardware, software, and autonomous systems.</p>
       <div class="hero-cta-row" data-reveal-split-only>
         <a href="#projects" class="link-discover">View Projects</a>
         <a href="#resume" class="link-discover" id="heroResume">Resume</a>
@@ -84,98 +84,6 @@
   </section>
 
   <div class="section-divider"></div>
-
-  <!-- Intro -->
-  <section class="block block-intro">
-    <div class="intro-inner reveal-on-scroll">
-      <p class="copy-overline" data-split-lines>Overview</p>
-      <h2 class="copy-title" data-split-lines>Electromechanical Systems</h2>
-      <p class="copy-body">Purdue Mechanical Engineering student, graduating 2027. I work where mechanical and electrical systems meet, with a focus on transportation: motor drives, powertrains, battery systems, and embedded vehicle control.</p>
-      <p class="copy-body">Machine learning and automated systems are a core part of that work, from on-device vision to autonomous vehicle telemetry.</p>
-    </div>
-  </section>
-
-  <!-- Experience -->
-  <section class="block-section-header" id="experience">
-    <p class="section-label reveal-on-scroll">Professional Experience</p>
-    <h2 class="section-header-title reveal-on-scroll" data-split-lines>Where I've Built</h2>
-  </section>
-
-  <section class="block block-entry" id="bedrock">
-    <div class="entry-inner">
-      <div class="entry-media">
-        <div class="image-stack image-stack--entry" data-reveal-image data-image-section="bedrock" data-placeholder-label="Bedrock AI"></div>
-      </div>
-      <div class="entry-copy reveal-on-scroll" data-buzz-highlight>
-        <div class="entry-meta">
-          <span>March 2025 – Present</span>
-          <span class="entry-meta-sep">Palo Alto, CA</span>
-        </div>
-        <h3 class="entry-title" data-split-lines>Design Engineering Intern</h3>
-        <p class="entry-subtitle" data-split-lines>Bedrock AI · GalOS &amp; Galaxy Server</p>
-        <div class="entry-framing">
-          <p class="entry-block-label">Problem</p>
-          <p class="entry-problem">Personal AI tools push data to the cloud and break existing desktop file workflows.</p>
-          <p class="entry-problem">A home AI platform needs enclosure design, secure device networking, and integrated hardware to run locally at scale.</p>
-          <p class="entry-block-label">Solution</p>
-          <p class="entry-solution">Build GalOS and the Galaxy in-home server: local AI file management and document editing streamed to every device with privacy-first, on-prem compute.</p>
-        </div>
-        <p class="entry-engineering-label">Engineering</p>
-        <ul class="entry-bullets">
-          <li>Custom <span class="buzz-target">sheet</span> <span class="buzz-target">aluminum</span> Galaxy enclosure with dual OLED displays (13.3" &amp; 5.5"), internal layout, and assembly.</li>
-          <li><span class="buzz-target">Toleranced</span> enclosure geometry, display mounts, and internal packaging for fit, alignment, and service access.</li>
-          <li><span class="buzz-target">Network</span> <span class="buzz-target">infrastructure</span> and secure <span class="buzz-target">IP</span> configuration for low-latency streaming to laptops, desktops, and phones.</li>
-          <li>Cross-platform Electron client for desktop control of the local AI server.</li>
-          <li>Integrated backend <span class="buzz-target">AI</span> <span class="buzz-target">APIs</span> for on-prem file analysis and <span class="buzz-target">semantic</span> <span class="buzz-target">search</span>.</li>
-          <li>GalOS front-end for intelligent file navigation and <span class="buzz-target">context-aware</span> document editing across the local data ecosystem.</li>
-        </ul>
-        <div class="entry-tags">
-          <span class="entry-tag">Sheet Metal</span>
-          <span class="entry-tag">GD&amp;T</span>
-          <span class="entry-tag">Network</span>
-          <span class="entry-tag">AI Systems</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="block block-entry">
-    <div class="entry-inner entry-inner--reverse">
-      <div class="entry-media">
-        <div class="image-stack image-stack--entry" data-reveal-image data-image-section="par" data-placeholder-label="Purdue Autonomous Racing"></div>
-      </div>
-      <div class="entry-copy reveal-on-scroll" data-buzz-highlight>
-        <div class="entry-meta">
-          <span>January 2025 – Present</span>
-          <span class="entry-meta-sep">West Lafayette, IN</span>
-        </div>
-        <h3 class="entry-title" data-split-lines>Vehicle Systems Engineer</h3>
-        <p class="entry-subtitle" data-split-lines>Purdue Autonomous Racing</p>
-        <div class="entry-framing">
-          <p class="entry-block-label">Problem</p>
-          <p class="entry-problem">Autonomous race car subsystems generate high-rate data that is difficult to monitor live at track speeds above 150 MPH.</p>
-          <p class="entry-problem">Engineers need real-time visibility into vehicle state and track position during test runs, not post-session log review.</p>
-          <p class="entry-block-label">Solution</p>
-          <p class="entry-solution">Built a live ROS2 telemetry and GPS mapping stack to stream, visualize, and track vehicle data in real time from the pit.</p>
-        </div>
-        <p class="entry-engineering-label">Engineering</p>
-        <ul class="entry-bullets">
-          <li><span class="buzz-target">ROS2</span> telemetry app subscribing to powertrain, sensing, and control topics across vehicle subsystems at <span class="buzz-target">150+</span> <span class="buzz-target">MPH</span>.</li>
-          <li>Unified <span class="buzz-target">live</span> <span class="buzz-target">dashboard</span> for multi-subsystem vehicle state during <span class="buzz-target">high-speed</span> test sessions.</li>
-          <li><span class="buzz-target">GPS</span>-based live track mapping with <span class="buzz-target">coordinate-flattening</span> for accurate race-line visualization.</li>
-          <li><span class="buzz-target">Low-latency</span> data pipeline tuned for pit-side monitoring on test days.</li>
-          <li>Coordinate transforms and <span class="buzz-target">map</span> <span class="buzz-target">rendering</span> for <span class="buzz-target">precise</span> on-track position feedback.</li>
-        </ul>
-        <div class="entry-tags">
-          <span class="entry-tag">ROS2</span>
-          <span class="entry-tag">Telemetry</span>
-          <span class="entry-tag">GPS</span>
-          <span class="entry-tag">Python</span>
-          <span class="entry-tag">C++</span>
-        </div>
-      </div>
-    </div>
-  </section>
 
   <!-- Projects -->
   <section class="block-section-header" id="projects">
@@ -207,8 +115,9 @@
         <p class="entry-subtitle" data-split-lines>Swift iOS App &amp; Edge AI</p>
         <div class="entry-framing">
           <p class="entry-block-label">Problem</p>
-          <p class="entry-problem">Autonomous navigation on a skateboard requires vision, compute, and motor control in one compact platform.</p>
-          <p class="entry-problem">Cloud inference adds latency; the drivetrain and steering hardware must respond to ML outputs in real time.</p>
+          <p class="entry-problem">Skateboards have existed forever, so why not make them drive themselves?
+          Cars have been driving themselves for years, but why hasn't a solution for single person autonomous transportation been developed?
+          </p>
           <p class="entry-block-label">Solution</p>
           <p class="entry-solution">Pair ESP32-CAM edge sensing with on-device CoreML inference on iOS and a custom BLDC powertrain with rack-and-pinion steering.</p>
         </div>
@@ -217,9 +126,9 @@
           <li><span class="buzz-target">ESP32-CAM</span> + custom <span class="buzz-target">C</span> firmware for low-latency <span class="buzz-target">video</span> <span class="buzz-target">streaming</span>.</li>
           <li><span class="buzz-target">Swift</span> app running <span class="buzz-target">YOLOv5L</span> through <span class="buzz-target">CoreML</span> for on-device inference.</li>
           <li>CV pipeline translating detections into <span class="buzz-target">real-time</span> motor and steering commands.</li>
-          <li>Dual <span class="buzz-target">6384</span> <span class="buzz-target">BLDC</span> motors for rear-wheel drive with torque control.</li>
-          <li>Custom <span class="buzz-target">12S3P</span> pack (<span class="buzz-target">44.4V</span>, <span class="buzz-target">~540</span> <span class="buzz-target">Wh</span>) with integrated <span class="buzz-target">BMS</span>.</li>
-          <li><span class="buzz-target">CNC</span> <span class="buzz-target">6061</span> aluminum trucks with <span class="buzz-target">rack-and-pinion</span> front steering via servo.</li>
+          <li>Dual <span class="buzz-target">6384</span> <span class="buzz-target">BLDC</span> motors for rear-wheel drive <span class="buzz-target">belt actuation</span> with torque control.</li>
+          <li>Custom spot welded, soldered, and developed <span class="buzz-target">12S3P</span> pack (<span class="buzz-target">44.4V</span>, <span class="buzz-target">~540</span> <span class="buzz-target">Wh</span>) with integrated <span class="buzz-target">BMS</span>.</li>
+          <li><span class="buzz-target">CNC</span> <span class="buzz-target">6061</span> aluminum trucks with <span class="buzz-target">rack-and-pinion</span> front steering via planetary geared servo.</li>
         </ul>
         <div class="entry-tags">
           <span class="entry-tag">ESP32-CAM</span>
@@ -243,18 +152,18 @@
           <span>September 2025 – Present</span>
         </div>
         <h3 class="entry-title" data-split-lines>NMHS Electronic Shelf Labeling</h3>
-        <p class="entry-subtitle" data-split-lines>E-Ink Digital Shelf Labels</p>
+        <p class="entry-subtitle" data-split-lines>E-Ink Digital Shelf Labels · YOLO OCR</p>
         <div class="entry-framing">
           <p class="entry-block-label">Problem</p>
           <p class="entry-problem">Stores spend dozens of labor hours per week swapping paper shelf tags, especially as price update frequency increases.</p>
           <p class="entry-problem">Most digital shelf label systems force retailers to abandon existing tagging PDF workflows and overhaul store processes.</p>
           <p class="entry-block-label">Solution</p>
-          <p class="entry-solution">E-ink shelf labels with a PDF digitization pipeline, YOLO field detection, and WiFi distribution to on-chip firmware on each tag.</p>
+          <p class="entry-solution">E-ink shelf labels with a PDF digitization pipeline, YOLO OCR to read text straight off existing tags, and WiFi distribution to on-chip firmware on each label.</p>
         </div>
         <p class="entry-engineering-label">Engineering</p>
         <ul class="entry-bullets">
-          <li><span class="buzz-target">Digitalization</span> <span class="buzz-target">pipeline</span> ingests existing retailer tagging <span class="buzz-target">PDFs</span> and extracts pricing and product data.</li>
-          <li><span class="buzz-target">YOLO</span> pattern detection maps label fields to e-ink layouts without manual reformatting.</li>
+          <li><span class="buzz-target">Digitalization</span> <span class="buzz-target">pipeline</span> ingests existing retailer tagging <span class="buzz-target">PDFs</span> as the source layout for each shelf tag.</li>
+          <li><span class="buzz-target">YOLO</span> used as <span class="buzz-target">OCR</span>: detects text regions on each tag and extracts price, product name, and field data without manual re-entry.</li>
           <li>Store-wide updates over <span class="buzz-target">WiFi</span> to <span class="buzz-target">on-chip</span> <span class="buzz-target">firmware</span> on each label for <span class="buzz-target">local</span> <span class="buzz-target">rendering</span>.</li>
           <li><span class="buzz-target">Light-powered</span> e-ink displays run on ambient indoor lighting with no battery replacements.</li>
           <li><span class="buzz-target">Quick</span> <span class="buzz-target">Clip</span> front panel for promo cards, barcodes, and discounts without replacing the tag.</li>
@@ -263,8 +172,124 @@
         <div class="entry-tags">
           <span class="entry-tag">E-Ink</span>
           <span class="entry-tag">YOLO</span>
+          <span class="entry-tag">OCR</span>
           <span class="entry-tag">WiFi</span>
           <span class="entry-tag">IoT</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block block-entry" id="silver-tracker">
+    <div class="entry-inner">
+      <div class="entry-media">
+        <div class="image-stack image-stack--entry" data-reveal-image data-image-section="silver-tracker" data-placeholder-label="Silver Tracker"></div>
+      </div>
+      <div class="entry-copy reveal-on-scroll" data-buzz-highlight>
+        <div class="entry-meta">
+          <span>December 2024</span>
+        </div>
+        <h3 class="entry-title" data-split-lines>Silver Tracker</h3>
+        <p class="entry-subtitle" data-split-lines>Christmas IoT Gift</p>
+        <div class="entry-framing">
+          <p class="entry-block-label">Problem</p>
+          <p class="entry-problem">I needed an idea for Christmas.</p>
+          <p class="entry-block-label">Solution</p>
+          <p class="entry-solution">WiFi desk devices for my brothers — push a button, get the live silver price, topped with a bullion piece each.</p>
+        </div>
+        <p class="entry-engineering-label">Engineering</p>
+        <ul class="entry-bullets">
+          <li><span class="buzz-target">ESP32</span> + <span class="buzz-target">WiFi</span> pulls live silver spot on button press.</li>
+          <li><span class="buzz-target">Laser-cut</span> bent <span class="buzz-target">aluminum</span> chassis with a <span class="buzz-target">3D-printed</span> electronics insert.</li>
+          <li>One build per brother, each capped with its own silver bullion.</li>
+        </ul>
+        <div class="entry-tags">
+          <span class="entry-tag">ESP32</span>
+          <span class="entry-tag">IoT</span>
+          <span class="entry-tag">Sheet Metal</span>
+          <span class="entry-tag">3D Printing</span>
+          <span class="entry-tag">WiFi</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Experience -->
+  <section class="block-section-header" id="experience">
+    <p class="section-label reveal-on-scroll">Professional Experience</p>
+    <h2 class="section-header-title reveal-on-scroll" data-split-lines>Where I've Built</h2>
+  </section>
+
+  <section class="block block-entry" id="bedrock">
+    <div class="entry-inner">
+      <div class="entry-media">
+        <div class="image-stack image-stack--entry" data-reveal-image data-image-section="bedrock" data-placeholder-label="Bedrock AI"></div>
+      </div>
+      <div class="entry-copy reveal-on-scroll" data-buzz-highlight>
+        <div class="entry-meta">
+          <span>March 2025 – Present</span>
+          <span class="entry-meta-sep">Palo Alto, CA</span>
+        </div>
+        <h3 class="entry-title" data-split-lines>Design Engineering Intern</h3>
+        <p class="entry-subtitle" data-split-lines>Bedrock AI · GalOS &amp; Galaxy Server</p>
+        <div class="entry-framing">
+          <p class="entry-block-label">Problem</p>
+          <p class="entry-problem">Personal AIs extend merely to a chat box. (Small) business owners need a way to use AI to help them with their work, but they don't want to give up their data to a third party (e.g medical, financial, etc). On-prem laptop computing is slow and weak.</p>
+          <p class="entry-problem">A home AI platform needs enclosure design, secure device networking, and integrated hardware to run locally at scale.</p>
+          <p class="entry-block-label">Solution</p>
+          <p class="entry-solution">Build GalOS and the Galaxy in-home server: local AI file management and document editing streamed to every device with privacy-first, on-prem compute.</p>
+        </div>
+        <p class="entry-engineering-label">Engineering</p>
+        <ul class="entry-bullets">
+          <li>Custom  Galaxy enclosure with dual <span class="buzz-target">OLED</span> <span class="buzz-target">displays</span> (13.3" &amp; 5.5"), internal layout, and assembly.</li>
+          <li><span class="buzz-target">Toleranced</span> enclosure geometry, display mounts, and internal packaging for fit, alignment, and service access.</li>
+          <li><span class="buzz-target">Network</span> <span class="buzz-target">infrastructure</span> and secure <span class="buzz-target">IP</span> configuration for low-latency streaming to laptops, desktops, and phones.</li>
+          <li>Cross-platform Electron client for desktop control of the local AI server.</li>
+          <li>Integrated backend <span class="buzz-target">AI</span> <span class="buzz-target">APIs</span> for on-prem file analysis and <span class="buzz-target">semantic</span> <span class="buzz-target">search</span>.</li>
+          <li>GalOS front-end for intelligent file navigation and <span class="buzz-target">context-aware</span> document editing across the local data ecosystem.</li>
+        </ul>
+        <div class="entry-tags">
+          <span class="entry-tag">GD&amp;T</span>
+          <span class="entry-tag">Network</span>
+          <span class="entry-tag">AI Systems</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block block-entry">
+    <div class="entry-inner entry-inner--reverse">
+      <div class="entry-media">
+        <div class="image-stack image-stack--entry" data-reveal-image data-image-section="par" data-placeholder-label="Purdue Autonomous Racing"></div>
+      </div>
+      <div class="entry-copy reveal-on-scroll" data-buzz-highlight>
+        <div class="entry-meta">
+          <span>January 2025 – Present</span>
+          <span class="entry-meta-sep">West Lafayette, IN</span>
+        </div>
+        <h3 class="entry-title" data-split-lines>Vehicle Systems Engineer</h3>
+        <p class="entry-subtitle" data-split-lines>Purdue Autonomous Racing</p>
+        <div class="entry-framing">
+          <p class="entry-block-label">Problem</p>
+          <p class="entry-problem">Autonomous race car subsystems generate high-rate data that is difficult to monitor live at track speeds above 150 MPH.</p>
+          <p class="entry-problem">Engineers need real-time visibility into vehicle state and track position during vehicle runs, not post-session log review.</p>
+          <p class="entry-block-label">Solution</p>
+          <p class="entry-solution">Built a live ROS2 telemetry and GPS mapping stack to stream, visualize, and track vehicle data in real time from the pit.</p>
+        </div>
+        <p class="entry-engineering-label">Engineering</p>
+        <ul class="entry-bullets">
+          <li><span class="buzz-target">ROS2</span> telemetry app subscribing to powertrain, sensing, and control topics across vehicle subsystems at <span class="buzz-target">150+</span> <span class="buzz-target">MPH</span>.</li>
+          <li>Unified <span class="buzz-target">live</span> <span class="buzz-target">dashboard</span> for multi-subsystem vehicle state during <span class="buzz-target">high-speed</span> test sessions.</li>
+          <li><span class="buzz-target">GPS</span>-based live track mapping with <span class="buzz-target">coordinate-flattening</span> for accurate race-line visualization.</li>
+          <li><span class="buzz-target">Low-latency</span> data pipeline tuned for pit-side monitoring on test/race days.</li>
+          <li>Coordinate transforms and <span class="buzz-target">map</span> <span class="buzz-target">rendering</span> for <span class="buzz-target">precise</span> on-track position feedback.</li>
+        </ul>
+        <div class="entry-tags">
+          <span class="entry-tag">ROS2</span>
+          <span class="entry-tag">Telemetry</span>
+          <span class="entry-tag">GPS</span>
+          <span class="entry-tag">Python</span>
+          <span class="entry-tag">C++</span>
         </div>
       </div>
     </div>
@@ -387,19 +412,34 @@
         <div class="hobby-panel-copy reveal-on-scroll">
           <p class="hobby-overline" data-split-lines>Outdoors</p>
           <h3 class="hobby-title" data-split-lines>Hiking &amp; Mountain Biking</h3>
-          <p class="hobby-body" data-split-lines>Most of my best thinking happens off the pavement. I grew up around California trails and still chase elevation whenever I can: long hikes to clear my head, mountain biking when I want speed without a roof. It's the same instinct that pulls me toward engineering: read the terrain, commit to the line, and figure it out as you go.</p>
+          <p class="hobby-body" data-split-lines>Growing up in Southern California, I spent most of my time in the mountains. Whether it was hiking, road cycling, or sending the gnar, I was out doing something.</p>
         </div>
       </div>
     </article>
 
-    <article class="hobby-panel">
+    <article class="hobby-panel hobby-panel--cars">
       <div class="hobby-panel-media">
         <div class="image-stack image-stack--bleed" data-reveal-image data-image-section="cars" data-placeholder-label="Cars"></div>
+        <div class="car-spec-callout" data-car-spec-callout aria-hidden="true">
+          <div class="car-spec-callout-root">
+            <span class="car-spec-dot"></span>
+            <span class="car-spec-arm car-spec-arm--diag"></span>
+            <span class="car-spec-arm car-spec-arm--horiz"></span>
+            <aside class="car-spec-card">
+              <h4 class="car-spec-card-title">2003 BMW 540i M-Sport</h4>
+              <ul class="car-spec-card-list">
+                <li>Manual Transmission Swapped</li>
+                <li>Custom Exhaust</li>
+                <li>Euro Headlight Conversion</li>
+              </ul>
+            </aside>
+          </div>
+        </div>
         <div class="hobby-panel-gradient" aria-hidden="true"></div>
         <div class="hobby-panel-copy reveal-on-scroll">
           <p class="hobby-overline" data-split-lines>Cars</p>
           <h3 class="hobby-title" data-split-lines>Under the Hood</h3>
-          <p class="hobby-body" data-split-lines>Cars were my first real laboratory. Before CAD and code, it was socket wrenches, blown gaskets, and learning why things break by taking them apart. That hands-on obsession never left, whether it's a daily driver, a project car, or the mobile repair work I do through Supple Automotive. If it has an engine and wheels, I'm interested.</p>
+          <p class="hobby-body">Cars were my first real laboratory. At 12 I was helping my dad with pointing a flashlight, and by 16 I was transmission swapping my racecar. I am always ready to get dirty and fix something, make it faster, or just look at it.</p>
         </div>
       </div>
     </article>
@@ -410,8 +450,8 @@
         <div class="hobby-panel-gradient" aria-hidden="true"></div>
         <div class="hobby-panel-copy reveal-on-scroll">
           <p class="hobby-overline" data-split-lines>The Gym</p>
-          <h3 class="hobby-title" data-split-lines>Training &amp; Discipline</h3>
-          <p class="hobby-body" data-split-lines>The gym is the other side of the build schedule: structured, repetitive, and honest about progress. Lifting keeps me grounded when projects get heavy: show up, put in the work, track the numbers. Same mindset I bring to engineering: consistency compounds, and there's no shortcut around the hard reps.</p>
+          <h3 class="hobby-title" data-split-lines>Training</h3>
+          <p class="hobby-body">I started in the gym at 16 and have trained consistently since. Max Bench: 286, Deadlift: 440, Squat: We dont talk about it. All my food is weighed, all macros are counted and all the cardio is done. Getting prepped for bodybuilding this year to come.</p>
         </div>
       </div>
     </article>
@@ -423,7 +463,7 @@
         <div class="hobby-panel-copy reveal-on-scroll">
           <p class="hobby-overline" data-split-lines>Cooking</p>
           <h3 class="hobby-title" data-split-lines>In the Kitchen</h3>
-          <p class="hobby-body" data-split-lines>Engineering doesn't stop at the workbench. I cook the same way I build: iterate, taste, adjust. There's something satisfying about nailing a recipe from scratch: prep, heat, timing, and plating. It's creative without a CAD file, and the feedback loop is immediate.</p>
+          <p class="hobby-body">Engineering doesn't stop at the workbench. Since highschool I've been cooking for myself and others. Being able to get home from working and making something that tastes awesome makes it one of my favorite parts of the day</p>
         </div>
       </div>
     </article>
