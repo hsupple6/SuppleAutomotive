@@ -655,6 +655,39 @@ body.is-results .stage-results {
   color: var(--text-muted);
 }
 
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem 1.15rem;
+  margin-top: 0.7rem;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 300;
+  color: var(--text-muted);
+}
+
+.legend-item::before {
+  content: '';
+  width: 0.7rem;
+  height: 0.22rem;
+  border-radius: var(--radius);
+}
+
+.legend-orange::before {
+  background: #fb923c;
+  height: 0.45rem;
+  width: 0.55rem;
+}
+
+.legend-blue::before {
+  background: #38bdf8;
+}
+
 .graph-wrap {
   margin-top: 0.55rem;
   width: 100%;

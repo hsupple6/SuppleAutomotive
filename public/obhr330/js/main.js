@@ -576,6 +576,13 @@
     var iei = [];
     for (i = 1; i < list.length; i++) iei.push((list[i].t - list[i - 1].t) / 1000);
 
+    var itemEps = [];
+    for (i = 0; i < list.length; i++) {
+      var prevT = i === 0 ? 0 : list[i - 1].t;
+      var dt = Math.max((list[i].t - prevT) / 1000, 0.08);
+      itemEps.push({ t: list[i].t / 1000, eps: 1 / dt });
+    }
+
     var lengths = list.map(function (e) { return e.text.length; });
     var unique = {};
     var uniqueN = 0;
@@ -665,6 +672,7 @@
       maxLen: lengths.length ? Math.max.apply(null, lengths) : NaN,
       bins: bins,
       rates: rates,
+      itemEps: itemEps,
       fit: rateFit
     };
   }
@@ -791,12 +799,19 @@
 
     var bins = stats.bins;
     var rates = stats.rates;
+    var itemEps = stats.itemEps || [];
     var maxRate = 0;
     var i;
     for (i = 0; i < rates.length; i++) {
       if (rates[i] > maxRate) maxRate = rates[i];
       if (bins[i] > maxRate) maxRate = bins[i];
     }
+    var itemMax = 0;
+    for (i = 0; i < itemEps.length; i++) {
+      if (itemEps[i].eps > itemMax) itemMax = itemEps[i].eps;
+    }
+    var orangeCap = Math.max(maxRate * 2.4, 1.5);
+    if (itemMax) maxRate = Math.max(maxRate, Math.min(itemMax, orangeCap));
     if (maxRate < 1) maxRate = 1;
 
     var W = 800;
@@ -872,6 +887,42 @@
         'stroke-width': '1',
         'stroke-dasharray': '3 5'
       }));
+    }
+
+    if (itemEps.length) {
+      var orangeArea = 'M ' + xAt(itemEps[0].t) + ' ' + yAt(0);
+      var orangeLine = '';
+      for (i = 0; i < itemEps.length; i++) {
+        var ix = xAt(itemEps[i].t);
+        var iy = yAt(itemEps[i].eps);
+        orangeLine += (i === 0 ? 'M ' : ' L ') + ix + ' ' + iy;
+        orangeArea += ' L ' + ix + ' ' + iy;
+      }
+      orangeArea += ' L ' + xAt(itemEps[itemEps.length - 1].t) + ' ' + yAt(0) + ' Z';
+      svg.appendChild(svgEl('path', {
+        d: orangeArea,
+        fill: 'rgba(251,146,60,0.16)'
+      }));
+      svg.appendChild(svgEl('path', {
+        d: orangeLine,
+        fill: 'none',
+        stroke: 'rgba(251,146,60,0.55)',
+        'stroke-width': '2',
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round'
+      }));
+      var itemBarW = Math.max(6, innerW / Math.max(itemEps.length * 2.8, 28));
+      for (i = 0; i < itemEps.length; i++) {
+        var barH = Math.max(0, (Math.min(itemEps[i].eps, maxRate) / maxRate) * innerH);
+        svg.appendChild(svgEl('rect', {
+          x: xAt(itemEps[i].t) - itemBarW / 2,
+          y: yAt(itemEps[i].eps),
+          width: itemBarW,
+          height: barH,
+          rx: String(Math.min(8, itemBarW / 2)),
+          fill: 'rgba(251,146,60,0.28)'
+        }));
+      }
     }
 
     var barW = innerW / 90 * 0.55;
