@@ -8,3 +8,5 @@ Disallow: /api/
 Disallow: /flier.html
 Disallow: /document.html
 Disallow: /images.html
+Disallow: /obhr330
+Disallow: /obhr330/

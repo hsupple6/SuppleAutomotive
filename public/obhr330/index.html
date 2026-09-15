@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <base href="/obhr330/">
+  <title>Media Discussion 3 Activity OBHR330</title>
+  <meta name="description" content="OBHR330 Media Discussion 3 Activity — name as many as you can.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/png" href="/logo/tablogo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@300;400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script>
+    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+  </script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true">
+    <div class="ambient-glow"></div>
+    <div class="ambient-grain"></div>
+  </div>
+
+  <main class="page">
+    <header class="page-head">
+      <p class="page-kicker">OBHR330</p>
+      <h1 class="page-title">
+        <span class="title-line" data-split>Media Discussion 3 Activity</span>
+      </h1>
+    </header>
+
+    <section class="stage stage-pick" id="pickStage" aria-label="Category spinner">
+      <p class="prompt" id="promptLabel">
+        <span class="prompt-text">Name as many as you can</span>
+        <span class="prompt-rule" aria-hidden="true"></span>
+      </p>
+
+      <div class="reel-shell" id="reelShell">
+        <div class="reel-frame" aria-hidden="true"></div>
+        <div class="reel-viewport" id="reelViewport">
+          <div class="reel-track" id="reelTrack" role="status" aria-live="polite" aria-labelledby="promptLabel"></div>
+        </div>
+      </div>
+
+      <p class="status" id="statusText" hidden></p>
+
+      <div class="actions">
+        <button type="button" class="btn btn-continue" id="continueBtn" disabled>
+          <span class="btn-label">Continue</span>
+        </button>
+        <button type="button" class="btn btn-respin" id="respinBtn" disabled>
+          <span class="btn-fill" aria-hidden="true"></span>
+          <span class="btn-label">Respin</span>
+        </button>
+        <button type="button" class="btn btn-sample" id="sampleBtn" hidden>
+          <span class="btn-label">Sample results</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="stage stage-play" id="playStage" hidden>
+      <div class="play-meter" aria-hidden="true">
+        <span class="play-meter-fill" id="playMeterFill"></span>
+      </div>
+      <div class="play-meta">
+        <p class="play-category" id="playCategory"></p>
+        <p class="play-timer" id="playTimer" aria-live="polite">1:30</p>
+      </div>
+      <p class="play-hint">Press return to add</p>
+      <ul class="play-list" id="playList" aria-label="Your entries"></ul>
+      <form class="play-form" id="playForm" autocomplete="off">
+        <label class="sr-only" for="playInput">Add a name</label>
+        <input
+          class="play-input"
+          id="playInput"
+          type="text"
+          maxlength="80"
+          enterkeyhint="done"
+          autocapitalize="words"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        >
+      </form>
+    </section>
+
+    <section class="stage stage-results" id="resultsStage" hidden>
+      <div class="results-head">
+        <p class="results-category" id="resultsCategory"></p>
+        <p class="results-stat" id="resultsStat"></p>
+      </div>
+      <div class="graph-card">
+        <p class="graph-label">Entries per second</p>
+        <p class="graph-sub">Dashed line is the linear trend. Dotted mark is 50% complete.</p>
+        <div class="graph-wrap">
+          <svg class="graph" id="burnoutGraph" viewBox="0 0 800 280" role="img" aria-labelledby="graphTitle"></svg>
+        </div>
+        <p class="graph-title sr-only" id="graphTitle">Entries per second over 90 seconds</p>
+      </div>
+      <div class="stats" id="statsPanel"></div>
+      <ul class="results-list" id="resultsList" aria-label="All entries"></ul>
+      <button type="button" class="btn btn-continue" id="againBtn">
+        <span class="btn-label">Again</span>
+      </button>
+    </section>
+  </main>
+
+  <script src="js/main.js" defer></script>
+</body>
+</html>

@@ -454,6 +454,10 @@ if (haydenSupplePublic) {
   console.warn('hayden-supple not found in public/hayden-supple or hayden-supple submodule');
 }
 
+app.get(['/obhr330', '/obhr330/'], function (req, res) {
+  res.sendFile(path.join(__dirname, 'public', 'obhr330', 'index.html'));
+});
+
 // Static files after /api routes so API paths are never ambiguous with public files
 app.use('/img', express.static(path.join(__dirname, 'img')));
 app.use(express.static(path.join(__dirname, 'public')));

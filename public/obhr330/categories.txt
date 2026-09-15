@@ -1,0 +1,38 @@
+# OBHR330 — Media Discussion 3 Activity
+# One category per line. Lines starting with # are ignored.
+
+Women
+Men
+Actors
+Actresses
+Video Games
+Technologies
+Movies
+TV Shows
+Musicians
+Athletes
+Superheroes
+Cartoon Characters
+Brands
+Jobs
+Cities
+Countries
+Foods
+Animals
+Sports
+Books
+Celebrities
+Cars
+Apps
+Companies
+College Majors
+Hobbies
+Holidays
+Musical Instruments
+Video Game Characters
+Disney Characters
+Fast Food
+Social Media
+Inventions
+Sports Teams
+TV Characters
