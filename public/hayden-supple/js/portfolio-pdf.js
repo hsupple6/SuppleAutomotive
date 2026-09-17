@@ -173,51 +173,24 @@
     });
   }
 
+  var IMAGE_OPTS = { quality: 0.5, pxPerMm: 4, maxPx: 780 };
+
   function captureHeroFrame() {
     return new Promise(function (resolve) {
-      var video = document.getElementById('asciiVideo');
-      if (!video) return resolve(null);
-      var settled = false;
+      var img = new Image();
+      var done = false;
       function finish(media) {
-        if (settled) return;
-        settled = true;
+        if (done) return;
+        done = true;
         resolve(media);
       }
-      function grab() {
-        try {
-          if (video.readyState < 2 || !video.videoWidth) return finish(null);
-          var canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          canvas.getContext('2d').drawImage(video, 0, 0);
-          finish(mediaFrom(canvas));
-        } catch (err) {
-          finish(null);
-        }
-      }
-      function seekToFirstFrame() {
-        function onSeeked() {
-          video.removeEventListener('seeked', onSeeked);
-          grab();
-        }
-        video.addEventListener('seeked', onSeeked);
-        try {
-          video.pause();
-          video.currentTime = 0.001;
-        } catch (err) {
-          video.removeEventListener('seeked', onSeeked);
-          grab();
-        }
-        setTimeout(function () {
-          video.removeEventListener('seeked', onSeeked);
-          grab();
-        }, 1200);
-      }
-      if (video.readyState >= 2) seekToFirstFrame();
-      else {
-        video.addEventListener('loadeddata', seekToFirstFrame, { once: true });
-        setTimeout(seekToFirstFrame, 1500);
-      }
+      img.onload = function () { finish(mediaFrom(img)); };
+      img.onerror = function () { finish(null); };
+      img.src = 'ASCII/frame-1.jpg';
+      if (img.complete && img.naturalWidth > 8) finish(mediaFrom(img));
+      setTimeout(function () {
+        finish(img.naturalWidth > 8 ? mediaFrom(img) : null);
+      }, 4000);
     });
   }
 
@@ -226,8 +199,8 @@
     var size = mediaSize(media.el);
     if (size.w < 8 || size.h < 8) return null;
     try {
-      var pxW = Math.max(2, Math.min(1100, Math.round(destWmm * 5.5)));
-      var pxH = Math.max(2, Math.min(1100, Math.round(destHmm * 5.5)));
+      var pxW = Math.max(2, Math.min(IMAGE_OPTS.maxPx, Math.round(destWmm * IMAGE_OPTS.pxPerMm)));
+      var pxH = Math.max(2, Math.min(IMAGE_OPTS.maxPx, Math.round(destHmm * IMAGE_OPTS.pxPerMm)));
       var canvas = document.createElement('canvas');
       canvas.width = pxW;
       canvas.height = pxH;
@@ -272,7 +245,7 @@
         }
         ctx.drawImage(media.el, sx, sy, sw, sh, 0, 0, pxW, pxH);
       }
-      return canvas.toDataURL('image/jpeg', 0.7);
+      return canvas.toDataURL('image/jpeg', IMAGE_OPTS.quality);
     } catch (err) {
       return null;
     }
@@ -508,7 +481,7 @@
       doc.setFillColor(17, 17, 17);
       doc.roundedRect(x, boxY, w, h, 2, 2, 'F');
       try {
-        doc.addImage(dataUrl, 'JPEG', x, boxY, w, h, undefined, 'MEDIUM');
+        doc.addImage(dataUrl, 'JPEG', x, boxY, w, h, undefined, 'FAST');
       } catch (err) {
         return false;
       }
@@ -855,7 +828,26 @@
     doc.text(wrap('Open to internships, collaborations, and interesting problems.', innerW), m, y);
 
     footerAll();
+    return doc;
+  }
+
+  function savePortfolio(JsPDF, data) {
+    var presets = [
+      { quality: 0.5, pxPerMm: 4, maxPx: 780 },
+      { quality: 0.42, pxPerMm: 3.4, maxPx: 640 },
+      { quality: 0.34, pxPerMm: 2.9, maxPx: 520 },
+      { quality: 0.26, pxPerMm: 2.4, maxPx: 420 }
+    ];
     var filename = data.name.replace(/\s+/g, '_') + '_Portfolio.pdf';
+    var i;
+    var doc;
+    var bytes;
+    for (i = 0; i < presets.length; i++) {
+      IMAGE_OPTS = presets[i];
+      doc = buildPdf(JsPDF, data);
+      bytes = doc.output('arraybuffer');
+      if (bytes.byteLength < 1000 * 1024) break;
+    }
     doc.save(filename);
   }
 
@@ -879,7 +871,7 @@
             throw new Error('PDF library missing');
           }
           return collectAsync().then(function (data) {
-            buildPdf(JsPDF, data);
+            savePortfolio(JsPDF, data);
           });
         })
         .catch(function (err) {
