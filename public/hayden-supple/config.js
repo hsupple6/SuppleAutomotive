@@ -9,6 +9,7 @@ window.HAYDEN_CONFIG = {
   phone: "+1 (805) 443-4181",
   email: "hsupple@purdue.edu",
   linkedin: "https://linkedin.com/in/hayden-supple",
+  site: "suppleautomotive.com/hayden-supple",
   resume: "resume/HaydenSupple_Resume.pdf",
   education: {
     school: "Purdue University",

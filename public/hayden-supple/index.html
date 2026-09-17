@@ -60,8 +60,12 @@
         muted
         loop
         playsinline
+        webkit-playsinline
         preload="auto"
+        disablepictureinpicture
+        controlslist="nodownload nofullscreen noremoteplayback"
       ></video>
+      <canvas class="hero-ascii-canvas" id="asciiCanvas" aria-hidden="true"></canvas>
     </div>
     <div class="hero-tint" aria-hidden="true"></div>
     <div class="hero-content reveal-on-scroll" id="heroReveal">
@@ -480,12 +484,19 @@
       </div>
       <div class="resume-actions">
         <a href="resume/HaydenSupple_Resume.pdf" class="link-cta" id="resumeDownload" download>
-          <span class="link-cta-label">Download PDF</span>
+          <span class="link-cta-label">Download Resume</span>
           <span class="link-cta-border link-cta-border-t"></span>
           <span class="link-cta-border link-cta-border-r"></span>
           <span class="link-cta-border link-cta-border-b"></span>
           <span class="link-cta-border link-cta-border-l"></span>
         </a>
+        <button type="button" class="link-cta" id="portfolioPdfBtn">
+          <span class="link-cta-label">Download Portfolio</span>
+          <span class="link-cta-border link-cta-border-t"></span>
+          <span class="link-cta-border link-cta-border-r"></span>
+          <span class="link-cta-border link-cta-border-b"></span>
+          <span class="link-cta-border link-cta-border-l"></span>
+        </button>
       </div>
     </div>
   </section>
@@ -510,7 +521,9 @@
     </div>
   </footer>
 
+  <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
   <script src="js/ascii-player.js"></script>
+  <script src="js/portfolio-pdf.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
