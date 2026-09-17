@@ -226,8 +226,8 @@
     var size = mediaSize(media.el);
     if (size.w < 8 || size.h < 8) return null;
     try {
-      var pxW = Math.max(2, Math.min(1800, Math.round(destWmm * 8)));
-      var pxH = Math.max(2, Math.min(1800, Math.round(destHmm * 8)));
+      var pxW = Math.max(2, Math.min(1100, Math.round(destWmm * 5.5)));
+      var pxH = Math.max(2, Math.min(1100, Math.round(destHmm * 5.5)));
       var canvas = document.createElement('canvas');
       canvas.width = pxW;
       canvas.height = pxH;
@@ -272,7 +272,7 @@
         }
         ctx.drawImage(media.el, sx, sy, sw, sh, 0, 0, pxW, pxH);
       }
-      return canvas.toDataURL('image/jpeg', 0.9);
+      return canvas.toDataURL('image/jpeg', 0.7);
     } catch (err) {
       return null;
     }
@@ -373,7 +373,7 @@
   }
 
   function buildPdf(JsPDF, data) {
-    var doc = new JsPDF({ unit: 'mm', format: 'letter' });
+    var doc = new JsPDF({ unit: 'mm', format: 'letter', compress: true });
     var pageW = 215.9;
     var pageH = 279.4;
     var m = 18;
@@ -508,7 +508,7 @@
       doc.setFillColor(17, 17, 17);
       doc.roundedRect(x, boxY, w, h, 2, 2, 'F');
       try {
-        doc.addImage(dataUrl, 'JPEG', x, boxY, w, h, undefined, 'FAST');
+        doc.addImage(dataUrl, 'JPEG', x, boxY, w, h, undefined, 'MEDIUM');
       } catch (err) {
         return false;
       }
