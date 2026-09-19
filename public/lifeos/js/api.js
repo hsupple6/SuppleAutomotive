@@ -69,6 +69,28 @@ const LifeAPI = (() => {
     }
   }
 
+  function post(path, body, timeoutMs) {
+    return request(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body || {}),
+      timeoutMs,
+    });
+  }
+
+  async function postFirst(paths, body, timeoutMs) {
+    let last = null;
+    for (const path of paths) {
+      try {
+        return await post(path, body, timeoutMs);
+      } catch (err) {
+        last = err;
+        if (err.status !== 404 && err.status !== 405) throw err;
+      }
+    }
+    throw last || new Error("Request failed");
+  }
+
   return {
     KEYS,
     apiBase,
@@ -89,67 +111,53 @@ const LifeAPI = (() => {
       });
     },
     stock(body) {
-      return request("/v1/food/stock", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      return post("/v1/food/stock", body);
     },
     macros(date) {
       const q = date ? `?date=${encodeURIComponent(date)}` : "";
       return request("/v1/macros" + q);
     },
     macroLog(body) {
-      return request("/v1/macros/log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      return post("/v1/macros/log", body);
     },
     macroSettings(body) {
-      return request("/v1/macros/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      return post("/v1/macros/settings", body);
     },
     macroDelete(body) {
-      return request("/v1/macros/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      return post("/v1/macros/delete", body);
     },
-    meals() {
-      return request("/v1/meals");
+    async meals() {
+      try {
+        return await request("/v1/meals");
+      } catch (err) {
+        if (err.status !== 404) throw err;
+        const macros = await request("/v1/macros");
+        return { ok: true, meals: macros.meals || [], foods: macros.foods || [] };
+      }
     },
     mealSave(body) {
-      return request("/v1/meals/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      return postFirst(
+        ["/v1/meals/save", "/v1/macros/meal", "/v1/macros/log"],
+        Object.assign({}, body, { action: "save_meal" })
+      );
     },
     mealLog(body) {
-      return request("/v1/meals/log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      return postFirst(
+        ["/v1/meals/log", "/v1/macros/meal-log", "/v1/macros/log"],
+        Object.assign({}, body, { action: "log_meal" })
+      );
     },
     mealDelete(body) {
-      return request("/v1/meals/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      return postFirst(
+        ["/v1/meals/delete", "/v1/macros/meal-delete", "/v1/macros/log"],
+        Object.assign({}, body, { action: "delete_meal" })
+      );
     },
     mealItem(body) {
-      return request("/v1/meals/item", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      return postFirst(
+        ["/v1/meals/item", "/v1/macros/item", "/v1/food/item", "/v1/macros/log"],
+        Object.assign({}, body, { save_only: true, action: "item" })
+      );
     },
     chatStream(body) {
       return request("/v1/ollama/chat", {

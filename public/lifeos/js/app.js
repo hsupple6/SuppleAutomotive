@@ -1757,7 +1757,7 @@
           fat_g: Number(d.fat_g) || 0,
           usual_qty: Number(d.usual_qty) || qty,
         });
-        state.meals = data;
+        adoptMeals(data, state.macros, state.food);
         if (data.foods && state.macros) state.macros.foods = data.foods;
         else if (data.foods) state.macros = { ...(state.macros || {}), foods: data.foods };
         const food = data.food;
