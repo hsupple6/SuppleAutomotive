@@ -80,6 +80,21 @@ const LifeAPI = (() => {
     life: () => request("/v1/life"),
     food: () => request("/v1/food"),
     models: () => request("/v1/ollama/models"),
+    receipt(body) {
+      return request("/v1/food/receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        timeoutMs: 180000,
+      });
+    },
+    stock(body) {
+      return request("/v1/food/stock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    },
     chatStream(body) {
       return request("/v1/ollama/chat", {
         method: "POST",

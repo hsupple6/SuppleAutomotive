@@ -12,6 +12,9 @@
     model: "",
     models: [],
     busy: false,
+    foodFilter: "all",
+    receiptBusy: false,
+    occasion: "grocery",
   };
 
   const CAT_COLOR = {
@@ -134,11 +137,15 @@
         <div class="hero">
           <p class="hero-kicker">This PC</p>
           <p class="hero-value">Offline</p>
-          <p class="hero-sub">${esc(state.error || "Start LifeOS on the PC, then pull to refresh.")}</p>
+          <p class="hero-sub">${esc(state.error || "Could not reach the PC.")}</p>
         </div>
-        <button class="primary" id="retryBtn" type="button">Try again</button>
+        <input class="field" id="apiInput" type="url" value="${esc(LifeAPI.apiBase())}" placeholder="https://….trycloudflare.com">
+        <button class="primary" id="retryBtn" type="button">Connect</button>
       </div>`;
-    $("retryBtn").onclick = () => connect();
+    $("retryBtn").onclick = async () => {
+      LifeAPI.setCreds({ api: $("apiInput").value.trim() });
+      await connect();
+    };
   }
 
   function renderSettings() {
@@ -292,45 +299,231 @@
       return;
     }
     const sum = data.summary || {};
+    const stats = data.pantry_stats || {};
     const tab = state.foodTab;
+    const reviewN = data.review_count || 0;
     const nav = pills(
-      [["pantry", "Pantry"], ["receipts", "Receipts"], ["items", "Items"], ["stats", "Stats"]],
+      [
+        ["pantry", "Pantry"],
+        ["receipts", "Receipts"],
+        ["items", "Items"],
+        ["stats", "Stats"],
+      ].concat(reviewN ? [["review", `Review ${reviewN}`]] : []),
       tab,
       "food"
     );
     let body = "";
     if (tab === "receipts") {
-      body = `<div class="group">${(data.receipts || []).map((r) => `
-        <div class="row">
-          <div class="name"><strong>${esc(r.store || r.source_name || "Receipt")}</strong><span>${esc(r.purchased_at || "")} · ${esc(r.status || "")}</span></div>
-          <div class="amt">${money(r.total, 2)}</div>
-        </div>`).join("") || '<div class="empty">No receipts yet.</div>'}</div>`;
+      body = `
+        <button type="button" class="capture" id="captureBtn"${state.receiptBusy ? " disabled" : ""}>
+          ${state.receiptBusy ? "Reading receipt…" : "Take a receipt photo"}
+        </button>
+        <input id="receiptFile" type="file" accept="image/*" capture="environment" hidden>
+        <div class="pills">
+          ${["grocery", "dining", "convenience", "other"].map((occ) => (
+            `<button type="button" class="pill ${state.occasion === occ ? "on" : ""}" data-occ="${occ}">${occ}</button>`
+          )).join("")}
+        </div>
+        <div class="group">${(data.receipts || []).map((r) => `
+          <div class="row">
+            <div class="name"><strong>${esc(r.store || r.source_name || "Receipt")}</strong><span>${esc(r.purchased_at || "")} · ${esc(r.status || "")} · ${esc(String(r.line_count || 0))} items</span></div>
+            <div class="amt">${money(r.total, 2)}</div>
+          </div>`).join("") || '<div class="empty">No receipts yet. Snap a grocery ticket.</div>'}</div>`;
     } else if (tab === "items") {
-      body = `<div class="group">${(data.items || []).slice(0, 40).map((i) => `
+      body = `<div class="group">${(data.items || []).slice(0, 50).map((i) => `
         <div class="row">
-          <div class="name"><strong>${esc(i.name)}</strong><span>${esc(i.stores || i.last_occasion || "")}</span></div>
+          <div class="name"><strong>${esc(i.name)}</strong><span>${esc(i.last_store || i.stores || i.last_occasion || "")} · ${esc(String(Math.round(i.stock_pct || 0)))}%</span></div>
           <div class="amt">${money(i.total_spend, 0)}</div>
         </div>`).join("") || '<div class="empty">No items yet.</div>'}</div>`;
     } else if (tab === "stats") {
       const occ = Object.entries(sum.by_occasion || {});
+      const soon = (data.habit && data.habit.soonest) || [];
       body = `
         <div class="hero orange">
-          <p class="hero-kicker">This month, kitchen</p>
+          <p class="hero-kicker">Kitchen / month</p>
           <p class="hero-value">${money(sum.monthly_est, 0)}</p>
-          <p class="hero-sub">${sum.receipt_count || 0} receipts · ${sum.pantry_count || 0} in pantry</p>
+          <p class="hero-sub">${sum.receipt_count || 0} receipts · ${stats.in_house || 0} in the house</p>
         </div>
+        <div class="metrics">
+          <div class="metric"><span class="label">Low</span><span class="value">${stats.low || 0}</span></div>
+          <div class="metric"><span class="label">Empty</span><span class="value">${stats.empty || 0}</span></div>
+        </div>
+        <p class="section-label">Running out</p>
+        <div class="group">${soon.slice(0, 8).map((s) => `
+          <div class="row">
+            <div class="name"><strong>${esc(s.name)}</strong><span>${s.days_to_empty == null ? "—" : Number(s.days_to_empty).toFixed(0) + " days"} · ${esc(s.empty_on || "")}</span></div>
+            <div class="amt">${esc(String(Math.round(s.stock_pct || 0)))}%</div>
+          </div>`).join("") || '<div class="empty">Eat from pantry to start the clock.</div>'}</div>
+        <p class="section-label">By occasion</p>
         <div class="group">${occ.map(([k, v]) => `
           <div class="row"><div class="name"><strong>${esc(k)}</strong></div><div class="amt">${money(v, 0)}</div></div>
         `).join("") || '<div class="empty">No food spend yet.</div>'}</div>`;
-    } else {
-      body = `<div class="group">${(data.pantry || []).map((i) => `
+    } else if (tab === "review") {
+      body = `<div class="group">${(data.review || []).map((r) => `
         <div class="row">
-          <div class="name"><strong>${esc(i.name)}</strong><span>${esc(i.pantry_unit || "ea")}</span></div>
-          <div class="amt">${esc(String(i.pantry_qty ?? ""))}</div>
-        </div>`).join("") || '<div class="empty">Pantry is empty.</div>'}</div>`;
+          <div class="name"><strong>${esc(r.raw_name || r.ocr_line || "Unknown")}</strong><span>${esc(r.store || "")} · ${esc(r.reason || "")}</span></div>
+          <div class="amt">${money(r.line_total, 2)}</div>
+        </div>`).join("") || '<div class="empty">Review queue is clear.</div>'}</div>`;
+    } else {
+      const soon = stats.soonest || {};
+      const filter = state.foodFilter || "all";
+      const rows = (data.pantry || []).filter((i) => {
+        const stock = Number(i.stock_pct || 0);
+        if (filter === "low") return stock > 0 && stock < 25;
+        if (filter === "soon") {
+          const days = i.days_to_empty;
+          return stock < 25 || (days != null && Number(days) <= 10);
+        }
+        if (filter === "over") return stock > 100;
+        if (filter === "out") return stock <= 0;
+        return true;
+      });
+      body = `
+        <div class="metrics">
+          <div class="metric"><span class="label">In the house</span><span class="value">${stats.in_house || 0}</span></div>
+          <div class="metric"><span class="label">Running low</span><span class="value">${stats.low || 0}</span></div>
+          <div class="metric"><span class="label">Next out</span><span class="value">${soon.days == null ? "—" : Number(soon.days).toFixed(0) + "d"}</span></div>
+          <div class="metric"><span class="label">${esc(soon.name || "Eat to start")}</span><span class="value" style="font-size:15px">${esc(soon.date || "")}</span></div>
+        </div>
+        <div class="pills">
+          ${[["all", "All"], ["low", "Low"], ["soon", "Soon"], ["over", "Over"], ["out", "Out"]].map(([id, label]) => (
+            `<button type="button" class="pill ${filter === id ? "on" : ""}" data-filter="${id}">${label}</button>`
+          )).join("")}
+        </div>
+        ${rows.map((i) => {
+          const stock = Number(i.stock_pct || 0);
+          const tone = stock <= 0 ? "out" : stock < 25 ? "low" : stock > 100 ? "over" : "ok";
+          const width = Math.min(100, stock);
+          return `<div class="stock-card ${tone}">
+            <div class="row" style="border:0;padding:0 0 8px">
+              <div class="name"><strong>${esc(i.name)}</strong><span>${i.days_to_empty == null ? "eat to start days/%" : Number(i.days_to_empty).toFixed(0) + " days left"}</span></div>
+              <div class="amt">${Math.round(stock)}%</div>
+            </div>
+            <div class="track"><div class="fill on" style="width:${width}%"></div></div>
+            <div class="eat-row">
+              <button type="button" data-eat="${esc(i.id)}" data-delta="-10">−10</button>
+              <button type="button" data-eat="${esc(i.id)}" data-delta="-25">−25</button>
+              <button type="button" data-eat="${esc(i.id)}" data-delta="-50">−50</button>
+              <button type="button" data-eat="${esc(i.id)}" data-delta="100" class="plus">+100</button>
+            </div>
+          </div>`;
+        }).join("") || '<div class="empty">Pantry is empty. Scan a receipt.</div>'}`;
     }
+
     $("screen").innerHTML = `<div class="stack">${nav}${body}</div>`;
     wirePills();
+    $("screen").querySelectorAll("[data-filter]").forEach((btn) => {
+      btn.onclick = () => {
+        state.foodFilter = btn.dataset.filter;
+        renderFood();
+      };
+    });
+    $("screen").querySelectorAll("[data-occ]").forEach((btn) => {
+      btn.onclick = () => {
+        state.occasion = btn.dataset.occ;
+        renderFood();
+      };
+    });
+    $("screen").querySelectorAll("[data-eat]").forEach((btn) => {
+      btn.onclick = () => eatItem(btn.dataset.eat, Number(btn.dataset.delta));
+    });
+    const capture = $("captureBtn");
+    const file = $("receiptFile");
+    if (capture && file) {
+      capture.onclick = () => file.click();
+      file.onchange = () => {
+        const picked = file.files && file.files[0];
+        if (picked) sendReceipt(picked);
+      };
+    }
+  }
+
+  async function eatItem(itemId, delta) {
+    vibrate();
+    try {
+      await LifeAPI.stock({
+        item_id: itemId,
+        delta,
+        reason: delta < 0 ? "eat" : "restock",
+      });
+      state.food = await LifeAPI.food();
+      renderFood();
+    } catch (err) {
+      state.error = err.message || "Stock update failed";
+      renderOffline();
+    }
+  }
+
+  function compressImage(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const max = 1600;
+        let w = img.width;
+        let h = img.height;
+        if (Math.max(w, h) > max) {
+          const scale = max / Math.max(w, h);
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Could not read that photo"));
+      };
+      img.src = url;
+    });
+  }
+
+  async function sendReceipt(file) {
+    if (state.receiptBusy) return;
+    state.receiptBusy = true;
+    renderFood();
+    try {
+      let image;
+      try {
+        image = await compressImage(file);
+      } catch (_) {
+        image = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error("Could not read that photo"));
+          reader.readAsDataURL(file);
+        });
+      }
+      const result = await LifeAPI.receipt({
+        image,
+        occasion: state.occasion || "grocery",
+        name: file.name || "phone.jpg",
+      });
+      state.food = await LifeAPI.food();
+      state.receiptBusy = false;
+      state.foodTab = "receipts";
+      renderFood();
+      const note = document.createElement("p");
+      if (result && result.ok === false) {
+        note.className = "err";
+        note.textContent = (result.receipt && result.receipt.error) || "Receipt did not parse.";
+      } else {
+        note.className = "hero-sub";
+        note.textContent = "Receipt is in. Pantry and items should update in a second.";
+      }
+      $("screen").prepend(note);
+    } catch (err) {
+      state.receiptBusy = false;
+      renderFood();
+      const note = document.createElement("p");
+      note.className = "err";
+      note.textContent = err.message || "Receipt upload failed.";
+      $("screen").prepend(note);
+    }
   }
 
   function renderChat() {

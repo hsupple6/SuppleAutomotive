@@ -644,6 +644,52 @@ button {
 .chip.on i { background: var(--green); }
 .chip.warn i { background: var(--orange); }
 
+.capture {
+  width: 100%;
+  min-height: 56px;
+  border-radius: 20px;
+  background: var(--orange);
+  color: #111;
+  font-weight: 750;
+  font-size: 16px;
+  letter-spacing: -0.03em;
+  transition: transform 0.25s var(--spring);
+}
+
+.capture:active { transform: scale(0.97); }
+.capture:disabled { opacity: 0.55; }
+
+.stock-card {
+  background: var(--group);
+  border-radius: 22px;
+  padding: 14px;
+}
+
+.stock-card .track { margin: 4px 0 10px; }
+.stock-card.low .fill { background: var(--red); }
+.stock-card.ok .fill { background: var(--lime); }
+.stock-card.over .fill { background: var(--violet); }
+.stock-card.out .fill { background: #636366; }
+
+.eat-row {
+  display: flex;
+  gap: 8px;
+}
+
+.eat-row button {
+  flex: 1;
+  height: 40px;
+  border-radius: 14px;
+  background: var(--group-2);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.eat-row button.plus {
+  background: var(--lime);
+  color: #111;
+}
+
 .empty {
   text-align: center;
   color: var(--muted);
