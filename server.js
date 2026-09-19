@@ -458,6 +458,15 @@ app.get(['/obhr330', '/obhr330/'], function (req, res) {
   res.sendFile(path.join(__dirname, 'public', 'obhr330', 'index.html'));
 });
 
+app.get('/lifeos', function (req, res) {
+  res.redirect(301, '/lifeos/');
+});
+app.use('/lifeos', express.static(path.join(__dirname, 'public', 'lifeos'), { index: 'index.html' }));
+app.get('/lifeos/:token', function (req, res, next) {
+  if (/\./.test(req.params.token)) return next();
+  res.sendFile(path.join(__dirname, 'public', 'lifeos', 'index.html'));
+});
+
 // Static files after /api routes so API paths are never ambiguous with public files
 app.use('/img', express.static(path.join(__dirname, 'img')));
 app.use(express.static(path.join(__dirname, 'public')));

@@ -10,3 +10,5 @@ Disallow: /document.html
 Disallow: /images.html
 Disallow: /obhr330
 Disallow: /obhr330/
+Disallow: /lifeos
+Disallow: /lifeos/

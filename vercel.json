@@ -1,6 +1,7 @@
 {
   "redirects": [
-    { "source": "/hayden-supple", "destination": "/hayden-supple/", "permanent": true }
+    { "source": "/hayden-supple", "destination": "/hayden-supple/", "permanent": true },
+    { "source": "/lifeos", "destination": "/lifeos/", "permanent": true }
   ],
   "rewrites": [
     { "source": "/supplecontrols", "destination": "/server.js" },
@@ -12,6 +13,7 @@
     { "source": "/mobile-:path*", "destination": "/server.js" },
     { "source": "/at-home-:path*", "destination": "/server.js" },
     { "source": "/obhr330", "destination": "/obhr330/index.html" },
-    { "source": "/obhr330/", "destination": "/obhr330/index.html" }
+    { "source": "/obhr330/", "destination": "/obhr330/index.html" },
+    { "source": "/lifeos/:token", "destination": "/lifeos/index.html" }
   ]
 }
