@@ -101,6 +101,7 @@ const LifeAPI = (() => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
         stream: true,
+        timeoutMs: 300000,
       });
     },
   };

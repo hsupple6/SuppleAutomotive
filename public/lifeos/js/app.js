@@ -534,9 +534,7 @@
         <select class="select" id="model">${models.map((m) => (
           `<option value="${esc(m.name)}" ${m.name === state.model ? "selected" : ""}>${esc(m.name)}</option>`
         )).join("")}</select>
-        <div class="messages" id="messages">${state.chat.map((m) => (
-          `<div class="bubble ${m.role === "user" ? "me" : "bot"}">${esc(m.content)}</div>`
-        )).join("") || '<div class="empty">Ask the model running on this PC.</div>'}</div>
+        <div class="messages" id="messages"></div>
         <form class="composer" id="composer">
           <textarea id="prompt" rows="1" placeholder="Message"></textarea>
           <button class="send" type="submit" aria-label="Send">
@@ -544,10 +542,15 @@
           </button>
         </form>
       </div>`;
+    const box = $("messages");
+    if (!state.chat.length) {
+      box.innerHTML = '<div class="empty">Ask the model running on this PC. It can search the web and show pictures.</div>';
+    } else {
+      state.chat.forEach((m) => box.appendChild(buildChatBubble(m)));
+      box.scrollTop = box.scrollHeight;
+    }
     const modelEl = $("model");
     if (modelEl) modelEl.onchange = () => { state.model = modelEl.value; };
-    const box = $("messages");
-    if (box) box.scrollTop = box.scrollHeight;
     $("composer").onsubmit = (e) => {
       e.preventDefault();
       sendChat();
@@ -560,26 +563,292 @@
     });
   }
 
+  function isHttpUrl(s) {
+    try {
+      const u = new URL(String(s || ""));
+      return u.protocol === "http:" || u.protocol === "https:";
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function toolLabel(name) {
+    const labels = {
+      web_search: "Web search",
+      web_fetch: "Open page",
+      image_search: "Image search",
+    };
+    return labels[name] || name || "Tool";
+  }
+
+  function hintFromArgs(args) {
+    if (!args || typeof args !== "object") return "";
+    return String(args.about || args.query || args.q || args.url || "").trim();
+  }
+
+  function renderMarkdown(el, text) {
+    const raw = String(text || "");
+    if (!el) return;
+    if (!raw.trim()) {
+      el.textContent = "";
+      return;
+    }
+    if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
+      el.textContent = raw;
+      return;
+    }
+    try {
+      marked.setOptions({ gfm: true, breaks: true });
+      el.innerHTML = DOMPurify.sanitize(marked.parse(raw), {
+        USE_PROFILES: { html: true },
+        ADD_ATTR: ["target", "rel"],
+      });
+      el.querySelectorAll('a[href^="http"]').forEach((a) => {
+        a.setAttribute("target", "_blank");
+        a.setAttribute("rel", "noopener noreferrer");
+      });
+    } catch (_) {
+      el.textContent = raw;
+    }
+  }
+
+  function scheduleMarkdown(el, getText) {
+    if (!el) return;
+    if (el._mdTimer) return;
+    el._mdTimer = setTimeout(() => {
+      el._mdTimer = null;
+      renderMarkdown(el, typeof getText === "function" ? getText() : getText);
+    }, 40);
+  }
+
+  function renderImageGallery(parent, images) {
+    if (!parent || !Array.isArray(images) || !images.length) return;
+    const gal = document.createElement("div");
+    gal.className = "img-gallery";
+    for (const item of images.slice(0, 8)) {
+      if (!item || typeof item !== "object") continue;
+      const thumb = String(item.thumbnail || item.image_url || "").trim();
+      const href = String(item.page_url || item.url || item.image_url || thumb).trim();
+      if (!isHttpUrl(thumb)) continue;
+      const a = document.createElement("a");
+      a.className = "img-tile";
+      a.href = isHttpUrl(href) ? href : thumb;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.title = item.title || item.source || "";
+      const img = document.createElement("img");
+      img.src = thumb;
+      img.alt = item.title || "image";
+      img.loading = "lazy";
+      img.referrerPolicy = "no-referrer";
+      a.appendChild(img);
+      const cap = document.createElement("span");
+      cap.className = "img-cap";
+      cap.textContent = item.source || item.title || "";
+      a.appendChild(cap);
+      gal.appendChild(a);
+    }
+    if (gal.childElementCount) parent.appendChild(gal);
+  }
+
+  function renderArticleCards(parent, articles) {
+    if (!parent || !Array.isArray(articles) || !articles.length) return;
+    const wrap = document.createElement("div");
+    wrap.className = "article-cards";
+    const rows = articles.slice(0, 3);
+    const heroIdx = rows.findIndex((item) => isHttpUrl(item && (item.thumbnail || item.image_url)));
+    rows.forEach((item, i) => {
+      if (!item || typeof item !== "object") return;
+      const href = String(item.url || item.page_url || "").trim();
+      const thumb = String(item.thumbnail || item.image_url || "").trim();
+      const card = document.createElement(isHttpUrl(href) ? "a" : "div");
+      card.className = "article-card";
+      if (i === (heroIdx >= 0 ? heroIdx : 0) && isHttpUrl(thumb)) card.classList.add("hero");
+      if (!isHttpUrl(thumb)) card.classList.add("no-thumb");
+      if (card.tagName === "A") {
+        card.href = href;
+        card.target = "_blank";
+        card.rel = "noopener noreferrer";
+      }
+      if (isHttpUrl(thumb)) {
+        const media = document.createElement("div");
+        media.className = "article-thumb";
+        const img = document.createElement("img");
+        img.src = thumb;
+        img.alt = item.title || "Article";
+        img.loading = "lazy";
+        img.referrerPolicy = "no-referrer";
+        img.addEventListener("error", () => {
+          media.remove();
+          card.classList.remove("hero");
+          card.classList.add("no-thumb");
+        });
+        media.appendChild(img);
+        card.appendChild(media);
+      }
+      const body = document.createElement("div");
+      body.className = "article-body";
+      const kicker = document.createElement("div");
+      kicker.className = "article-kicker";
+      kicker.textContent = item.source || "Source";
+      body.appendChild(kicker);
+      const title = document.createElement("div");
+      title.className = "article-title";
+      title.textContent = item.title || href || "Article";
+      body.appendChild(title);
+      if (item.snippet) {
+        const snip = document.createElement("div");
+        snip.className = "article-snip";
+        snip.textContent = item.snippet;
+        body.appendChild(snip);
+      }
+      card.appendChild(body);
+      wrap.appendChild(card);
+    });
+    if (wrap.childElementCount) parent.appendChild(wrap);
+  }
+
+  function buildChatBubble(msg) {
+    const wrap = document.createElement("div");
+    wrap.className = "bubble " + (msg.role === "user" ? "me" : "bot");
+    if (msg.role === "user") {
+      wrap.textContent = msg.content || "";
+      return wrap;
+    }
+    const tools = document.createElement("div");
+    tools.className = "tool-log";
+    tools.hidden = true;
+    wrap.appendChild(tools);
+    wrap._tools = tools;
+    wrap._pendingTools = new Map();
+    (msg.tools || []).forEach((row) => {
+      chatToolStart(wrap, row);
+      if (row.status && row.status !== "running") chatToolDone(wrap, row);
+    });
+    const body = document.createElement("div");
+    body.className = "md-body";
+    wrap.appendChild(body);
+    wrap._body = body;
+    if (msg.content) renderMarkdown(body, msg.content);
+    return wrap;
+  }
+
+  function chatToolStart(msg, row) {
+    if (!msg || !msg._tools) return;
+    msg._tools.hidden = false;
+    const name = row.name || "tool";
+    const el = document.createElement("div");
+    el.className = "tool-row running";
+    el.innerHTML =
+      '<span class="tool-dot"></span>' +
+      '<div class="tool-main"><div class="tool-name"></div><div class="tool-detail"></div></div>' +
+      '<span class="tool-status">Working</span>';
+    el.querySelector(".tool-name").textContent = toolLabel(name);
+    const detailEl = el.querySelector(".tool-detail");
+    let detail = hintFromArgs(row.arguments);
+    if (!detail && name === "web_fetch") detail = "Reading page…";
+    if (!detail && name === "web_search") detail = "Searching…";
+    if (!detail && name === "image_search") detail = "Finding pictures…";
+    if (detail) detailEl.textContent = detail;
+    else detailEl.remove();
+    el.dataset.arg = detail || "";
+    msg._tools.appendChild(el);
+    const stack = msg._pendingTools.get(name) || [];
+    stack.push(el);
+    msg._pendingTools.set(name, stack);
+  }
+
+  function chatToolDone(msg, row) {
+    if (!msg || !msg._pendingTools) return;
+    const name = row.name || "tool";
+    const stack = msg._pendingTools.get(name) || [];
+    let el = stack.pop();
+    const ok = row.ok !== false;
+    if (!el) {
+      chatToolStart(msg, row);
+      el = (msg._pendingTools.get(name) || []).pop();
+    }
+    if (!el) return;
+    el.classList.remove("running");
+    el.classList.add(ok ? "ok" : "fail");
+    const status = el.querySelector(".tool-status");
+    if (status) status.textContent = ok ? "Done" : "Failed";
+    const detailEl = el.querySelector(".tool-detail") || (() => {
+      const d = document.createElement("div");
+      d.className = "tool-detail";
+      el.querySelector(".tool-main").appendChild(d);
+      return d;
+    })();
+    const arg = el.dataset.arg || hintFromArgs(row.arguments);
+    detailEl.textContent = [arg, row.summary].filter(Boolean).join("\n");
+    if (ok && Array.isArray(row.articles) && row.articles.length) {
+      renderArticleCards(msg._tools, row.articles);
+    }
+    if (ok && Array.isArray(row.images) && row.images.length) {
+      renderImageGallery(msg._tools, row.images);
+    }
+  }
+
   async function sendChat() {
     const input = $("prompt");
     const text = (input?.value || "").trim();
     if (!text || state.busy) return;
     state.busy = true;
     state.chat.push({ role: "user", content: text });
-    state.chat.push({ role: "assistant", content: "" });
+    const bot = { role: "assistant", content: "", tools: [] };
+    state.chat.push(bot);
     input.value = "";
     renderChat();
-    const bot = state.chat[state.chat.length - 1];
+    const wrap = document.querySelector(".bubble.bot:last-child");
+    const box = $("messages");
     try {
+      const history = state.chat.slice(0, -1).map((m) => ({ role: m.role, content: m.content }));
       const res = await LifeAPI.chatStream({
         model: state.model || ($("model") && $("model").value),
         stream: true,
-        messages: state.chat.slice(0, -1).map((m) => ({ role: m.role, content: m.content })),
+        messages: history,
       });
       if (!res.ok) throw new Error("Chat failed");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
+      const handleEvent = (ev) => {
+        if (!ev || typeof ev !== "object") return;
+        if (ev.type === "tool_start") {
+          bot.tools.push({ name: ev.name, arguments: ev.arguments || {}, status: "running" });
+          chatToolStart(wrap, ev);
+          if (box) box.scrollTop = box.scrollHeight;
+        } else if (ev.type === "tool_done") {
+          const last = [...bot.tools].reverse().find((t) => t.name === ev.name && t.status === "running");
+          if (last) Object.assign(last, ev, { status: ev.ok === false ? "fail" : "ok" });
+          else bot.tools.push(Object.assign({ status: ev.ok === false ? "fail" : "ok" }, ev));
+          chatToolDone(wrap, ev);
+          if (box) box.scrollTop = box.scrollHeight;
+        } else if (ev.type === "token") {
+          const piece = ev.text || "";
+          if (!piece) return;
+          bot.content += piece;
+          scheduleMarkdown(wrap && wrap._body, () => bot.content);
+          if (box) box.scrollTop = box.scrollHeight;
+        } else if (ev.type === "done") {
+          if (ev.reply) bot.content = ev.reply;
+          if (wrap && wrap._body) {
+            if (wrap._body._mdTimer) {
+              clearTimeout(wrap._body._mdTimer);
+              wrap._body._mdTimer = null;
+            }
+            renderMarkdown(wrap._body, bot.content);
+          }
+        } else if (ev.type === "error") {
+          throw new Error(ev.error || "Chat failed");
+        } else {
+          const piece = ev.message?.content || ev.response || "";
+          if (piece) {
+            bot.content += piece;
+            scheduleMarkdown(wrap && wrap._body, () => bot.content);
+          }
+        }
+      };
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -589,19 +858,16 @@
         for (const part of parts) {
           const line = part.replace(/^data:\s*/, "").trim();
           if (!line) continue;
-          try {
-            const json = JSON.parse(line);
-            const piece = json.message?.content || json.response || "";
-            if (piece) {
-              bot.content += piece;
-              const last = document.querySelector(".bubble.bot:last-child");
-              if (last) last.textContent = bot.content;
-              const box = $("messages");
-              if (box) box.scrollTop = box.scrollHeight;
-            }
-          } catch (_) {}
+          try { handleEvent(JSON.parse(line)); } catch (_) {}
         }
       }
+      if (buf.trim()) {
+        const line = buf.replace(/^data:\s*/, "").trim();
+        if (line) {
+          try { handleEvent(JSON.parse(line)); } catch (_) {}
+        }
+      }
+      if (wrap && wrap._body) renderMarkdown(wrap._body, bot.content);
     } catch (err) {
       bot.content = err.message || "Could not reach Ollama.";
       renderChat();
