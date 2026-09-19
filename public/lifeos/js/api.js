@@ -95,6 +95,31 @@ const LifeAPI = (() => {
         body: JSON.stringify(body),
       });
     },
+    macros(date) {
+      const q = date ? `?date=${encodeURIComponent(date)}` : "";
+      return request("/v1/macros" + q);
+    },
+    macroLog(body) {
+      return request("/v1/macros/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    },
+    macroSettings(body) {
+      return request("/v1/macros/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    },
+    macroDelete(body) {
+      return request("/v1/macros/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    },
     chatStream(body) {
       return request("/v1/ollama/chat", {
         method: "POST",

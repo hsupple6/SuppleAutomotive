@@ -15,6 +15,16 @@
     foodFilter: "all",
     receiptBusy: false,
     occasion: "grocery",
+    macros: null,
+    macroDate: "",
+    macroSheet: "",
+    macroMeal: "breakfast",
+    macroQuery: "",
+    macroPicked: null,
+    macroQty: "",
+    macroBusy: false,
+    macroErr: "",
+    targetsDraft: null,
   };
 
   const CAT_COLOR = {
@@ -48,6 +58,59 @@
       maximumFractionDigits: digits,
       minimumFractionDigits: digits,
     }).format(v);
+  }
+
+  function todayISO() {
+    const d = new Date();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${d.getFullYear()}-${m}-${day}`;
+  }
+
+  function shiftDate(iso, days) {
+    const d = new Date(`${iso}T12:00:00`);
+    d.setDate(d.getDate() + days);
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${d.getFullYear()}-${m}-${day}`;
+  }
+
+  function prettyDay(iso) {
+    const today = todayISO();
+    if (iso === today) return "Today";
+    if (iso === shiftDate(today, -1)) return "Yesterday";
+    if (iso === shiftDate(today, 1)) return "Tomorrow";
+    const d = new Date(`${iso}T12:00:00`);
+    return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+  }
+
+  function num(n, digits = 0) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return "0";
+    return v.toLocaleString("en-US", {
+      maximumFractionDigits: digits,
+      minimumFractionDigits: 0,
+    });
+  }
+
+  function qtyLabel(qty, unit) {
+    const v = Number(qty);
+    const nice = Number.isInteger(v) ? String(v) : String(Math.round(v * 10) / 10);
+    return unit === "ea" ? `${nice} ea` : `${nice}g`;
+  }
+
+  function scaledFood(food, qty) {
+    const amount = Number(qty);
+    if (!food || !Number.isFinite(amount) || amount <= 0) {
+      return { calories: 0, protein_g: 0, carb_g: 0, fat_g: 0 };
+    }
+    const factor = food.each ? amount : amount / (Number(food.serving_grams) || 100);
+    return {
+      calories: Number(food.calories || 0) * factor,
+      protein_g: Number(food.protein_g || 0) * factor,
+      carb_g: Number(food.carb_g || 0) * factor,
+      fat_g: Number(food.fat_g || 0) * factor,
+    };
   }
 
   function greet() {
@@ -119,6 +182,9 @@
   }
 
   function glyph(kind) {
+    if (kind === "macros") {
+      return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.2" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v4.6l3 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    }
     if (kind === "food-calculator") {
       return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M8 3v8a3 3 0 1 0 6 0V3M12 11v10M5 21h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
     }
@@ -436,6 +502,391 @@
         if (picked) sendReceipt(picked);
       };
     }
+  }
+
+  function bandCopy(band, unit) {
+    const status = band?.status || "empty";
+    if (status === "empty") return "—";
+    if (status === "hit") return "Hit";
+    const delta = Math.abs(Number(band.delta || 0));
+    const label = unit === "kcal" ? num(delta, 0) : num(delta, 0) + "g";
+    return status === "over" ? `${label} over` : `${label} left`;
+  }
+
+  function renderMacros() {
+    const data = state.macros;
+    const date = state.macroDate || todayISO();
+    setChrome(prettyDay(date), "Macros");
+    if (!data || data.date !== date) {
+      $("screen").innerHTML = `<div class="empty">Loading…</div>`;
+      return;
+    }
+    const day = data.day || {};
+    const week = data.week || {};
+    const settings = data.settings || {};
+    const today = data.today || todayISO();
+    const days = week.days || [];
+    const cal = day.calories || {};
+    const pct = Math.max(0, Math.min(100, Number(cal.pct || 0)));
+    const ring = cal.status === "over" ? "var(--red)" : cal.status === "hit" ? "var(--lime)" : "var(--orange)";
+    const calStatus = cal.status === "empty"
+      ? "Nothing logged"
+      : cal.status === "hit"
+        ? "Calories hit"
+        : cal.status === "over"
+          ? `${num(Math.abs(cal.delta || 0), 0)} over`
+          : `${num(Math.abs(cal.delta || 0), 0)} left`;
+    const macros = [
+      ["Protein", day.protein, "p", "g"],
+      ["Carbs", day.carb, "c", "g"],
+      ["Fat", day.fat, "f", "g"],
+    ];
+    const meals = [
+      ["breakfast", "Breakfast"],
+      ["lunch", "Lunch"],
+      ["dinner", "Dinner"],
+    ];
+
+    $("screen").innerHTML = `
+      <div class="stack">
+        <div class="dow-wrap">
+          <button type="button" class="dow-shift" id="prevWeek" aria-label="Previous week">‹</button>
+          <div class="dow">
+            ${days.map((d) => {
+              const on = d.date === date ? "on" : "";
+              const isToday = d.date === today ? "today" : "";
+              const future = d.date > today ? "future" : "";
+              const logged = (d.totals && d.totals.count) ? "logged" : "";
+              const hit = d.hit && d.hit.all ? "hit" : "";
+              const n = Number(String(d.date).slice(-2));
+              return `<button type="button" class="dow-day ${on} ${isToday} ${future} ${logged} ${hit}" data-day="${esc(d.date)}"><b>${esc(d.label)}</b><i>${n}</i></button>`;
+            }).join("")}
+          </div>
+          <button type="button" class="dow-shift" id="nextWeek" aria-label="Next week">›</button>
+        </div>
+        <div class="cal-hero">
+          <div class="cal-dial" style="--pct:${pct};--ring:${ring}">
+            <div class="cal-dial-inner">
+              <p class="cal-eaten">${num(day.totals?.calories || 0, 0)}</p>
+              <p class="cal-goal">of ${num(settings.calories || 0, 0)} kcal</p>
+            </div>
+          </div>
+          <p class="cal-status ${esc(cal.status || "empty")}">${esc(calStatus)}</p>
+        </div>
+        <div class="macro-list">
+          ${macros.map(([label, band, cls]) => `
+            <div class="macro-row">
+              <header>
+                <span>${label} <b class="tag ${esc(band?.status || "empty")}">${esc(bandCopy(band, "g"))}</b></span>
+                <b>${num(band?.actual || 0, 0)} / ${num(band?.target || 0, 0)}g</b>
+              </header>
+              <div class="track"><div class="fill ${cls}" data-w="${Math.min(100, Number(band?.pct || 0))}"></div></div>
+            </div>`).join("")}
+        </div>
+        <button type="button" class="ghost" id="targetsBtn">Daily targets · ${num(settings.calories || 0, 0)} kcal · ${num(settings.protein_pct || 0, 0)}/${num(settings.carb_pct || 0, 0)}/${num(settings.fat_pct || 0, 0)}</button>
+        ${meals.map(([id, label]) => {
+          const rows = (day.meals && day.meals[id]) || [];
+          const kcal = rows.reduce((s, r) => s + Number(r.calories || 0), 0);
+          return `
+            <div class="meal-block">
+              <div class="meal-head">
+                <h3>${label}${rows.length ? `<em>${num(kcal, 0)} kcal</em>` : ""}</h3>
+                <button type="button" class="add-mini" data-add="${id}" aria-label="Log ${label}">+</button>
+              </div>
+              ${rows.map((r) => `
+                <div class="row">
+                  <div class="name"><strong>${esc(r.item_name)}</strong><span>${esc(qtyLabel(r.qty, r.unit))} · P${num(r.protein_g, 0)} C${num(r.carb_g, 0)} F${num(r.fat_g, 0)}</span></div>
+                  <div class="amt">${num(r.calories, 0)}</div>
+                  <button type="button" class="kill" data-del="${esc(r.id)}" aria-label="Remove">×</button>
+                </div>`).join("") || `<div class="empty" style="padding:8px 14px 18px">Nothing yet.</div>`}
+            </div>`;
+        }).join("")}
+        <div class="week-card">
+          <p class="section-label" style="padding:0 0 10px">This week</p>
+          <div class="week">
+            ${days.map((d) => {
+              const fill = Math.max(6, Math.round(Math.min(100, Number(d.calories?.pct || 0)) / 100 * 72));
+              const st = (d.totals && d.totals.count) ? (d.calories?.status || "under") : "empty";
+              const on = d.date === date ? "on" : "";
+              return `<div class="week-col ${on}"><i class="${st}" style="height:${fill}px"></i><b>${esc(d.label)}</b></div>`;
+            }).join("")}
+          </div>
+          <p class="hero-sub" style="margin-top:12px">${week.logged_days || 0} days logged · ${week.days_hit || 0} hit · avg ${num(week.avg_calories || 0, 0)} kcal</p>
+        </div>
+      </div>`;
+    requestAnimationFrame(() => {
+      $("screen").querySelectorAll(".fill").forEach((el) => {
+        el.style.width = el.dataset.w + "%";
+      });
+    });
+    $("screen").querySelectorAll("[data-day]").forEach((btn) => {
+      btn.onclick = () => { vibrate(); go("macros", btn.dataset.day); };
+    });
+    const prev = $("prevWeek");
+    const next = $("nextWeek");
+    if (prev) prev.onclick = () => { vibrate(); go("macros", shiftDate(date, -7)); };
+    if (next) next.onclick = () => { vibrate(); go("macros", shiftDate(date, 7)); };
+    $("screen").querySelectorAll("[data-add]").forEach((btn) => {
+      btn.onclick = () => openLogSheet(btn.dataset.add);
+    });
+    $("screen").querySelectorAll("[data-del]").forEach((btn) => {
+      btn.onclick = () => deleteMacroLog(btn.dataset.del);
+    });
+    const targets = $("targetsBtn");
+    if (targets) targets.onclick = () => openTargetsSheet();
+    if (state.macroSheet === "log") drawLogSheet();
+    if (state.macroSheet === "targets") drawTargetsSheet();
+  }
+
+  function closeSheet() {
+    document.getElementById("sheet")?.remove();
+    state.macroSheet = "";
+    state.macroPicked = null;
+    state.macroQuery = "";
+    state.macroQty = "";
+    state.macroErr = "";
+    state.targetsDraft = null;
+  }
+
+  function openLogSheet(meal) {
+    vibrate();
+    state.macroSheet = "log";
+    state.macroMeal = meal;
+    state.macroPicked = null;
+    state.macroQuery = "";
+    state.macroQty = "";
+    state.macroErr = "";
+    drawLogSheet();
+  }
+
+  function openTargetsSheet() {
+    vibrate();
+    const s = state.macros?.settings || {};
+    state.macroSheet = "targets";
+    state.targetsDraft = {
+      calories: Math.round(Number(s.calories || 2500)),
+      protein_pct: Math.round(Number(s.protein_pct || 40) * 10) / 10,
+      carb_pct: Math.round(Number(s.carb_pct || 30) * 10) / 10,
+      fat_pct: Math.round(Number(s.fat_pct || 30) * 10) / 10,
+    };
+    state.macroErr = "";
+    drawTargetsSheet();
+  }
+
+  function drawLogSheet() {
+    document.getElementById("sheet")?.remove();
+    const foods = state.macros?.foods || [];
+    const rows = foods;
+    const picked = state.macroPicked;
+    const qty = state.macroQty === "" && picked ? picked.usual_qty : state.macroQty;
+    const live = picked ? scaledFood(picked, qty) : null;
+    const mealLabel = state.macroMeal[0].toUpperCase() + state.macroMeal.slice(1);
+    const el = document.createElement("div");
+    el.id = "sheet";
+    el.className = "sheet";
+    el.innerHTML = `
+      <div class="sheet-top">
+        <h2>Log ${esc(mealLabel)}</h2>
+        <button type="button" class="ghost" id="sheetClose">Close</button>
+      </div>
+      <div class="sheet-body">
+        ${state.macroErr ? `<p class="err">${esc(state.macroErr)}</p>` : ""}
+        <input class="field" id="foodSearch" type="search" placeholder="Search your foods" value="${esc(state.macroQuery)}">
+        ${picked ? `
+          <div class="preview">
+            <strong>${esc(picked.name)}</strong>
+            <p>${esc(picked.serving_size || picked.unit)} · ${num(picked.calories, 0)} kcal · P${num(picked.protein_g, 0)} C${num(picked.carb_g, 0)} F${num(picked.fat_g, 0)}</p>
+          </div>
+          <div class="qty-row">
+            <input class="field" id="foodQty" inputmode="decimal" value="${esc(qty)}">
+            <span class="unit-pill">${esc(picked.unit)}</span>
+          </div>
+          <p class="hero-sub">${num(live?.calories || 0, 0)} kcal · P${num(live?.protein_g || 0, 0)} C${num(live?.carb_g || 0, 0)} F${num(live?.fat_g || 0, 0)}</p>
+          <button class="primary" id="saveLog" type="button"${state.macroBusy ? " disabled" : ""}>Add to ${esc(mealLabel)}</button>
+        ` : ""}
+        <div class="group">
+          ${rows.map((f) => `
+            <button type="button" class="row" data-food="${esc(f.id)}" style="width:100%;text-align:left">
+              <div class="name"><strong>${esc(f.name)}</strong><span>usual ${esc(qtyLabel(f.usual_qty, f.unit))} · ${num(f.calories, 0)} kcal / ${esc(f.serving_size || f.unit)}</span></div>
+              <div class="amt">${esc(f.unit)}</div>
+            </button>`).join("") || `<div class="empty">No foods with macros yet. Add them in Items.</div>`}
+        </div>
+      </div>`;
+    $("app").appendChild(el);
+    $("sheetClose").onclick = () => { closeSheet(); };
+    const search = $("foodSearch");
+    const paintList = () => {
+      const q = (state.macroQuery || "").trim().toLowerCase();
+      el.querySelectorAll("[data-food]").forEach((btn) => {
+        const name = (btn.querySelector("strong")?.textContent || "").toLowerCase();
+        btn.style.display = !q || name.includes(q) ? "" : "none";
+      });
+    };
+    if (search) {
+      search.oninput = () => {
+        state.macroQuery = search.value;
+        paintList();
+      };
+    }
+    el.querySelectorAll("[data-food]").forEach((btn) => {
+      btn.onclick = () => {
+        const food = foods.find((f) => f.id === btn.dataset.food);
+        if (!food) return;
+        vibrate();
+        state.macroPicked = food;
+        state.macroQty = food.usual_qty;
+        drawLogSheet();
+      };
+    });
+    const qtyEl = $("foodQty");
+    const liveEl = el.querySelector(".hero-sub");
+    if (qtyEl) {
+      qtyEl.oninput = () => {
+        state.macroQty = qtyEl.value;
+        const live = scaledFood(picked, qtyEl.value);
+        if (liveEl) {
+          liveEl.textContent = `${num(live.calories || 0, 0)} kcal · P${num(live.protein_g || 0, 0)} C${num(live.carb_g || 0, 0)} F${num(live.fat_g || 0, 0)}`;
+        }
+      };
+    }
+    const save = $("saveLog");
+    if (save) save.onclick = () => saveMacroLog();
+    paintList();
+  }
+
+  function drawTargetsSheet() {
+    document.getElementById("sheet")?.remove();
+    const d = state.targetsDraft || { calories: 2500, protein_pct: 40, carb_pct: 30, fat_pct: 30 };
+    const total = Number(d.protein_pct || 0) + Number(d.carb_pct || 0) + Number(d.fat_pct || 0);
+    const ok = Math.abs(total - 100) <= 0.51;
+    const cal = Math.max(1, Number(d.calories || 0));
+    const pG = cal * Number(d.protein_pct || 0) / 100 / 4;
+    const cG = cal * Number(d.carb_pct || 0) / 100 / 4;
+    const fG = cal * Number(d.fat_pct || 0) / 100 / 9;
+    const el = document.createElement("div");
+    el.id = "sheet";
+    el.className = "sheet";
+    el.innerHTML = `
+      <div class="sheet-top">
+        <h2>Daily targets</h2>
+        <button type="button" class="ghost" id="sheetClose">Close</button>
+      </div>
+      <div class="sheet-body">
+        ${state.macroErr ? `<p class="err">${esc(state.macroErr)}</p>` : ""}
+        <p class="section-label">Calories</p>
+        <input class="field" id="tCal" inputmode="numeric" value="${esc(d.calories)}">
+        <p class="section-label">Macros must add to 100%</p>
+        <div class="split">
+          <input class="field" id="tP" inputmode="decimal" value="${esc(d.protein_pct)}" aria-label="Protein percent">
+          <input class="field" id="tC" inputmode="decimal" value="${esc(d.carb_pct)}" aria-label="Carb percent">
+          <input class="field" id="tF" inputmode="decimal" value="${esc(d.fat_pct)}" aria-label="Fat percent">
+        </div>
+        <div class="split" style="padding:0 6px">
+          <span class="qty">P %</span><span class="qty">C %</span><span class="qty">F %</span>
+        </div>
+        <p class="total-line ${ok ? "ok" : "bad"}"><span>Total</span><span>${num(total, 1)}%</span></p>
+        <p class="target-grams">${num(pG, 0)}g protein · ${num(cG, 0)}g carbs · ${num(fG, 0)}g fat</p>
+        <button class="primary" id="saveTargets" type="button"${!ok || state.macroBusy ? " disabled" : ""}>Save targets</button>
+      </div>`;
+    $("app").appendChild(el);
+    $("sheetClose").onclick = () => { closeSheet(); };
+    const refreshMath = () => {
+      const d = state.targetsDraft;
+      const total = Number(d.protein_pct || 0) + Number(d.carb_pct || 0) + Number(d.fat_pct || 0);
+      const ok = Math.abs(total - 100) <= 0.51;
+      const cal = Math.max(1, Number(d.calories || 0));
+      const pG = cal * Number(d.protein_pct || 0) / 100 / 4;
+      const cG = cal * Number(d.carb_pct || 0) / 100 / 4;
+      const fG = cal * Number(d.fat_pct || 0) / 100 / 9;
+      const line = el.querySelector(".total-line");
+      if (line) {
+        line.className = `total-line ${ok ? "ok" : "bad"}`;
+        line.innerHTML = `<span>Total</span><span>${num(total, 1)}%</span>`;
+      }
+      const grams = el.querySelector(".target-grams");
+      if (grams) grams.textContent = `${num(pG, 0)}g protein · ${num(cG, 0)}g carbs · ${num(fG, 0)}g fat`;
+      const save = $("saveTargets");
+      if (save) save.disabled = !ok || state.macroBusy;
+    };
+    const bind = (id, key) => {
+      const input = $(id);
+      if (!input) return;
+      input.oninput = () => {
+        state.targetsDraft[key] = input.value;
+        refreshMath();
+      };
+    };
+    bind("tCal", "calories");
+    bind("tP", "protein_pct");
+    bind("tC", "carb_pct");
+    bind("tF", "fat_pct");
+    const save = $("saveTargets");
+    if (save) save.onclick = () => saveTargets();
+  }
+
+  async function saveMacroLog() {
+    const food = state.macroPicked;
+    const qty = Number(state.macroQty);
+    if (!food || !Number.isFinite(qty) || qty <= 0 || state.macroBusy) return;
+    state.macroBusy = true;
+    try {
+      const data = await LifeAPI.macroLog({
+        item_id: food.id,
+        qty,
+        meal: state.macroMeal,
+        date: state.macroDate || todayISO(),
+      });
+      state.macros = data;
+      state.macroBusy = false;
+      closeSheet();
+      renderMacros();
+    } catch (err) {
+      state.macroBusy = false;
+      state.macroErr = err.message || "Could not save log";
+      drawLogSheet();
+    }
+  }
+
+  async function saveTargets() {
+    const d = state.targetsDraft || {};
+    if (state.macroBusy) return;
+    state.macroBusy = true;
+    try {
+      const data = await LifeAPI.macroSettings({
+        calories: Number(d.calories),
+        protein_pct: Number(d.protein_pct),
+        carb_pct: Number(d.carb_pct),
+        fat_pct: Number(d.fat_pct),
+        date: state.macroDate || todayISO(),
+      });
+      state.macros = data;
+      state.macroBusy = false;
+      closeSheet();
+      renderMacros();
+    } catch (err) {
+      state.macroBusy = false;
+      state.macroErr = err.message || "Could not save targets";
+      drawTargetsSheet();
+    }
+  }
+
+  async function deleteMacroLog(id) {
+    vibrate();
+    try {
+      state.macros = await LifeAPI.macroDelete({
+        id,
+        date: state.macroDate || todayISO(),
+      });
+      renderMacros();
+    } catch (err) {
+      state.error = err.message || "Could not delete log";
+    }
+  }
+
+  async function loadMacros(date) {
+    const day = date || state.macroDate || todayISO();
+    state.macroDate = day;
+    state.macros = await LifeAPI.macros(day);
   }
 
   async function eatItem(itemId, delta) {
@@ -889,8 +1340,22 @@
     }
     const { route, tab } = hashRoute();
     state.route = route;
+    if (route !== "macros") closeSheet();
     if (route === "life" && tab) state.lifeTab = tab;
     if (route === "food" && tab) state.foodTab = tab;
+    if (route === "macros") {
+      const nextDate = /^\d{4}-\d{2}-\d{2}$/.test(tab) ? tab : (state.macroDate || todayISO());
+      state.macroDate = nextDate;
+      if (!state.macros || state.macros.date !== nextDate) {
+        LifeAPI.macros(nextDate).then((data) => {
+          state.macros = data;
+          if (hashRoute().route === "macros") renderMacros();
+        }).catch((err) => {
+          state.error = err.message || "Could not load macros";
+          renderOffline();
+        });
+      }
+    }
 
     $("splash").hidden = true;
     $("topbar").hidden = false;
@@ -901,6 +1366,7 @@
     if (route === "settings") return renderSettings();
     if (route === "life") return renderLife();
     if (route === "food") return renderFood();
+    if (route === "macros") return renderMacros();
     if (route === "chat") return renderChat();
     renderHome();
   }
@@ -920,9 +1386,15 @@
       const models = state.status?.ollama?.models || [];
       state.models = models;
       if (!state.model && models[0]) state.model = models[0].name;
-      const [life, food] = await Promise.all([LifeAPI.life(), LifeAPI.food()]);
+      const [life, food, macros] = await Promise.all([
+        LifeAPI.life(),
+        LifeAPI.food(),
+        LifeAPI.macros(state.macroDate || todayISO()).catch(() => null),
+      ]);
       state.life = life;
       state.food = food;
+      state.macros = macros;
+      if (macros && macros.date) state.macroDate = macros.date;
       if ((location.hash || "") === "" || location.hash === "#unlock") go("home");
       else render();
     } catch (err) {
