@@ -1560,6 +1560,54 @@ button {
   padding: 16px 12px;
 }
 
+.meal-new {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meal-new-nums {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.meal-new-nums label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.meal-new-nums span {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 650;
+  padding: 0 2px;
+}
+
+.meal-new > .field,
+.meal-new-nums .field {
+  min-height: 44px;
+  height: 44px;
+  padding: 0 10px;
+  font-size: 15px;
+  background: #2c2c2e;
+}
+
+.meal-new > .ghost {
+  min-height: 48px;
+  width: 100%;
+  margin-top: 0;
+}
+
+.log-hint {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 550;
+  margin-top: 4px;
+}
+
 .meal-lines {
   display: flex;
   flex-direction: column;
@@ -1669,6 +1717,22 @@ button {
   overflow: hidden;
 }
 
+.sheet-log.sheet-recipe .sheet-body {
+  overflow: auto;
+}
+
+.sheet-log.sheet-recipe .food-list,
+.sheet-log.sheet-recipe .recipe-list {
+  flex: 0 0 auto;
+  max-height: 200px;
+}
+
+.sheet-log.sheet-recipe .meal-lines,
+.sheet-log.sheet-recipe .meal-totals,
+.sheet-log.sheet-recipe .preview {
+  flex-shrink: 0;
+}
+
 .sheet-fit .sheet-body {
   flex: 0 1 auto;
   justify-content: flex-start;
@@ -1697,6 +1761,13 @@ button {
 
 .food-list .empty {
   padding: 28px 16px;
+}
+
+.recipe-list {
+  flex: 0 0 auto;
+  max-height: 240px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .search-row {
@@ -2074,6 +2145,10 @@ input[type="search"].field {
   .meal-ing {
     grid-template-columns: minmax(0, 1fr) 180px 32px;
     grid-template-areas: "name qty kill";
+  }
+
+  .meal-new-nums {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 
   .meal-composer {
