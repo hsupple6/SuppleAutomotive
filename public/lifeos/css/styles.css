@@ -383,11 +383,16 @@ button {
   }
 
   .sheet {
-    left: auto;
-    width: min(520px, calc(100vw - 96px));
-    border-left: 1px solid var(--line);
+    left: 7vw;
+    right: 7vw;
+    top: 4vh;
+    bottom: 4vh;
+    width: auto;
+    max-width: none;
+    border-radius: 28px;
+    border: 1px solid var(--line);
     padding: 28px;
-    box-shadow: -24px 0 60px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 40px 120px rgba(0, 0, 0, 0.55);
   }
 
   .search-row {
@@ -1762,7 +1767,7 @@ button {
 
 .sheet-log .sheet-body,
 .sheet-fit .sheet-body {
-  overflow: hidden;
+  overflow: auto;
 }
 
 .sheet-log .search-field {
@@ -1789,21 +1794,39 @@ button {
   color: #111;
 }
 
-.sheet-log .food-list,
-.sheet-log .recipe-list {
+.sheet-log .log-hits {
   flex: 1;
-  min-height: 140px;
-  max-height: none;
+  min-height: 0;
+  overflow: auto;
 }
 
-.sheet-log .sheet-foot {
+.sheet-log .sheet-foot.log-actions {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+  padding-top: 10px;
 }
 
-.sheet-log .sheet-foot .meal-new {
-  width: 100%;
+.sheet-log .log-actions .ghost,
+.sheet-log .log-actions .primary {
+  flex: 1 1 0;
+  min-height: 48px;
+  margin-top: 0;
+  width: auto;
+}
+
+.text-link {
+  display: inline;
+  padding: 0;
+  margin-left: 6px;
+  color: var(--lime);
+  font-weight: 700;
+  font-size: inherit;
+  background: none;
+  min-height: 0;
+  height: auto;
 }
 
 .sheet-log.sheet-recipe .sheet-body {
@@ -2180,11 +2203,16 @@ input[type="search"].field {
   }
 
   .sheet {
-    left: auto;
-    width: min(520px, calc(100vw - 96px));
-    border-left: 1px solid var(--line);
+    left: 7vw;
+    right: 7vw;
+    top: 4vh;
+    bottom: 4vh;
+    width: auto;
+    max-width: none;
+    border-radius: 28px;
+    border: 1px solid var(--line);
     padding: 28px;
-    box-shadow: -24px 0 60px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 40px 120px rgba(0, 0, 0, 0.55);
   }
 
   .sheet-fit {
