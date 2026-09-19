@@ -43,15 +43,30 @@ const LifeAPI = (() => {
       headers.Authorization = "Bearer " + secret;
       headers["X-LifeOS-Token"] = secret;
     }
-    const res = await fetch(base + path, Object.assign({}, options, { headers }));
-    if (options.stream) return res;
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const err = new Error(data.error || res.statusText || "Request failed");
-      err.status = res.status;
+    const ac = new AbortController();
+    const wait = options.timeoutMs || (options.stream ? 180000 : 12000);
+    const timer = setTimeout(() => ac.abort(), wait);
+    try {
+      const res = await fetch(base + path, Object.assign({}, options, { headers, signal: ac.signal }));
+      if (options.stream) return res;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = new Error(data.error || res.statusText || "Request failed");
+        err.status = res.status;
+        throw err;
+      }
+      return data;
+    } catch (err) {
+      if (err && err.name === "AbortError") {
+        throw new Error("PC did not answer. Is the tunnel up?");
+      }
+      if (String(err && err.message).includes("Failed to fetch") || String(err && err.message).includes("NetworkError")) {
+        throw new Error("lifeos-api.suppleautomotive.com is not in DNS yet. Add the Vercel CNAME.");
+      }
       throw err;
+    } finally {
+      clearTimeout(timer);
     }
-    return data;
   }
 
   return {

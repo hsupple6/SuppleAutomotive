@@ -452,6 +452,9 @@
       return;
     }
     state.error = "";
+    $("splash").hidden = true;
+    $("topbar").hidden = false;
+    $("screen").hidden = false;
     try {
       await LifeAPI.health();
       state.status = await LifeAPI.status();
