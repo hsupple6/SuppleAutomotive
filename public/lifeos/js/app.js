@@ -1451,7 +1451,7 @@
         <div class="grid-4" style="padding:0 4px">
           <span class="qty">kcal</span><span class="qty">P</span><span class="qty">C</span><span class="qty">F</span>
         </div>
-        <p class="section-label">${state.macroPickedRecipe ? "Usual + this log" : "Usual + this log"}</p>
+        <p class="section-label">Usual amount</p>
         <div class="duo">
           <input class="field" id="nUsual" inputmode="decimal" value="${esc(d.usual_qty)}" aria-label="Usual amount">
           <input class="field" id="nQty" inputmode="decimal" value="${esc(d.qty)}" aria-label="Amount to log">
@@ -1459,10 +1459,11 @@
         <div class="duo" style="padding:0 4px">
           <span class="qty">usual ${unit}</span><span class="qty">${state.macroPickedRecipe ? "add" : "log"} ${unit}</span>
         </div>
-        <p class="target-grams" id="nPreview">${num(kcal, 0)} kcal / serving · then ${state.macroPickedRecipe ? "adds" : "logs"} ${esc(d.qty || d.usual_qty || d.basis)} ${unit}</p>
+        <p class="target-grams" id="nPreview">${num(kcal, 0)} kcal / serving · saved to items${state.macroPickedRecipe ? "" : `, optional log to ${esc(mealLabel)}`}</p>
       </div>
-      <div class="sheet-foot">
-        <button class="primary" id="saveNew" type="button"${state.macroBusy ? " disabled" : ""}>${state.macroPickedRecipe ? "Add to this log" : `Save and add to ${esc(mealLabel)}`}</button>
+      <div class="sheet-foot log-actions">
+        <button class="primary" id="saveNewItem" type="button"${state.macroBusy ? " disabled" : ""}>Save item</button>
+        <button class="ghost" id="saveNew" type="button"${state.macroBusy ? " disabled" : ""}>${state.macroPickedRecipe ? "Add to this log" : `Log ${esc(mealLabel)}`}</button>
       </div>`;
     $("phone").appendChild(el);
     $("sheetBack").onclick = () => {
@@ -1476,7 +1477,7 @@
       const next = Number(draft.carb_g || 0) * 4 + Number(draft.fat_g || 0) * 9 + Number(draft.protein_g || 0) * 4;
       const shown = Number.isFinite(kIn) && kIn > 0 ? kIn : next;
       const prev = $("nPreview");
-      if (prev) prev.textContent = `${num(shown, 0)} kcal / serving · then ${state.macroPickedRecipe ? "adds" : "logs"} ${draft.qty || draft.usual_qty || draft.basis} ${draft.unit === "ea" ? "ea" : "g"}`;
+      if (prev) prev.textContent = `${num(shown, 0)} kcal / serving · saved to items${state.macroPickedRecipe ? "" : `, optional log to ${mealLabel}`}`;
     };
     const bind = (id, key) => {
       const input = $(id);
@@ -1515,6 +1516,7 @@
         drawLogSheet();
       };
     });
+    $("saveNewItem").onclick = () => saveNewItemOnly();
     $("saveNew").onclick = () => saveNewItemLog();
   }
 
@@ -1734,59 +1736,120 @@
     }
   }
 
-  async function saveNewItemLog() {
+  function rememberFood(food, data) {
+    adoptMeals(data, state.macros, state.food);
+    let foods = [];
+    for (const list of [data?.macros?.foods, data?.foods, state.macros?.foods, state.meals?.foods]) {
+      if (Array.isArray(list) && list.length > foods.length) foods = list.slice();
+    }
+    if (food?.id) {
+      const i = foods.findIndex((row) => row.id === food.id);
+      if (i >= 0) foods[i] = food;
+      else foods.unshift(food);
+    }
+    if (!state.macros) state.macros = {};
+    state.macros.foods = foods;
+    if (state.meals) state.meals.foods = foods;
+    else state.meals = { meals: savedMeals(), foods };
+  }
+
+  function newItemBody() {
     const d = state.macroNew || {};
     const name = String(d.name || "").trim();
+    const unit = d.unit === "ea" ? "ea" : "g";
+    const basis = Number(d.basis) || (unit === "ea" ? 1 : 100);
+    const usual = Number(d.usual_qty) || basis;
     const qty = Number(d.qty || d.usual_qty || d.basis);
-    if (!name) {
+    return { d, name, unit, basis, usual, qty };
+  }
+
+  async function persistNewItem() {
+    const p = newItemBody();
+    if (!p.name) {
+      throw new Error("Name the food first");
+    }
+    const data = await LifeAPI.mealItem({
+      name: p.name,
+      unit: p.unit,
+      basis: p.basis,
+      calories: Number(p.d.calories) || 0,
+      protein_g: Number(p.d.protein_g) || 0,
+      carb_g: Number(p.d.carb_g) || 0,
+      fat_g: Number(p.d.fat_g) || 0,
+      usual_qty: p.usual,
+    });
+    const food = data.food;
+    rememberFood(food, data);
+    LifeAPI.food().then((foodData) => { state.food = foodData; }).catch(() => {});
+    return { food, data, qty: p.qty };
+  }
+
+  function closeNewItemSheet(food, qty) {
+    state.macroBusy = false;
+    state.macroMode = "pick";
+    state.macroNew = null;
+    state.macroErr = "";
+    if (food?.id && state.macroPickedRecipe) {
+      drawLogSheet();
+      return;
+    }
+    if (food?.id) {
+      state.macroPicked = food;
+      state.macroPickedRecipe = null;
+      state.macroLogLines = null;
+      state.macroQty = Number.isFinite(qty) && qty > 0 ? qty : food.usual_qty;
+      state.macroLogTab = "foods";
+    }
+    drawLogSheet();
+  }
+
+  async function saveNewItemOnly() {
+    if (state.macroBusy) return;
+    state.macroBusy = true;
+    state.macroErr = "";
+    try {
+      const { food, qty } = await persistNewItem();
+      if (!food?.id) throw new Error("Could not save item");
+      closeNewItemSheet(food, qty);
+    } catch (err) {
+      state.macroBusy = false;
+      state.macroErr = err.message || "Could not save item";
+      drawLogSheet();
+    }
+  }
+
+  async function saveNewItemLog() {
+    const p = newItemBody();
+    if (!p.name) {
       state.macroErr = "Name the food first";
       drawLogSheet();
       return;
     }
-    if (!Number.isFinite(qty) || qty <= 0 || state.macroBusy) return;
+    if (!Number.isFinite(p.qty) || p.qty <= 0) {
+      state.macroErr = "Enter an amount to log.";
+      drawLogSheet();
+      return;
+    }
+    if (state.macroBusy) return;
     state.macroBusy = true;
+    state.macroErr = "";
     try {
+      const { food, data, qty } = await persistNewItem();
+      if (!food?.id) throw new Error("Could not save item");
       if (state.macroPickedRecipe) {
-        const data = await LifeAPI.mealItem({
-          name,
-          unit: d.unit === "ea" ? "ea" : "g",
-          basis: Number(d.basis) || (d.unit === "ea" ? 1 : 100),
-          calories: Number(d.calories) || 0,
-          protein_g: Number(d.protein_g) || 0,
-          carb_g: Number(d.carb_g) || 0,
-          fat_g: Number(d.fat_g) || 0,
-          usual_qty: Number(d.usual_qty) || qty,
-        });
-        adoptMeals(data, state.macros, state.food);
-        if (data.foods && state.macros) state.macros.foods = data.foods;
-        else if (data.foods) state.macros = { ...(state.macros || {}), foods: data.foods };
-        const food = data.food;
-        if (food?.id) {
-          state.macroLogLines = state.macroLogLines || [];
-          state.macroLogLines.push({ item_id: food.id, qty });
-        }
-        state.macroBusy = false;
-        state.macroMode = "pick";
-        state.macroNew = null;
-        state.macroErr = "";
-        drawLogSheet();
+        state.macroLogLines = state.macroLogLines || [];
+        state.macroLogLines.push({ item_id: food.id, qty });
+        closeNewItemSheet(food, qty);
         return;
       }
-      const data = await LifeAPI.macroLog({
-        name,
-        unit: d.unit === "ea" ? "ea" : "g",
-        basis: Number(d.basis) || (d.unit === "ea" ? 1 : 100),
-        calories: Number(d.calories) || 0,
-        protein_g: Number(d.protein_g) || 0,
-        carb_g: Number(d.carb_g) || 0,
-        fat_g: Number(d.fat_g) || 0,
-        usual_qty: Number(d.usual_qty) || qty,
+      const logged = await LifeAPI.macroLog({
+        item_id: food.id,
         qty,
         meal: state.macroMeal,
         date: state.macroDate || todayISO(),
       });
-      state.macros = data;
-      LifeAPI.food().then((food) => { state.food = food; }).catch(() => {});
+      state.macros = logged;
+      rememberFood(food, logged);
       state.macroBusy = false;
       closeSheet();
       renderMacros();
