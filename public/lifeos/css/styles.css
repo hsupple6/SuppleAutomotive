@@ -11,6 +11,7 @@
   --lime: #c8ff00;
   --blue: #0a84ff;
   --orange: #ff9f0a;
+  --yellow: #ffd60a;
   --violet: #bf5af2;
   --green: #32d74b;
   --red: #ff453a;
@@ -311,7 +312,7 @@ button {
 
   .macros-page {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 18px;
     height: 100%;
   }
@@ -332,12 +333,6 @@ button {
   .macros-side .cal-hero,
   .macros-side .targets-btn {
     flex-shrink: 0;
-  }
-
-  .macros-side .macro-list {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
   }
 
   .meals-row {
@@ -1339,6 +1334,59 @@ button {
   padding: 8px 0 4px;
 }
 
+.macro-ring {
+  position: relative;
+  width: min(220px, 68vw);
+  aspect-ratio: 1;
+}
+
+.macro-ring svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.macro-ring-core {
+  position: absolute;
+  inset: 24%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+}
+
+.macro-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+
+.macro-leg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--group);
+  border-radius: 14px;
+  padding: 10px 8px;
+}
+
+.macro-leg b {
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.macro-leg span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.macro-leg.p b { color: var(--red); }
+.macro-leg.c b { color: var(--blue); }
+.macro-leg.f b { color: var(--yellow); }
+
 .cal-dial {
   width: 188px;
   height: 188px;
@@ -1717,6 +1765,47 @@ button {
   overflow: hidden;
 }
 
+.sheet-log .search-field {
+  flex-shrink: 0;
+}
+
+.log-pills {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.log-pills button {
+  min-height: 44px;
+  border-radius: 14px;
+  background: #2c2c2e;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.log-pills button.on {
+  background: #fff;
+  color: #111;
+}
+
+.sheet-log .food-list,
+.sheet-log .recipe-list {
+  flex: 1;
+  min-height: 140px;
+  max-height: none;
+}
+
+.sheet-log .sheet-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sheet-log .sheet-foot .meal-new {
+  width: 100%;
+}
+
 .sheet-log.sheet-recipe .sheet-body {
   overflow: auto;
 }
@@ -2041,7 +2130,7 @@ input[type="search"].field {
 
   .macros-page {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 18px;
     height: 100%;
   }
@@ -2061,12 +2150,6 @@ input[type="search"].field {
   .macros-side .cal-hero,
   .macros-side .targets-btn {
     flex-shrink: 0;
-  }
-
-  .macros-side .macro-list {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
   }
 
   .meals-row {
