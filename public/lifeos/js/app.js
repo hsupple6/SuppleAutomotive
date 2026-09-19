@@ -12,10 +12,16 @@
     model: "",
     models: [],
     busy: false,
+    lastHash: "",
     foodFilter: "all",
     receiptBusy: false,
     occasion: "grocery",
-    macros: null,
+    meals: null,
+    mealDraft: null,
+    mealErr: "",
+    mealBusy: false,
+    mealSheet: "",
+    mealNote: "",
     macroDate: "",
     macroSheet: "",
     macroMeal: "breakfast",
@@ -373,6 +379,7 @@
     const nav = pills(
       [
         ["pantry", "Pantry"],
+        ["meals", "Meals"],
         ["receipts", "Receipts"],
         ["items", "Items"],
         ["stats", "Stats"],
@@ -381,7 +388,9 @@
       "food"
     );
     let body = "";
-    if (tab === "receipts") {
+    if (tab === "meals") {
+      body = foodMealsBody();
+    } else if (tab === "receipts") {
       body = `
         <button type="button" class="capture" id="captureBtn"${state.receiptBusy ? " disabled" : ""}>
           ${state.receiptBusy ? "Reading receipt…" : "Take a receipt photo"}
@@ -458,6 +467,7 @@
             `<button type="button" class="pill ${filter === id ? "on" : ""}" data-filter="${id}">${label}</button>`
           )).join("")}
         </div>
+        <div class="pantry-grid">
         ${rows.map((i) => {
           const stock = Number(i.stock_pct || 0);
           const tone = stock <= 0 ? "out" : stock < 25 ? "low" : stock > 100 ? "over" : "ok";
@@ -475,7 +485,8 @@
               <button type="button" data-eat="${esc(i.id)}" data-delta="100" class="plus">+100</button>
             </div>
           </div>`;
-        }).join("") || '<div class="empty">Pantry is empty. Scan a receipt.</div>'}`;
+        }).join("") || '<div class="empty">Pantry is empty. Scan a receipt.</div>'}
+        </div>`;
     }
 
     $("screen").innerHTML = `<div class="stack">${nav}${body}</div>`;
@@ -504,6 +515,450 @@
         if (picked) sendReceipt(picked);
       };
     }
+    if (tab === "meals") wireFoodMeals();
+    if (state.mealSheet === "new") drawMealNewSheet();
+  }
+
+  function ensureMealDraft() {
+    if (!state.mealDraft) {
+      state.mealDraft = { id: "", name: "", slot: "breakfast", query: "", lines: [] };
+    }
+    return state.mealDraft;
+  }
+
+  function mealFood(id) {
+    return (state.meals?.foods || []).find((f) => f.id === id) || null;
+  }
+
+  function mealHits() {
+    const q = (ensureMealDraft().query || "").trim().toLowerCase();
+    const foods = state.meals?.foods || [];
+    if (!q) return [];
+    return foods.filter((f) => (f.name || "").toLowerCase().includes(q)).slice(0, 24);
+  }
+
+  function mealTotals(lines) {
+    return (lines || []).reduce((sum, line) => {
+      const live = scaledFood(mealFood(line.item_id), line.qty);
+      sum.calories += live.calories;
+      sum.protein_g += live.protein_g;
+      sum.carb_g += live.carb_g;
+      sum.fat_g += live.fat_g;
+      return sum;
+    }, { calories: 0, protein_g: 0, carb_g: 0, fat_g: 0 });
+  }
+
+  function foodMealsBody() {
+    const draft = ensureMealDraft();
+    if (!state.meals && !state.mealErr) {
+      return `<div class="empty">Loading meals…</div>`;
+    }
+    if (!state.meals) {
+      return `<div class="empty">${esc(state.mealErr || "Could not load meals.")}</div>`;
+    }
+    const saved = state.meals.meals || [];
+    const lines = draft.lines || [];
+    const totals = mealTotals(lines);
+    const hits = mealHits();
+    const q = (draft.query || "").trim();
+    const slot = draft.slot || "breakfast";
+    const slotLabel = slot[0].toUpperCase() + slot.slice(1);
+    return `
+      <div class="meal-page">
+        <div class="meal-saved">
+          <button type="button" class="pill ${draft.id ? "" : "on"}" id="mealNew">New</button>
+          ${saved.map((m) => `
+            <button type="button" class="pill ${draft.id === m.id ? "on" : ""}" data-meal="${esc(m.id)}">${esc(m.name)}</button>
+          `).join("")}
+        </div>
+        <div class="meal-composer">
+          ${state.mealErr ? `<p class="err">${esc(state.mealErr)}</p>` : ""}
+          ${state.mealNote ? `<p class="meal-note">${esc(state.mealNote)}</p>` : ""}
+          <input class="field" id="mealName" placeholder="Meal name" value="${esc(draft.name)}" autocomplete="off">
+          <div class="meal-slot">
+            ${[["breakfast", "Breakfast"], ["lunch", "Lunch"], ["dinner", "Dinner"]].map(([id, label]) => (
+              `<button type="button" class="${slot === id ? "on" : ""}" data-slot="${id}">${label}</button>`
+            )).join("")}
+          </div>
+          <div class="search-row">
+            <input class="field search-field" id="mealSearch" type="search" placeholder="Search items" value="${esc(draft.query)}" autocomplete="off">
+            <button type="button" class="new-item-btn" id="mealNewItem" aria-label="New item">
+              <span aria-hidden="true">+</span>
+              <span class="new-item-label">New item</span>
+            </button>
+          </div>
+          <div class="group meal-hits" id="mealHits">
+            ${q ? (hits.map((f) => `
+              <button type="button" class="row" data-add-food="${esc(f.id)}" style="width:100%;text-align:left">
+                <div class="name"><strong>${esc(f.name)}</strong><span>usual ${esc(qtyLabel(f.usual_qty, f.unit))} · ${num(f.calories, 0)} kcal</span></div>
+                <div class="amt">${esc(f.unit)}</div>
+              </button>`).join("") || `<div class="empty">No match. Tap + to add “${esc(q)}”.</div>`) : `<div class="empty">Search items to add, or tap + for a new one.</div>`}
+          </div>
+          <div class="meal-lines" id="mealLines">
+            ${lines.map((line, i) => {
+              const food = mealFood(line.item_id);
+              const live = scaledFood(food, line.qty);
+              return `
+                <div class="meal-ing" data-line="${i}">
+                  <div class="name">
+                    <strong>${esc(food?.name || "Item")}</strong>
+                    <span>${num(live.calories, 0)} kcal · P${num(live.protein_g, 0)} C${num(live.carb_g, 0)} F${num(live.fat_g, 0)}</span>
+                  </div>
+                  <div class="qty-row">
+                    <input class="field" data-qty="${i}" inputmode="decimal" value="${esc(line.qty)}">
+                    <span class="unit-pill">${esc(food?.unit || "g")}</span>
+                  </div>
+                  <button type="button" class="kill" data-drop="${i}" aria-label="Remove">×</button>
+                </div>`;
+            }).join("") || `<div class="empty">No ingredients yet.</div>`}
+          </div>
+          <div class="meal-totals">
+            <p id="mealTotalLine">${num(totals.calories, 0)} kcal · P${num(totals.protein_g, 0)} C${num(totals.carb_g, 0)} F${num(totals.fat_g, 0)}</p>
+            <span>${lines.length} item${lines.length === 1 ? "" : "s"}</span>
+          </div>
+          <div class="meal-actions">
+            <button type="button" class="ghost" id="saveMeal"${state.mealBusy ? " disabled" : ""}>Save meal</button>
+            <button type="button" class="primary" id="logMeal"${state.mealBusy ? " disabled" : ""}>Log ${esc(slotLabel)}</button>
+          </div>
+          ${draft.id ? `<button type="button" class="ghost" id="deleteMeal"${state.mealBusy ? " disabled" : ""}>Delete saved</button>` : ""}
+        </div>
+      </div>`;
+  }
+
+  function paintMealHits() {
+    const box = $("mealHits");
+    if (!box) return;
+    const draft = ensureMealDraft();
+    const q = (draft.query || "").trim();
+    const hits = mealHits();
+    box.innerHTML = q ? (hits.map((f) => `
+      <button type="button" class="row" data-add-food="${esc(f.id)}" style="width:100%;text-align:left">
+        <div class="name"><strong>${esc(f.name)}</strong><span>usual ${esc(qtyLabel(f.usual_qty, f.unit))} · ${num(f.calories, 0)} kcal</span></div>
+        <div class="amt">${esc(f.unit)}</div>
+      </button>`).join("") || `<div class="empty">No match. Tap + to add “${esc(q)}”.</div>`) : `<div class="empty">Search items to add, or tap + for a new one.</div>`;
+    box.querySelectorAll("[data-add-food]").forEach((btn) => {
+      btn.onclick = () => addMealFood(btn.dataset.addFood);
+    });
+  }
+
+  function paintMealLive() {
+    const draft = ensureMealDraft();
+    const totals = mealTotals(draft.lines);
+    const line = $("mealTotalLine");
+    if (line) {
+      line.textContent = `${num(totals.calories, 0)} kcal · P${num(totals.protein_g, 0)} C${num(totals.carb_g, 0)} F${num(totals.fat_g, 0)}`;
+    }
+    $("screen").querySelectorAll(".meal-ing").forEach((row) => {
+      const i = Number(row.dataset.line);
+      const item = draft.lines[i];
+      if (!item) return;
+      const live = scaledFood(mealFood(item.item_id), item.qty);
+      const span = row.querySelector(".name span");
+      if (span) span.textContent = `${num(live.calories, 0)} kcal · P${num(live.protein_g, 0)} C${num(live.carb_g, 0)} F${num(live.fat_g, 0)}`;
+    });
+  }
+
+  function addMealFood(id) {
+    const food = mealFood(id);
+    if (!food) return;
+    vibrate();
+    const draft = ensureMealDraft();
+    const existing = draft.lines.find((line) => line.item_id === food.id);
+    if (existing) {
+      existing.qty = Number(existing.qty || 0) + Number(food.usual_qty || 0);
+    } else {
+      draft.lines.push({ item_id: food.id, qty: food.usual_qty });
+    }
+    draft.query = "";
+    state.mealNote = "";
+    renderFood();
+  }
+
+  function loadSavedMeal(id) {
+    const meal = (state.meals?.meals || []).find((m) => m.id === id);
+    if (!meal) return;
+    vibrate();
+    state.mealDraft = {
+      id: meal.id,
+      name: meal.name || "",
+      slot: ensureMealDraft().slot || "breakfast",
+      query: "",
+      lines: (meal.lines || []).map((line) => ({ item_id: line.item_id, qty: line.qty })),
+    };
+    state.mealErr = "";
+    state.mealNote = "";
+    renderFood();
+  }
+
+  function clearMealDraft() {
+    vibrate();
+    state.mealDraft = { id: "", name: "", slot: ensureMealDraft().slot || "breakfast", query: "", lines: [] };
+    state.mealErr = "";
+    state.mealNote = "";
+    renderFood();
+  }
+
+  function wireFoodMeals() {
+    const draft = ensureMealDraft();
+    const name = $("mealName");
+    if (name) {
+      name.oninput = () => { draft.name = name.value; };
+    }
+    const search = $("mealSearch");
+    if (search) {
+      search.oninput = () => {
+        draft.query = search.value;
+        paintMealHits();
+      };
+    }
+    $("mealNew") && ($("mealNew").onclick = () => clearMealDraft());
+    $("screen").querySelectorAll("[data-meal]").forEach((btn) => {
+      btn.onclick = () => loadSavedMeal(btn.dataset.meal);
+    });
+    $("screen").querySelectorAll("[data-slot]").forEach((btn) => {
+      btn.onclick = () => {
+        draft.slot = btn.dataset.slot;
+        state.mealNote = "";
+        renderFood();
+      };
+    });
+    paintMealHits();
+    $("screen").querySelectorAll("[data-qty]").forEach((input) => {
+      input.oninput = () => {
+        const i = Number(input.dataset.qty);
+        if (draft.lines[i]) draft.lines[i].qty = input.value;
+        paintMealLive();
+      };
+    });
+    $("screen").querySelectorAll("[data-drop]").forEach((btn) => {
+      btn.onclick = () => {
+        const i = Number(btn.dataset.drop);
+        draft.lines.splice(i, 1);
+        renderFood();
+      };
+    });
+    const addNew = $("mealNewItem");
+    if (addNew) addNew.onclick = () => openMealNewItem();
+    const save = $("saveMeal");
+    if (save) save.onclick = () => saveMealDraft();
+    const log = $("logMeal");
+    if (log) log.onclick = () => logMealDraft();
+    const drop = $("deleteMeal");
+    if (drop) drop.onclick = () => deleteMealDraft();
+  }
+
+  function openMealNewItem() {
+    vibrate();
+    state.mealSheet = "new";
+    state.macroNew = blankNewItem((ensureMealDraft().query || "").trim());
+    state.macroErr = "";
+    drawMealNewSheet();
+  }
+
+  function drawMealNewSheet() {
+    document.getElementById("sheet")?.remove();
+    const d = state.macroNew || blankNewItem();
+    const unit = d.unit === "ea" ? "ea" : "g";
+    const kcalIn = Number(d.calories);
+    const derived = Number(d.carb_g || 0) * 4 + Number(d.fat_g || 0) * 9 + Number(d.protein_g || 0) * 4;
+    const kcal = Number.isFinite(kcalIn) && kcalIn > 0 ? kcalIn : derived;
+    const el = document.createElement("div");
+    el.id = "sheet";
+    el.className = "sheet sheet-new";
+    el.innerHTML = `
+      <div class="sheet-top">
+        <h2>New item</h2>
+        <button type="button" class="ghost" id="sheetBack">Back</button>
+      </div>
+      <div class="sheet-body">
+        ${state.macroErr ? `<p class="err">${esc(state.macroErr)}</p>` : ""}
+        <p class="section-label">Name</p>
+        <input class="field" id="nName" placeholder="Food name" value="${esc(d.name)}">
+        <p class="section-label">Serving</p>
+        <div class="unit-toggle">
+          <button type="button" class="${unit === "g" ? "on" : ""}" data-unit="g">Grams</button>
+          <button type="button" class="${unit === "ea" ? "on" : ""}" data-unit="ea">Each</button>
+        </div>
+        <div class="qty-row">
+          <input class="field" id="nBasis" inputmode="decimal" value="${esc(d.basis)}" aria-label="Serving size">
+          <span class="unit-pill">${unit === "ea" ? "ea" : "g"}</span>
+        </div>
+        <p class="section-label">Per serving</p>
+        <div class="grid-4">
+          <input class="field" id="nKcal" inputmode="decimal" value="${esc(d.calories)}" placeholder="kcal">
+          <input class="field" id="nP" inputmode="decimal" value="${esc(d.protein_g)}" placeholder="P">
+          <input class="field" id="nC" inputmode="decimal" value="${esc(d.carb_g)}" placeholder="C">
+          <input class="field" id="nF" inputmode="decimal" value="${esc(d.fat_g)}" placeholder="F">
+        </div>
+        <div class="grid-4" style="padding:0 4px">
+          <span class="qty">kcal</span><span class="qty">P</span><span class="qty">C</span><span class="qty">F</span>
+        </div>
+        <p class="section-label">Usual amount</p>
+        <div class="qty-row">
+          <input class="field" id="nUsual" inputmode="decimal" value="${esc(d.usual_qty)}" aria-label="Usual amount">
+          <span class="unit-pill">${unit}</span>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <button class="primary" id="saveMealItem" type="button"${state.mealBusy ? " disabled" : ""}>Add to meal</button>
+      </div>`;
+    $("phone").appendChild(el);
+    $("sheetBack").onclick = () => {
+      state.mealSheet = "";
+      state.macroNew = null;
+      closeSheet();
+    };
+    const bind = (id, key) => {
+      const input = $(id);
+      if (!input) return;
+      input.oninput = () => { state.macroNew[key] = input.value; };
+    };
+    bind("nName", "name");
+    bind("nBasis", "basis");
+    bind("nKcal", "calories");
+    bind("nP", "protein_g");
+    bind("nC", "carb_g");
+    bind("nF", "fat_g");
+    bind("nUsual", "usual_qty");
+    el.querySelectorAll("[data-unit]").forEach((btn) => {
+      btn.onclick = () => {
+        const next = btn.dataset.unit;
+        state.macroNew.unit = next;
+        if (next === "ea") {
+          state.macroNew.basis = "1";
+          if (!state.macroNew.usual_qty || Number(state.macroNew.usual_qty) === 100) state.macroNew.usual_qty = "1";
+        } else {
+          state.macroNew.basis = state.macroNew.basis === "1" ? "100" : (state.macroNew.basis || "100");
+          if (!state.macroNew.usual_qty || Number(state.macroNew.usual_qty) === 1) state.macroNew.usual_qty = state.macroNew.basis || "100";
+        }
+        drawMealNewSheet();
+      };
+    });
+    $("saveMealItem").onclick = () => saveMealNewItem();
+  }
+
+  async function saveMealNewItem() {
+    const d = state.macroNew || blankNewItem();
+    if (!(d.name || "").trim()) {
+      state.macroErr = "Name the item first.";
+      drawMealNewSheet();
+      return;
+    }
+    state.mealBusy = true;
+    try {
+      const data = await LifeAPI.mealItem({
+        name: d.name,
+        unit: d.unit,
+        basis: d.basis,
+        calories: d.calories,
+        protein_g: d.protein_g,
+        carb_g: d.carb_g,
+        fat_g: d.fat_g,
+        usual_qty: d.usual_qty || d.basis,
+      });
+      state.meals = data;
+      const food = data.food;
+      if (food && food.id) {
+        const draft = ensureMealDraft();
+        draft.lines.push({ item_id: food.id, qty: Number(d.usual_qty || food.usual_qty || d.basis || 0) });
+        draft.query = "";
+      }
+      state.mealSheet = "";
+      state.macroNew = null;
+      state.macroErr = "";
+      closeSheet();
+    } catch (err) {
+      state.macroErr = err.message || "Could not save item";
+      state.mealBusy = false;
+      drawMealNewSheet();
+      return;
+    }
+    state.mealBusy = false;
+    renderFood();
+  }
+
+  async function saveMealDraft() {
+    const draft = ensureMealDraft();
+    state.mealBusy = true;
+    state.mealErr = "";
+    state.mealNote = "";
+    try {
+      const data = await LifeAPI.mealSave({
+        id: draft.id,
+        name: draft.name,
+        lines: draft.lines,
+      });
+      state.meals = data;
+      if (data.meal) {
+        draft.id = data.meal.id;
+        draft.name = data.meal.name || draft.name;
+      }
+      state.mealNote = "Saved";
+    } catch (err) {
+      state.mealErr = err.message || "Could not save meal";
+    }
+    state.mealBusy = false;
+    renderFood();
+  }
+
+  async function logMealDraft() {
+    const draft = ensureMealDraft();
+    state.mealBusy = true;
+    state.mealErr = "";
+    state.mealNote = "";
+    try {
+      const data = await LifeAPI.mealLog({
+        id: draft.id,
+        name: draft.name,
+        meal: draft.slot,
+        date: todayISO(),
+        lines: draft.lines,
+        deduct: true,
+      });
+      state.meals = data;
+      if (data.macros) {
+        state.macros = data.macros;
+        if (data.macros.date) state.macroDate = data.macros.date;
+      }
+      const slot = (draft.slot || "breakfast");
+      state.mealNote = `Logged to ${slot}`;
+    } catch (err) {
+      state.mealErr = err.message || "Could not log meal";
+    }
+    state.mealBusy = false;
+    renderFood();
+  }
+
+  async function deleteMealDraft() {
+    const draft = ensureMealDraft();
+    if (!draft.id) return;
+    state.mealBusy = true;
+    state.mealErr = "";
+    try {
+      const data = await LifeAPI.mealDelete({ id: draft.id });
+      state.meals = data;
+      state.mealDraft = { id: "", name: "", slot: draft.slot || "breakfast", query: "", lines: [] };
+      state.mealNote = "Deleted";
+    } catch (err) {
+      state.mealErr = err.message || "Could not delete meal";
+    }
+    state.mealBusy = false;
+    renderFood();
+  }
+
+  async function loadMeals() {
+    if (state.mealBusy) return;
+    state.mealBusy = true;
+    try {
+      state.meals = await LifeAPI.meals();
+      state.mealErr = "";
+    } catch (err) {
+      state.mealErr = err.message || "Could not load meals";
+    } finally {
+      state.mealBusy = false;
+    }
+    const { route, tab } = hashRoute();
+    if (route === "food" && (tab || state.foodTab) === "meals") renderFood();
   }
 
   function bandCopy(band, unit) {
@@ -587,7 +1042,10 @@
                   <div class="track"><div class="fill ${cls}" data-w="${Math.min(100, Number(band?.pct || 0))}"></div></div>
                 </div>`).join("")}
             </div>
-            <button type="button" class="ghost" id="targetsBtn">Daily targets · ${num(settings.calories || 0, 0)} kcal · ${num(settings.protein_pct || 0, 0)}/${num(settings.carb_pct || 0, 0)}/${num(settings.fat_pct || 0, 0)}</button>
+            <button type="button" class="targets-btn" id="targetsBtn">
+              <span>Daily targets</span>
+              <b>${num(settings.calories || 0, 0)} kcal · ${num(settings.protein_pct || 0, 0)} / ${num(settings.carb_pct || 0, 0)} / ${num(settings.fat_pct || 0, 0)}</b>
+            </button>
           </div>
           <div class="meals-row">
             ${meals.map(([id, label]) => {
@@ -651,6 +1109,7 @@
   function closeSheet() {
     document.getElementById("sheet")?.remove();
     state.macroSheet = "";
+    state.mealSheet = "";
     state.macroPicked = null;
     state.macroQuery = "";
     state.macroQty = "";
@@ -725,6 +1184,7 @@
     const qty = state.macroQty === "" && picked ? picked.usual_qty : state.macroQty;
     const live = picked ? scaledFood(picked, qty) : null;
     const q = (state.macroQuery || "").trim();
+    el.className = "sheet sheet-log";
     el.innerHTML = `
       <div class="sheet-top">
         <h2>Log ${esc(mealLabel)}</h2>
@@ -732,8 +1192,13 @@
       </div>
       <div class="sheet-body">
         ${state.macroErr ? `<p class="err">${esc(state.macroErr)}</p>` : ""}
-        <input class="field" id="foodSearch" type="search" placeholder="Search your foods" value="${esc(state.macroQuery)}">
-        <button type="button" class="ghost" id="newItemBtn">+ ${q ? `Add “${esc(q)}”` : "New item"}</button>
+        <div class="search-row">
+          <input class="field search-field" id="foodSearch" type="search" placeholder="Search foods" value="${esc(state.macroQuery)}" autocomplete="off" enterkeyhint="search">
+          <button type="button" class="new-item-btn" id="newItemBtn" aria-label="${q ? `Add ${esc(q)}` : "New item"}">
+            <span aria-hidden="true">+</span>
+            <span class="new-item-label">${q ? `Add “${esc(q)}”` : "New item"}</span>
+          </button>
+        </div>
         ${picked ? `
           <div class="preview">
             <strong>${esc(picked.name)}</strong>
@@ -744,17 +1209,17 @@
             <span class="unit-pill">${esc(picked.unit)}</span>
           </div>
           <p class="hero-sub">${num(live?.calories || 0, 0)} kcal · P${num(live?.protein_g || 0, 0)} C${num(live?.carb_g || 0, 0)} F${num(live?.fat_g || 0, 0)}</p>
-          <button class="primary" id="saveLog" type="button"${state.macroBusy ? " disabled" : ""}>Add to ${esc(mealLabel)}</button>
         ` : ""}
-        <div class="group">
+        <div class="group food-list">
           ${foods.map((f) => `
             <button type="button" class="row" data-food="${esc(f.id)}" style="width:100%;text-align:left">
               <div class="name"><strong>${esc(f.name)}</strong><span>usual ${esc(qtyLabel(f.usual_qty, f.unit))} · ${num(f.calories, 0)} kcal / ${esc(f.serving_size || f.unit)}</span></div>
               <div class="amt">${esc(f.unit)}</div>
-            </button>`).join("") || `<div class="empty">No foods with macros yet. Add a new item above.</div>`}
+            </button>`).join("") || `<div class="empty">No foods with macros yet. Tap + to add one.</div>`}
         </div>
-      </div>`;
-    $("app").appendChild(el);
+      </div>
+      ${picked ? `<div class="sheet-foot"><button class="primary" id="saveLog" type="button"${state.macroBusy ? " disabled" : ""}>Add to ${esc(mealLabel)}</button></div>` : ""}`;
+    $("phone").appendChild(el);
     $("sheetClose").onclick = () => { closeSheet(); };
     $("newItemBtn").onclick = () => openNewItem();
     const search = $("foodSearch");
@@ -765,7 +1230,12 @@
         btn.style.display = !needle || name.includes(needle) ? "" : "none";
       });
       const add = $("newItemBtn");
-      if (add) add.textContent = needle ? `+ Add “${state.macroQuery.trim()}”` : "+ New item";
+      if (add) {
+        const raw = (state.macroQuery || "").trim();
+        const label = add.querySelector(".new-item-label");
+        if (label) label.textContent = raw ? `Add “${raw}”` : "New item";
+        add.setAttribute("aria-label", raw ? `Add ${raw}` : "New item");
+      }
     };
     if (search) {
       search.oninput = () => {
@@ -805,6 +1275,7 @@
     const kcalIn = Number(d.calories);
     const derived = Number(d.carb_g || 0) * 4 + Number(d.fat_g || 0) * 9 + Number(d.protein_g || 0) * 4;
     const kcal = Number.isFinite(kcalIn) && kcalIn > 0 ? kcalIn : derived;
+    el.className = "sheet sheet-new";
     el.innerHTML = `
       <div class="sheet-top">
         <h2>New item</h2>
@@ -842,9 +1313,11 @@
           <span class="qty">usual ${unit}</span><span class="qty">log ${unit}</span>
         </div>
         <p class="target-grams" id="nPreview">${num(kcal, 0)} kcal / serving · then logs ${esc(d.qty || d.usual_qty || d.basis)} ${unit}</p>
-        <button class="primary" id="saveNew" type="button"${state.macroBusy ? " disabled" : ""}>Save to Items and log ${esc(mealLabel)}</button>
+      </div>
+      <div class="sheet-foot">
+        <button class="primary" id="saveNew" type="button"${state.macroBusy ? " disabled" : ""}>Save and add to ${esc(mealLabel)}</button>
       </div>`;
-    $("app").appendChild(el);
+    $("phone").appendChild(el);
     $("sheetBack").onclick = () => {
       state.macroMode = "pick";
       state.macroErr = "";
@@ -909,7 +1382,7 @@
     const fG = cal * Number(d.fat_pct || 0) / 100 / 9;
     const el = document.createElement("div");
     el.id = "sheet";
-    el.className = "sheet";
+    el.className = "sheet sheet-fit";
     el.innerHTML = `
       <div class="sheet-top">
         <h2>Daily targets</h2>
@@ -917,22 +1390,32 @@
       </div>
       <div class="sheet-body">
         ${state.macroErr ? `<p class="err">${esc(state.macroErr)}</p>` : ""}
-        <p class="section-label">Calories</p>
-        <input class="field" id="tCal" inputmode="numeric" value="${esc(d.calories)}">
-        <p class="section-label">Macros must add to 100%</p>
+        <label class="stack-field">
+          <span class="section-label">Calories</span>
+          <input class="field" id="tCal" inputmode="numeric" value="${esc(d.calories)}">
+        </label>
+        <p class="section-label">Split must add to 100%</p>
         <div class="split">
-          <input class="field" id="tP" inputmode="decimal" value="${esc(d.protein_pct)}" aria-label="Protein percent">
-          <input class="field" id="tC" inputmode="decimal" value="${esc(d.carb_pct)}" aria-label="Carb percent">
-          <input class="field" id="tF" inputmode="decimal" value="${esc(d.fat_pct)}" aria-label="Fat percent">
-        </div>
-        <div class="split" style="padding:0 6px">
-          <span class="qty">P %</span><span class="qty">C %</span><span class="qty">F %</span>
+          <label class="stack-field">
+            <span class="section-label">Protein %</span>
+            <input class="field" id="tP" inputmode="decimal" value="${esc(d.protein_pct)}" aria-label="Protein percent">
+          </label>
+          <label class="stack-field">
+            <span class="section-label">Carbs %</span>
+            <input class="field" id="tC" inputmode="decimal" value="${esc(d.carb_pct)}" aria-label="Carb percent">
+          </label>
+          <label class="stack-field">
+            <span class="section-label">Fat %</span>
+            <input class="field" id="tF" inputmode="decimal" value="${esc(d.fat_pct)}" aria-label="Fat percent">
+          </label>
         </div>
         <p class="total-line ${ok ? "ok" : "bad"}"><span>Total</span><span>${num(total, 1)}%</span></p>
         <p class="target-grams">${num(pG, 0)}g protein · ${num(cG, 0)}g carbs · ${num(fG, 0)}g fat</p>
+      </div>
+      <div class="sheet-foot">
         <button class="primary" id="saveTargets" type="button"${!ok || state.macroBusy ? " disabled" : ""}>Save targets</button>
       </div>`;
-    $("app").appendChild(el);
+    $("phone").appendChild(el);
     $("sheetClose").onclick = () => { closeSheet(); };
     const refreshMath = () => {
       const d = state.targetsDraft;
@@ -1520,10 +2003,14 @@
       return;
     }
     const { route, tab } = hashRoute();
+    const nextHash = location.hash || "#home";
+    const tabChanged = nextHash !== state.lastHash;
     state.route = route;
-    if (route !== "macros") closeSheet();
     if (route === "life" && tab) state.lifeTab = tab;
     if (route === "food" && tab) state.foodTab = tab;
+    const onMeals = route === "food" && state.foodTab === "meals";
+    if (route !== "macros" && !onMeals) closeSheet();
+    if (onMeals && !state.meals && !state.mealBusy) loadMeals();
     if (route === "macros") {
       const nextDate = /^\d{4}-\d{2}-\d{2}$/.test(tab) ? tab : (state.macroDate || todayISO());
       state.macroDate = nextDate;
@@ -1544,12 +2031,17 @@
     $("tabbar").hidden = false;
     $("app").classList.remove("locked");
 
-    if (route === "settings") return renderSettings();
-    if (route === "life") return renderLife();
-    if (route === "food") return renderFood();
-    if (route === "macros") return renderMacros();
-    if (route === "chat") return renderChat();
-    renderHome();
+    if (route === "settings") renderSettings();
+    else if (route === "life") renderLife();
+    else if (route === "food") renderFood();
+    else if (route === "macros") renderMacros();
+    else if (route === "chat") renderChat();
+    else renderHome();
+
+    if (tabChanged && route !== "chat") {
+      $("screen").scrollTop = 0;
+    }
+    state.lastHash = nextHash;
   }
 
   async function connect() {

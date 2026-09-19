@@ -120,6 +120,37 @@ const LifeAPI = (() => {
         body: JSON.stringify(body),
       });
     },
+    meals() {
+      return request("/v1/meals");
+    },
+    mealSave(body) {
+      return request("/v1/meals/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    },
+    mealLog(body) {
+      return request("/v1/meals/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    },
+    mealDelete(body) {
+      return request("/v1/meals/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    },
+    mealItem(body) {
+      return request("/v1/meals/item", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    },
     chatStream(body) {
       return request("/v1/ollama/chat", {
         method: "POST",
