@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+    (function () {
+      var path = location.pathname;
+      if (path === '/hls' || path.indexOf('/hls/') === 0) {
+        var base = document.createElement('base');
+        base.href = '/hls/';
+        document.head.appendChild(base);
+      }
+    })();
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="theme-color" content="#000000">
+  <title>HLS Doctrine</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="config.js"></script>
+  <script>
+    (function () {
+      var expected = (window.HLS_CONFIG && window.HLS_CONFIG.accessToken) || "";
+      var parts = location.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+      var got = "";
+      if (parts[0] === "hls" && parts[1] && parts[1].indexOf(".") === -1) got = parts[1];
+      if (!got) got = new URLSearchParams(location.search).get("t") || "";
+      if (!expected || got !== expected) {
+        document.title = "";
+        document.documentElement.style.background = "#000";
+        document.addEventListener("DOMContentLoaded", function () {
+          document.body.innerHTML = "";
+          document.body.style.background = "#000";
+        });
+      }
+    })();
+  </script>
+</head>
+<body>
+  <main id="app" hidden>
+    <p class="eyebrow">The Articles of the HLS Doctrine</p>
+    <pre id="status">waiting on tunnel…</pre>
+  </main>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
