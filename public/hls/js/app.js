@@ -17,6 +17,8 @@
     lead: "hls.lead",
     justify: "hls.justify",
     nav: "hls.nav",
+    refs: "hls.refLibrary",
+    model: "hls.model",
   };
 
   const state = {
@@ -41,6 +43,9 @@
       lead: 162,
       justify: true,
     },
+    citeEl: null,
+    refs: [],
+    ai: { open: false, busy: false, messages: [], model: "" },
   };
 
   function esc(value) {
@@ -176,6 +181,277 @@
     writePref(PREF.nav, open ? "open" : "closed");
   }
 
+  function loadLibrary() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(PREF.refs) || "[]");
+      state.refs = Array.isArray(raw) ? raw.filter((row) => row && (row.url || row.title)) : [];
+    } catch (e) {
+      state.refs = [];
+    }
+    return state.refs;
+  }
+
+  function saveLibrary() {
+    writePref(PREF.refs, JSON.stringify(state.refs || []));
+  }
+
+  function upsertRef(ref) {
+    const url = String((ref && ref.url) || "").trim();
+    const title = String((ref && ref.title) || "").trim() || url;
+    if (!url && !title) return null;
+    const existing = state.refs.find((row) => (url && row.url === url) || (ref.id && row.id === ref.id));
+    if (existing) {
+      if (title) existing.title = title;
+      if (url) existing.url = url;
+      saveLibrary();
+      return existing;
+    }
+    const row = {
+      id: (ref && ref.id) || ("ref-" + Math.random().toString(36).slice(2, 10)),
+      title,
+      url,
+    };
+    state.refs.unshift(row);
+    saveLibrary();
+    return row;
+  }
+
+  function harvestRefs(articles) {
+    loadLibrary();
+    (articles || []).forEach((article) => {
+      const wrap = document.createElement("div");
+      wrap.innerHTML = article.body || "";
+      wrap.querySelectorAll("a.cite").forEach((a) => {
+        const url = a.getAttribute("href") || "";
+        if (!url || url === "#") return;
+        upsertRef({
+          id: a.getAttribute("data-ref-id") || "",
+          title: a.getAttribute("title") || "",
+          url,
+        });
+      });
+    });
+  }
+
+  function usedCites() {
+    return HlsEditor.collectCites($("leafBody")).filter((row) => row.href && row.href !== "#");
+  }
+
+  function syncRefsPanel() {
+    const box = $("leafRefs");
+    const items = usedCites().map((row) => ({
+      n: row.n,
+      title: row.title || row.href,
+      url: row.href,
+    }));
+    if (!items.length) {
+      box.hidden = true;
+      box.innerHTML = "";
+      return;
+    }
+    box.hidden = false;
+    box.innerHTML = "<h3>References</h3><ol>" + items.map((item) => (
+      `<li><a href="${esc(item.url)}" target="_blank" rel="noopener">${esc(item.title)}</a></li>`
+    )).join("") + "</ol>";
+  }
+
+  function closeCite() {
+    $("citePop").hidden = true;
+    state.citeEl = null;
+  }
+
+  function renderCiteHits(query) {
+    const q = String(query || "").trim().toLowerCase();
+    const rows = (state.refs || []).filter((row) => {
+      if (!q) return true;
+      return `${row.title} ${row.url}`.toLowerCase().includes(q);
+    }).slice(0, 12);
+    $("citeResults").innerHTML = rows.length
+      ? rows.map((row) => (
+        `<button type="button" class="cite-hit" data-id="${esc(row.id)}"><b>${esc(row.title || "Untitled")}</b><span>${esc(row.url || "")}</span></button>`
+      )).join("")
+      : `<div class="tree-empty">${q ? "No matching references." : "No saved references yet."}</div>`;
+  }
+
+  function placeCitePop(el) {
+    const pop = $("citePop");
+    const r = el.getBoundingClientRect();
+    const width = Math.min(320, window.innerWidth - 24);
+    let left = r.left;
+    if (left + width > window.innerWidth - 12) left = window.innerWidth - width - 12;
+    if (left < 12) left = 12;
+    let top = r.bottom + 8;
+    pop.hidden = false;
+    const h = pop.offsetHeight || 220;
+    if (top + h > window.innerHeight - 12) top = Math.max(12, r.top - h - 8);
+    pop.style.left = left + "px";
+    pop.style.top = top + "px";
+  }
+
+  function openCite(el) {
+    if (!el) return;
+    loadLibrary();
+    state.citeEl = el;
+    $("citeNum").textContent = el.getAttribute("data-n") || "";
+    $("citeSearch").value = "";
+    $("citeTitle").value = el.getAttribute("title") || "";
+    $("citeUrl").value = (el.getAttribute("href") || "").replace(/^#$/, "");
+    renderCiteHits("");
+    placeCitePop(el);
+    setTimeout(() => $("citeSearch").focus(), 20);
+  }
+
+  function startCite() {
+    if (state.store !== "editing" || !$("leafBody") || $("leaf").hidden) return;
+    const el = HlsEditor.insertCite($("leafBody"));
+    if (!el) return;
+    openCite(el);
+    scheduleSave();
+  }
+
+  function assignCite(ref) {
+    if (!state.citeEl || !ref) return;
+    const row = upsertRef(ref);
+    HlsEditor.applyCite(state.citeEl, row);
+    const n = state.citeEl.getAttribute("data-n") || "";
+    syncRefsPanel();
+    scheduleSave();
+    closeCite();
+    toast("Reference " + n + " linked");
+  }
+
+  function addCiteFromFields() {
+    const title = $("citeTitle").value.trim();
+    let url = $("citeUrl").value.trim();
+    const q = $("citeSearch").value.trim();
+    if (!url && /^https?:\/\//i.test(q)) url = q;
+    if (!url && !title) return;
+    if (!url) return;
+    if (url && !/^https?:\/\//i.test(url) && !url.startsWith("#")) url = "https://" + url;
+    assignCite({
+      title: title || url,
+      url: url || "#",
+    });
+  }
+
+  function setAi(open) {
+    state.ai.open = Boolean(open);
+    $("shell").classList.toggle("ai-open", state.ai.open);
+    $("btnAi").classList.toggle("on", state.ai.open);
+    $("btnAi").setAttribute("aria-expanded", state.ai.open ? "true" : "false");
+    if (state.ai.open) setTimeout(() => $("aiPrompt").focus(), 40);
+  }
+
+  function selectionQuote() {
+    const sel = window.getSelection();
+    const text = sel && sel.rangeCount ? String(sel.toString() || "").trim() : "";
+    if (!text) return "";
+    const article = articleById(state.selectedId);
+    const where = article ? `${kicker(article)} ${article.title || ""}`.trim() : "";
+    return (where ? `From ${where}:\n\n` : "") + `"${text}"`;
+  }
+
+  function dropSelectionIntoPrompt() {
+    const quote = selectionQuote();
+    if (!quote) {
+      toast("Highlight a passage first");
+      return;
+    }
+    const box = $("aiPrompt");
+    box.value = (box.value ? box.value.replace(/\s+$/, "") + "\n\n" : "") + quote + "\n\n";
+    setAi(true);
+    box.focus();
+    box.setSelectionRange(box.value.length, box.value.length);
+  }
+
+  function renderAiLog() {
+    const log = $("aiLog");
+    log.innerHTML = (state.ai.messages || []).map((msg) => (
+      `<div class="ai-msg ${esc(msg.role)}${msg.err ? " err" : ""}">${esc(msg.content || (msg.role === "bot" ? "…" : ""))}</div>`
+    )).join("") || `<div class="tree-empty">Ask about a highlighted passage, or the current article. The model can use the doctrine store as context.</div>`;
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function fillModels(models) {
+    const sel = $("aiModel");
+    const names = (models || []).map((row) => row.name || row).filter(Boolean);
+    sel.innerHTML = names.map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
+    const saved = readPref(PREF.model, "") || state.ai.model;
+    if (saved && names.includes(saved)) sel.value = saved;
+    else if (names[0]) sel.value = names[0];
+    state.ai.model = sel.value;
+  }
+
+  async function sendAi() {
+    const text = $("aiPrompt").value.trim();
+    if (!text || state.ai.busy) return;
+    state.ai.busy = true;
+    $("aiSend").disabled = true;
+    state.ai.messages.push({ role: "user", content: text });
+    const bot = { role: "bot", content: "" };
+    state.ai.messages.push(bot);
+    $("aiPrompt").value = "";
+    renderAiLog();
+    const history = state.ai.messages.slice(0, -1).map((msg) => ({
+      role: msg.role === "bot" ? "assistant" : "user",
+      content: msg.content,
+    }));
+    try {
+      const res = await HlsAPI.ollamaStream({
+        model: $("aiModel").value || state.ai.model,
+        messages: history,
+        article_id: state.selectedId,
+        include_tree: true,
+        whole: $("aiWhole").checked,
+        store: state.store,
+      });
+      if (!res.ok) throw new Error("Chat failed");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      const handle = (ev) => {
+        if (!ev || typeof ev !== "object") return;
+        if (ev.type === "token") bot.content += ev.text || "";
+        else if (ev.type === "done" && ev.reply) bot.content = ev.reply;
+        else if (ev.type === "error") {
+          bot.content = ev.error || "Chat failed";
+          bot.err = true;
+        } else if (ev.type === "tool_start" || ev.type === "tool_done") return;
+        else bot.content += (ev.message && ev.message.content) || ev.response || "";
+        const last = $("aiLog").querySelector(".ai-msg.bot:last-child");
+        if (last) last.textContent = bot.content || "…";
+        $("aiLog").scrollTop = $("aiLog").scrollHeight;
+      };
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop() || "";
+        for (const part of parts) {
+          const line = part.replace(/^data:\s*/, "").trim();
+          if (!line) continue;
+          try { handle(JSON.parse(line)); } catch (e) {}
+        }
+      }
+      if (buf.trim()) {
+        const line = buf.replace(/^data:\s*/, "").trim();
+        if (line) {
+          try { handle(JSON.parse(line)); } catch (e) {}
+        }
+      }
+      if (!bot.content) bot.content = "No reply.";
+      renderAiLog();
+    } catch (err) {
+      bot.content = (err && err.message) || "Could not reach Ollama.";
+      bot.err = true;
+      renderAiLog();
+    } finally {
+      state.ai.busy = false;
+      $("aiSend").disabled = false;
+    }
+  }
+
   function applyStore(data, store) {
     const articles = (data && data.articles) || [];
     const tree = treeFrom(articles);
@@ -184,6 +460,7 @@
       state.tree = tree;
     }
     if (store === "permanent") state.permanent = articles;
+    harvestRefs(articles);
     return tree;
   }
 
@@ -266,9 +543,10 @@
   }
 
   function currentDraft() {
+    const items = usedCites().map((row) => ({ n: row.n, title: row.title || row.href, url: row.href }));
     return {
       title: $("leafTitle").innerText.replace(/\s+/g, " ").trim(),
-      body: HlsEditor.sanitize($("leafBody").innerHTML),
+      body: HlsEditor.joinRefs(HlsEditor.sanitize($("leafBody").innerHTML), items),
     };
   }
 
@@ -317,10 +595,13 @@
 
     $("leafKicker").textContent = kicker(article);
     $("leafTitle").innerText = article.title || "";
-    $("leafBody").innerHTML = HlsEditor.toHTML(article.body);
+    $("leafBody").innerHTML = HlsEditor.toHTML(HlsEditor.splitRefs(article.body));
+    HlsEditor.convertDeepLists($("leafBody"));
     $("leafTitle").contentEditable = canEdit ? "true" : "false";
     $("leafBody").contentEditable = canEdit ? "true" : "false";
-    state.lastSaved = { title: article.title || "", body: HlsEditor.sanitize($("leafBody").innerHTML) };
+    syncRefsPanel();
+    const live = currentDraft();
+    state.lastSaved = { title: live.title, body: live.body };
     state.dirty = false;
     updateMeta(article);
   }
@@ -558,11 +839,16 @@
 
   function bind() {
     HlsEditor.bind($("toolbar"), $("leafBody"), {
-      change: scheduleSave,
+      change: () => {
+        syncRefsPanel();
+        scheduleSave();
+      },
       askLink() {
         const href = window.prompt("Link URL", "https://");
         return href && href.trim();
       },
+      cite: startCite,
+      editCite: openCite,
     });
 
     $("leafTitle").addEventListener("input", scheduleSave);
@@ -640,6 +926,41 @@
     });
     $("btnNavClose").addEventListener("click", () => setNav(false));
     $("navScrim").addEventListener("click", () => setNav(false));
+    $("btnAi").addEventListener("click", () => setAi(!state.ai.open));
+    $("btnAiClose").addEventListener("click", () => setAi(false));
+    $("aiSend").addEventListener("click", () => sendAi());
+    $("aiPrompt").addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        sendAi();
+      }
+    });
+    $("aiModel").addEventListener("change", () => {
+      state.ai.model = $("aiModel").value;
+      writePref(PREF.model, state.ai.model);
+    });
+    $("citeResults").addEventListener("click", (e) => {
+      const hit = e.target.closest(".cite-hit");
+      if (!hit) return;
+      const row = state.refs.find((item) => item.id === hit.getAttribute("data-id"));
+      if (row) assignCite(row);
+    });
+    $("citeSearch").addEventListener("input", (e) => renderCiteHits(e.target.value));
+    $("citeSearch").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const first = $("citeResults").querySelector(".cite-hit");
+        if (first) first.click();
+        else addCiteFromFields();
+      }
+    });
+    $("citeAdd").addEventListener("click", () => addCiteFromFields());
+    $("citeUrl").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addCiteFromFields();
+      }
+    });
     $("btnTheme").addEventListener("click", () => {
       setTheme(state.prefs.theme === "dark" ? "light" : "dark");
     });
@@ -662,6 +983,7 @@
     document.addEventListener("click", (e) => {
       if (!e.target.closest(".publish-wrap")) $("publishMenu").hidden = true;
       if (!e.target.closest("#typePop") && !e.target.closest("#btnType")) $("typePop").hidden = true;
+      if (!e.target.closest("#citePop") && !e.target.closest("a.cite") && !e.target.closest("#toolbar")) closeCite();
     });
 
     ["rngMeasure", "rngSize", "rngLead"].forEach((id) => {
@@ -688,6 +1010,19 @@
         e.preventDefault();
         await saveNow("manual");
       }
+      if (meta && key === "k") {
+        if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+        e.preventDefault();
+        startCite();
+      }
+      if (meta && e.shiftKey && key === "j") {
+        e.preventDefault();
+        dropSelectionIntoPrompt();
+      }
+      if (meta && !e.shiftKey && key === "j") {
+        e.preventDefault();
+        setAi(!state.ai.open);
+      }
       if (meta && key === "p") {
         e.preventDefault();
         window.print();
@@ -701,10 +1036,15 @@
         await deleteSelected();
       }
       if (e.key === "Escape") {
+        if (!$("citePop").hidden) {
+          closeCite();
+          return;
+        }
         $("publishMenu").hidden = true;
         $("typePop").hidden = true;
         $("modal").hidden = true;
         setNav(false);
+        setAi(false);
       }
     });
 
@@ -729,10 +1069,13 @@
     setTheme(state.prefs.theme);
     applyType();
     bind();
+    loadLibrary();
+    renderAiLog();
     try {
-      await HlsAPI.status();
+      const status = await HlsAPI.status();
       state.connected = true;
       banner("");
+      fillModels(((status && status.ollama && status.ollama.models) || []));
       await refresh("editing");
       state.tree.forEach((node) => state.expanded.add(node.id));
       renderTree();

@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=2">
+  <link rel="stylesheet" href="css/styles.css?v=3">
   <script src="config.js"></script>
   <script>
     (function () {
@@ -112,6 +112,7 @@
                 <button type="button" data-pub="all">Entire draft archive</button>
               </div>
             </div>
+            <button type="button" class="text-btn" id="btnAi" aria-expanded="false" aria-controls="ai">Ollama</button>
           </div>
         </header>
 
@@ -124,6 +125,7 @@
               <p class="leaf-kicker" id="leafKicker"></p>
               <h1 class="leaf-title" id="leafTitle" contenteditable="true" spellcheck="true" data-placeholder="Title"></h1>
               <div class="leaf-body" id="leafBody" contenteditable="true" spellcheck="true" data-placeholder="Write the doctrine…"></div>
+              <aside class="leaf-refs" id="leafRefs" hidden></aside>
             </article>
             <div class="book" id="book" hidden></div>
           </div>
@@ -136,6 +138,44 @@
           <span id="metaTime"></span>
         </footer>
       </section>
+
+      <aside class="ai" id="ai">
+        <div class="ai-head">
+          <div>
+            <p class="nav-mark">Ollama</p>
+            <h2 class="nav-title">Counsel</h2>
+          </div>
+          <button type="button" class="icon-btn" id="btnAiClose" aria-label="Close Ollama">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="ai-tools">
+          <label class="ai-model">
+            <span>Model</span>
+            <select id="aiModel"></select>
+          </label>
+          <label class="pop-check"><input type="checkbox" id="aiWhole"> Whole archive</label>
+        </div>
+        <div class="ai-log" id="aiLog"></div>
+        <div class="ai-compose">
+          <p class="ai-hint">Highlight in the article, then ⌘⇧J to drop it into the prompt.</p>
+          <textarea id="aiPrompt" rows="4" placeholder="Ask about this doctrine…"></textarea>
+          <button type="button" class="publish" id="aiSend">Ask</button>
+        </div>
+      </aside>
+    </div>
+
+    <div class="cite-pop" id="citePop" hidden>
+      <p class="cite-kicker">Reference <span id="citeNum"></span></p>
+      <input id="citeSearch" type="search" placeholder="Search references" autocomplete="off" spellcheck="false">
+      <div class="cite-results" id="citeResults"></div>
+      <div class="cite-new">
+        <input id="citeTitle" type="text" placeholder="Title" autocomplete="off">
+        <div class="cite-url-row">
+          <input id="citeUrl" type="url" placeholder="https://…" autocomplete="off">
+          <button type="button" class="publish" id="citeAdd" title="Add reference">+</button>
+        </div>
+      </div>
     </div>
 
     <div class="popover" id="typePop" hidden>
@@ -172,8 +212,8 @@
     <div class="toast" id="toast" hidden></div>
     <div class="banner" id="banner" hidden></div>
   </div>
-  <script src="js/api.js?v=2"></script>
-  <script src="js/editor.js?v=2"></script>
-  <script src="js/app.js?v=2"></script>
+  <script src="js/api.js?v=3"></script>
+  <script src="js/editor.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
 </body>
 </html>
