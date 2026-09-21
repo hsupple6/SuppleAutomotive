@@ -45,7 +45,7 @@
     },
     citeEl: null,
     refs: [],
-    ai: { open: false, busy: false, messages: [], model: "" },
+    ai: { open: false, busy: false, messages: [], model: "", clips: [], turn: 0 },
   };
 
   function esc(value) {
@@ -342,33 +342,331 @@
     if (state.ai.open) setTimeout(() => $("aiPrompt").focus(), 40);
   }
 
-  function selectionQuote() {
-    const sel = window.getSelection();
-    const text = sel && sel.rangeCount ? String(sel.toString() || "").trim() : "";
-    if (!text) return "";
-    const article = articleById(state.selectedId);
-    const where = article ? `${kicker(article)} ${article.title || ""}`.trim() : "";
-    return (where ? `From ${where}:\n\n` : "") + `"${text}"`;
+  function newAiChat() {
+    state.ai.turn += 1;
+    state.ai.busy = false;
+    state.ai.messages = [];
+    state.ai.clips = [];
+    $("aiPrompt").value = "";
+    $("aiSend").disabled = false;
+    renderAiClips();
+    renderAiLog();
+    $("aiPrompt").focus();
+  }
+
+  function lineCount(text) {
+    const t = String(text || "").trim();
+    if (!t) return 0;
+    const hard = t.split(/\n/).length;
+    const est = Math.max(1, Math.ceil(t.length / 68));
+    return Math.max(hard, est);
+  }
+
+  function clipLabel(clip) {
+    const n = clip.lines || 1;
+    const metric = n === 1 ? "1 line" : n + " lines";
+    return (clip.where ? clip.where + " · " : "") + metric;
+  }
+
+  function clipBody(clip) {
+    return (clip.where ? `From ${clip.where}:\n\n` : "") + `"${clip.text}"`;
+  }
+
+  function renderAiClips() {
+    const box = $("aiClips");
+    const clips = state.ai.clips || [];
+    if (!clips.length) {
+      box.hidden = true;
+      box.innerHTML = "";
+      return;
+    }
+    box.hidden = false;
+    box.innerHTML = clips.map((clip) => (
+      `<span class="ai-clip-wrap">` +
+      `<a class="ai-clip" href="${esc(clip.href || "#passage")}" data-id="${esc(clip.id)}" title="${esc(clip.text.slice(0, 240))}">${esc(clipLabel(clip))}</a>` +
+      `<button type="button" class="ai-clip-remove" data-id="${esc(clip.id)}" aria-label="Remove passage">×</button>` +
+      `</span>`
+    )).join("");
   }
 
   function dropSelectionIntoPrompt() {
-    const quote = selectionQuote();
-    if (!quote) {
+    const sel = window.getSelection();
+    const text = sel && sel.rangeCount ? String(sel.toString() || "").trim() : "";
+    if (!text) {
       toast("Highlight a passage first");
       return;
     }
-    const box = $("aiPrompt");
-    box.value = (box.value ? box.value.replace(/\s+$/, "") + "\n\n" : "") + quote + "\n\n";
+    const article = articleById(state.selectedId);
+    const where = article ? `${kicker(article)} ${article.title || ""}`.trim() : "";
+    if (state.ai.clips.some((clip) => clip.text === text && clip.where === where)) {
+      setAi(true);
+      return;
+    }
+    state.ai.clips.push({
+      id: "clip-" + Math.random().toString(36).slice(2, 8),
+      where,
+      text,
+      lines: lineCount(text),
+      href: article ? "#article-" + article.number : "#",
+    });
+    renderAiClips();
     setAi(true);
-    box.focus();
-    box.setSelectionRange(box.value.length, box.value.length);
+    $("aiPrompt").focus();
+  }
+
+  function paintMarkdown(el, text) {
+    const raw = String(text || "");
+    if (!el) return;
+    if (!raw.trim()) {
+      el.textContent = "";
+      return;
+    }
+    if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
+      el.textContent = raw;
+      return;
+    }
+    try {
+      marked.setOptions({ gfm: true, breaks: true });
+      el.innerHTML = DOMPurify.sanitize(marked.parse(raw), {
+        USE_PROFILES: { html: true },
+        ADD_ATTR: ["target", "rel"],
+      });
+      el.querySelectorAll('a[href^="http"]').forEach((a) => {
+        a.setAttribute("target", "_blank");
+        a.setAttribute("rel", "noopener noreferrer");
+      });
+    } catch (err) {
+      el.textContent = raw;
+    }
+  }
+
+  function scheduleMarkdown(el, getText) {
+    if (!el) return;
+    if (el._mdTimer) return;
+    el._mdTimer = setTimeout(() => {
+      el._mdTimer = null;
+      paintMarkdown(el, typeof getText === "function" ? getText() : getText);
+    }, 50);
+  }
+
+  function isHttpUrl(s) {
+    try {
+      const u = new URL(String(s || ""));
+      return u.protocol === "http:" || u.protocol === "https:";
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function toolLabel(name) {
+    const labels = {
+      web_search: "Web search",
+      web_fetch: "Open page",
+      image_search: "Image search",
+    };
+    return labels[name] || name || "Tool";
+  }
+
+  function hintFromArgs(args) {
+    if (!args || typeof args !== "object") return "";
+    return String(args.about || args.query || args.q || args.url || "").trim();
+  }
+
+  function renderImageGallery(parent, images) {
+    if (!parent || !Array.isArray(images) || !images.length) return;
+    const gal = document.createElement("div");
+    gal.className = "img-gallery";
+    images.slice(0, 8).forEach((item) => {
+      if (!item || typeof item !== "object") return;
+      const thumb = String(item.thumbnail || item.image_url || "").trim();
+      const href = String(item.page_url || item.url || item.image_url || thumb).trim();
+      if (!isHttpUrl(thumb)) return;
+      const a = document.createElement("a");
+      a.className = "img-tile";
+      a.href = isHttpUrl(href) ? href : thumb;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.title = item.title || item.source || "";
+      const img = document.createElement("img");
+      img.src = thumb;
+      img.alt = item.title || "image";
+      img.loading = "lazy";
+      img.referrerPolicy = "no-referrer";
+      a.appendChild(img);
+      const cap = document.createElement("span");
+      cap.className = "img-cap";
+      cap.textContent = item.source || item.title || "";
+      a.appendChild(cap);
+      gal.appendChild(a);
+    });
+    if (gal.childElementCount) parent.appendChild(gal);
+  }
+
+  function renderArticleCards(parent, articles) {
+    if (!parent || !Array.isArray(articles) || !articles.length) return;
+    const wrap = document.createElement("div");
+    wrap.className = "article-cards";
+    const rows = articles.slice(0, 3);
+    const heroIdx = rows.findIndex((item) => isHttpUrl(item && (item.thumbnail || item.image_url)));
+    rows.forEach((item, i) => {
+      if (!item || typeof item !== "object") return;
+      const href = String(item.url || item.page_url || "").trim();
+      const thumb = String(item.thumbnail || item.image_url || "").trim();
+      const card = document.createElement(isHttpUrl(href) ? "a" : "div");
+      card.className = "article-card";
+      if (i === (heroIdx >= 0 ? heroIdx : 0) && isHttpUrl(thumb)) card.classList.add("hero");
+      if (!isHttpUrl(thumb)) card.classList.add("no-thumb");
+      if (card.tagName === "A") {
+        card.href = href;
+        card.target = "_blank";
+        card.rel = "noopener noreferrer";
+      }
+      if (isHttpUrl(thumb)) {
+        const media = document.createElement("div");
+        media.className = "article-thumb";
+        const img = document.createElement("img");
+        img.src = thumb;
+        img.alt = item.title || "Article";
+        img.loading = "lazy";
+        img.referrerPolicy = "no-referrer";
+        img.addEventListener("error", () => {
+          media.remove();
+          card.classList.remove("hero");
+          card.classList.add("no-thumb");
+        });
+        media.appendChild(img);
+        card.appendChild(media);
+      }
+      const body = document.createElement("div");
+      body.className = "article-body";
+      const kicker = document.createElement("div");
+      kicker.className = "article-kicker";
+      kicker.textContent = item.source || (item.number ? "Article " + item.number : "Source");
+      body.appendChild(kicker);
+      const title = document.createElement("div");
+      title.className = "article-title";
+      title.textContent = item.title || href || "Article";
+      body.appendChild(title);
+      if (item.snippet || item.body) {
+        const snip = document.createElement("div");
+        snip.className = "article-snip";
+        snip.textContent = item.snippet || String(item.body || "").replace(/<[^>]+>/g, " ").trim();
+        body.appendChild(snip);
+      }
+      card.appendChild(body);
+      wrap.appendChild(card);
+    });
+    if (wrap.childElementCount) parent.appendChild(wrap);
+  }
+
+  function chatToolStart(msg, row) {
+    if (!msg || !msg._tools) return;
+    msg._tools.hidden = false;
+    const name = row.name || "tool";
+    const el = document.createElement("div");
+    el.className = "tool-row running";
+    el.innerHTML =
+      '<span class="tool-dot"></span>' +
+      '<div class="tool-main"><div class="tool-name"></div><div class="tool-detail"></div></div>' +
+      '<span class="tool-status">Working</span>';
+    el.querySelector(".tool-name").textContent = toolLabel(name);
+    const detailEl = el.querySelector(".tool-detail");
+    let detail = hintFromArgs(row.arguments);
+    if (!detail && name === "web_fetch") detail = "Reading page…";
+    if (!detail && name === "web_search") detail = "Searching…";
+    if (!detail && name === "image_search") detail = "Finding pictures…";
+    if (detail) detailEl.textContent = detail;
+    else detailEl.remove();
+    el.dataset.arg = detail || "";
+    msg._tools.appendChild(el);
+    const stack = msg._pendingTools.get(name) || [];
+    stack.push(el);
+    msg._pendingTools.set(name, stack);
+  }
+
+  function chatToolDone(msg, row) {
+    if (!msg || !msg._pendingTools) return;
+    const name = row.name || "tool";
+    const stack = msg._pendingTools.get(name) || [];
+    let el = stack.pop();
+    const ok = row.ok !== false;
+    if (!el) {
+      chatToolStart(msg, row);
+      el = (msg._pendingTools.get(name) || []).pop();
+    }
+    if (!el) return;
+    el.classList.remove("running");
+    el.classList.add(ok ? "ok" : "fail");
+    const status = el.querySelector(".tool-status");
+    if (status) status.textContent = ok ? "Done" : "Failed";
+    const detailEl = el.querySelector(".tool-detail") || (() => {
+      const d = document.createElement("div");
+      d.className = "tool-detail";
+      el.querySelector(".tool-main").appendChild(d);
+      return d;
+    })();
+    const arg = el.dataset.arg || hintFromArgs(row.arguments);
+    detailEl.textContent = [arg, row.summary].filter(Boolean).join("\n");
+    if (ok && Array.isArray(row.articles) && row.articles.length) {
+      renderArticleCards(msg._tools, row.articles);
+    }
+    if (ok && Array.isArray(row.images) && row.images.length) {
+      renderImageGallery(msg._tools, row.images);
+    }
+  }
+
+  function buildUserBubble(msg) {
+    const wrap = document.createElement("div");
+    wrap.className = "ai-msg user";
+    (msg.clips || []).forEach((clip) => {
+      const a = document.createElement("a");
+      a.className = "ai-clip";
+      a.href = clip.href || "#";
+      a.title = (clip.text || "").slice(0, 240);
+      a.textContent = clipLabel(clip);
+      wrap.appendChild(a);
+    });
+    const question = msg.question || (!msg.clips || !msg.clips.length ? msg.content : "");
+    if (question) {
+      const q = document.createElement("div");
+      q.className = "ai-q";
+      q.textContent = question;
+      wrap.appendChild(q);
+    }
+    return wrap;
+  }
+
+  function buildBotBubble(msg) {
+    const wrap = document.createElement("div");
+    wrap.className = "ai-msg bot" + (msg.err ? " err" : "");
+    const tools = document.createElement("div");
+    tools.className = "tool-log";
+    tools.hidden = true;
+    wrap.appendChild(tools);
+    wrap._tools = tools;
+    wrap._pendingTools = new Map();
+    (msg.tools || []).forEach((row) => {
+      chatToolStart(wrap, row);
+      if (row.status && row.status !== "running") chatToolDone(wrap, row);
+    });
+    const body = document.createElement("div");
+    body.className = "ai-md";
+    wrap.appendChild(body);
+    wrap._body = body;
+    if (msg.content) paintMarkdown(body, msg.content);
+    return wrap;
   }
 
   function renderAiLog() {
     const log = $("aiLog");
-    log.innerHTML = (state.ai.messages || []).map((msg) => (
-      `<div class="ai-msg ${esc(msg.role)}${msg.err ? " err" : ""}">${esc(msg.content || (msg.role === "bot" ? "…" : ""))}</div>`
-    )).join("") || `<div class="tree-empty">Ask about a highlighted passage, or the current article. The model can use the doctrine store as context.</div>`;
+    log.innerHTML = "";
+    if (!(state.ai.messages || []).length) {
+      log.innerHTML = `<div class="tree-empty">Ask the model. It can search the web, pull sources, and show previews — same as LifeOS.</div>`;
+      return;
+    }
+    state.ai.messages.forEach((msg) => {
+      log.appendChild(msg.role === "user" ? buildUserBubble(msg) : buildBotBubble(msg));
+    });
     log.scrollTop = log.scrollHeight;
   }
 
@@ -383,15 +681,21 @@
   }
 
   async function sendAi() {
-    const text = $("aiPrompt").value.trim();
-    if (!text || state.ai.busy) return;
+    const question = $("aiPrompt").value.trim();
+    const clips = (state.ai.clips || []).slice();
+    if ((!question && !clips.length) || state.ai.busy) return;
+    const turn = state.ai.turn;
     state.ai.busy = true;
     $("aiSend").disabled = true;
-    state.ai.messages.push({ role: "user", content: text });
-    const bot = { role: "bot", content: "" };
+    const content = [clips.map(clipBody).join("\n\n"), question].filter(Boolean).join("\n\n");
+    state.ai.messages.push({ role: "user", content, question, clips });
+    const bot = { role: "bot", content: "", tools: [] };
     state.ai.messages.push(bot);
     $("aiPrompt").value = "";
+    state.ai.clips = [];
+    renderAiClips();
     renderAiLog();
+    const wrap = $("aiLog").querySelector(".ai-msg.bot:last-child");
     const history = state.ai.messages.slice(0, -1).map((msg) => ({
       role: msg.role === "bot" ? "assistant" : "user",
       content: msg.content,
@@ -410,19 +714,33 @@
       const decoder = new TextDecoder();
       let buf = "";
       const handle = (ev) => {
+        if (turn !== state.ai.turn) return;
         if (!ev || typeof ev !== "object") return;
+        if (ev.type === "tool_start") {
+          bot.tools.push({ name: ev.name, arguments: ev.arguments || {}, status: "running" });
+          chatToolStart(wrap, ev);
+          $("aiLog").scrollTop = $("aiLog").scrollHeight;
+          return;
+        }
+        if (ev.type === "tool_done") {
+          const last = [...bot.tools].reverse().find((t) => t.name === ev.name && t.status === "running");
+          if (last) Object.assign(last, ev, { status: ev.ok === false ? "fail" : "ok" });
+          else bot.tools.push(Object.assign({ status: ev.ok === false ? "fail" : "ok" }, ev));
+          chatToolDone(wrap, ev);
+          $("aiLog").scrollTop = $("aiLog").scrollHeight;
+          return;
+        }
         if (ev.type === "token") bot.content += ev.text || "";
         else if (ev.type === "done" && ev.reply) bot.content = ev.reply;
         else if (ev.type === "error") {
           bot.content = ev.error || "Chat failed";
           bot.err = true;
-        } else if (ev.type === "tool_start" || ev.type === "tool_done") return;
-        else bot.content += (ev.message && ev.message.content) || ev.response || "";
-        const last = $("aiLog").querySelector(".ai-msg.bot:last-child");
-        if (last) last.textContent = bot.content || "…";
+        } else bot.content += (ev.message && ev.message.content) || ev.response || "";
+        scheduleMarkdown(wrap && wrap._body, () => bot.content || "…");
         $("aiLog").scrollTop = $("aiLog").scrollHeight;
       };
       while (true) {
+        if (turn !== state.ai.turn) return;
         const { value, done } = await reader.read();
         if (done) break;
         buf += decoder.decode(value, { stream: true });
@@ -434,6 +752,7 @@
           try { handle(JSON.parse(line)); } catch (e) {}
         }
       }
+      if (turn !== state.ai.turn) return;
       if (buf.trim()) {
         const line = buf.replace(/^data:\s*/, "").trim();
         if (line) {
@@ -443,12 +762,15 @@
       if (!bot.content) bot.content = "No reply.";
       renderAiLog();
     } catch (err) {
+      if (turn !== state.ai.turn) return;
       bot.content = (err && err.message) || "Could not reach Ollama.";
       bot.err = true;
       renderAiLog();
     } finally {
-      state.ai.busy = false;
-      $("aiSend").disabled = false;
+      if (turn === state.ai.turn) {
+        state.ai.busy = false;
+        $("aiSend").disabled = false;
+      }
     }
   }
 
@@ -928,9 +1250,24 @@
     $("navScrim").addEventListener("click", () => setNav(false));
     $("btnAi").addEventListener("click", () => setAi(!state.ai.open));
     $("btnAiClose").addEventListener("click", () => setAi(false));
+    $("btnAiNew").addEventListener("click", () => newAiChat());
     $("aiSend").addEventListener("click", () => sendAi());
+    $("aiLog").addEventListener("click", (e) => {
+      if (e.target.closest(".ai-clip") && !e.target.closest(".article-card")) e.preventDefault();
+    });
+    $("aiClips").addEventListener("click", (e) => {
+      const kill = e.target.closest(".ai-clip-remove");
+      if (kill) {
+        const id = kill.getAttribute("data-id");
+        state.ai.clips = state.ai.clips.filter((clip) => clip.id !== id);
+        renderAiClips();
+        return;
+      }
+      const link = e.target.closest(".ai-clip");
+      if (link) e.preventDefault();
+    });
     $("aiPrompt").addEventListener("keydown", (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
         e.preventDefault();
         sendAi();
       }
