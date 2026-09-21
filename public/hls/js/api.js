@@ -179,6 +179,9 @@ const HlsAPI = (() => {
     publishPermanent(body) {
       return post("/v1/doctrine/permanent", body);
     },
+    publishAll() {
+      return post("/v1/doctrine/permanent", { all: true });
+    },
     ollamaModels() {
       return get("/v1/ollama/models");
     },
