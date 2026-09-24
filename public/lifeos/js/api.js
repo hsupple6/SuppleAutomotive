@@ -44,8 +44,8 @@ const LifeAPI = (() => {
       headers["X-LifeOS-Token"] = secret;
     }
     const ac = new AbortController();
-    const wait = options.timeoutMs || (options.stream ? 180000 : 12000);
-    const timer = setTimeout(() => ac.abort(), wait);
+    const wait = options.timeoutMs === 0 ? 0 : (options.timeoutMs || (options.stream ? 180000 : 12000));
+    const timer = wait ? setTimeout(() => ac.abort(), wait) : null;
     try {
       const res = await fetch(base + path, Object.assign({}, options, { headers, signal: ac.signal }));
       if (options.stream) return res;
@@ -167,6 +167,18 @@ const LifeAPI = (() => {
         stream: true,
         timeoutMs: 300000,
       });
+    },
+    reviewStream(body) {
+      return request("/v1/personal/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body || {}),
+        stream: true,
+        timeoutMs: 0,
+      });
+    },
+    noteDecision(body) {
+      return post("/v1/personal/decide", body, 20000);
     },
   };
 })();

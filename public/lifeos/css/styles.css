@@ -1085,6 +1085,138 @@ button {
 
 .send:active { transform: scale(0.9); }
 
+.chat-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.chat-bar .select { flex: 1; width: auto; min-width: 0; }
+
+.review-btn {
+  flex: 0 0 auto;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 20px;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.review-btn:disabled { opacity: 0.45; }
+.review-btn:active { transform: scale(0.96); }
+
+.note-deck {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.note-status {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.note-card {
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 28px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.note-kicker {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.note-kicker span,
+.note-query,
+.note-reason,
+.note-empty {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.note-query,
+.note-reason {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.note-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  margin-bottom: 6px;
+}
+
+.note-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 15px;
+  line-height: 1.4;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.note-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.note-nav,
+.note-no,
+.note-yes {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #000;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.note-nav:disabled { opacity: 0.28; }
+
+.note-choice {
+  display: flex;
+  gap: 10px;
+}
+
+.note-yes.on {
+  background: var(--lime);
+  color: #111;
+  border-color: transparent;
+}
+
+.note-no.on {
+  background: var(--red);
+  color: #fff;
+  border-color: transparent;
+}
+
+.note-nav:active,
+.note-no:active,
+.note-yes:active { transform: scale(0.94); }
+
 .field {
   width: 100%;
   min-height: 48px;

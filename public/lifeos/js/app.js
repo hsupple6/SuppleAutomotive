@@ -12,6 +12,16 @@
     model: "",
     models: [],
     busy: false,
+    review: {
+      running: false,
+      status: "",
+      error: "",
+      index: 0,
+      proposals: [],
+      seen: 0,
+      total: 0,
+      currentQuery: "",
+    },
     lastHash: "",
     foodFilter: "all",
     macros: null,
@@ -1993,11 +2003,15 @@
   function renderChat() {
     setChrome("Ollama", "Local");
     const models = state.models;
+    const reviewing = state.review.running;
     $("screen").innerHTML = `
       <div class="chat">
-        <select class="select" id="model">${models.map((m) => (
-          `<option value="${esc(m.name)}" ${m.name === state.model ? "selected" : ""}>${esc(m.name)}</option>`
-        )).join("")}</select>
+        <div class="chat-bar">
+          <select class="select" id="model">${models.map((m) => (
+            `<option value="${esc(m.name)}" ${m.name === state.model ? "selected" : ""}>${esc(m.name)}</option>`
+          )).join("")}</select>
+          <button class="review-btn" id="review-notes" type="button" ${reviewing ? "disabled" : ""}>${reviewing ? "Reviewing" : "Review"}</button>
+        </div>
         <div class="messages" id="messages"></div>
         <form class="composer" id="composer">
           <textarea id="prompt" rows="1" placeholder="Message"></textarea>
@@ -2025,6 +2039,9 @@
         sendChat();
       }
     });
+    const reviewBtn = $("review-notes");
+    if (reviewBtn) reviewBtn.onclick = () => { vibrate(); startReview(); };
+    mountReview();
   }
 
   function isHttpUrl(s) {
@@ -2041,12 +2058,16 @@
       web_search: "Web search",
       web_fetch: "Open page",
       image_search: "Image search",
+      recall_hayden: "Your notes",
     };
     return labels[name] || name || "Tool";
   }
 
   function hintFromArgs(args) {
     if (!args || typeof args !== "object") return "";
+    const cats = args.categories;
+    if (Array.isArray(cats) && cats.length) return cats.join(", ");
+    if (typeof cats === "string" && cats.trim()) return cats.trim();
     return String(args.about || args.query || args.q || args.url || "").trim();
   }
 
@@ -2213,6 +2234,7 @@
     if (!detail && name === "web_fetch") detail = "Reading page…";
     if (!detail && name === "web_search") detail = "Searching…";
     if (!detail && name === "image_search") detail = "Finding pictures…";
+    if (!detail && name === "recall_hayden") detail = "Reading your notes…";
     if (detail) detailEl.textContent = detail;
     else detailEl.remove();
     el.dataset.arg = detail || "";
@@ -2250,6 +2272,272 @@
     }
     if (ok && Array.isArray(row.images) && row.images.length) {
       renderImageGallery(msg._tools, row.images);
+    }
+  }
+
+  function reviewVisible() {
+    const review = state.review;
+    return review.running || review.proposals.length > 0 || review.error || review.status;
+  }
+
+  function iconButton(className, label, path, disabled) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = className;
+    btn.setAttribute("aria-label", label);
+    if (disabled) btn.disabled = true;
+    btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">${path}</svg>`;
+    return btn;
+  }
+
+  function mountReview() {
+    const box = $("messages");
+    if (!box) return;
+    const review = state.review;
+    let deck = $("note-deck");
+    if (!reviewVisible()) {
+      if (deck) deck.remove();
+      return;
+    }
+    const empty = box.querySelector(".empty");
+    if (empty) empty.remove();
+    if (!deck) {
+      deck = document.createElement("div");
+      deck.id = "note-deck";
+      deck.className = "note-deck";
+      box.appendChild(deck);
+    }
+    deck.replaceChildren();
+    if (review.status && (review.running || review.proposals.length)) {
+      const status = document.createElement("div");
+      status.className = "note-status";
+      status.textContent = review.status;
+      deck.appendChild(status);
+    }
+    const cards = review.proposals;
+    if (!cards.length) {
+      const card = document.createElement("div");
+      card.className = "note-card";
+      const line = document.createElement("div");
+      line.className = "note-query";
+      line.textContent = review.running
+        ? (review.currentQuery || "Going through the changelog.")
+        : (review.error || review.status || "Nothing in the log needs a note change.");
+      card.appendChild(line);
+      deck.appendChild(card);
+    } else {
+      if (review.index >= cards.length) review.index = cards.length - 1;
+      if (review.index < 0) review.index = 0;
+      const cardData = cards[review.index];
+      const card = document.createElement("div");
+      card.className = "note-card";
+      const kicker = document.createElement("div");
+      kicker.className = "note-kicker";
+      const name = document.createElement("b");
+      name.textContent = cardData.label || cardData.category || "Note";
+      const count = document.createElement("span");
+      count.textContent = `${review.index + 1} / ${cards.length}`;
+      kicker.append(name, count);
+      card.appendChild(kicker);
+      if (cardData.query) {
+        const query = document.createElement("div");
+        query.className = "note-query";
+        query.textContent = cardData.query;
+        card.appendChild(query);
+      }
+      const currentLabel = document.createElement("div");
+      currentLabel.className = "note-label";
+      currentLabel.textContent = "CURRENT";
+      const current = document.createElement("div");
+      current.className = "note-body";
+      current.textContent = cardData.current || "Nothing written yet";
+      if (!cardData.current) current.classList.add("note-empty");
+      const changeLabel = document.createElement("div");
+      changeLabel.className = "note-label";
+      changeLabel.textContent = "CHANGE";
+      const proposed = document.createElement("div");
+      proposed.className = "note-body";
+      proposed.textContent = cardData.proposed || "";
+      card.append(currentLabel, current, changeLabel, proposed);
+      if (cardData.reason) {
+        const reason = document.createElement("div");
+        reason.className = "note-reason";
+        reason.textContent = cardData.reason;
+        card.appendChild(reason);
+      }
+      const actions = document.createElement("div");
+      actions.className = "note-actions";
+      const prev = iconButton(
+        "note-nav",
+        "Previous",
+        '<path d="M15 6 9 12l6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+        review.index === 0
+      );
+      const next = iconButton(
+        "note-nav",
+        "Next",
+        '<path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+        review.index >= cards.length - 1
+      );
+      const no = iconButton(
+        "note-no" + (cardData.decision === "no" ? " on" : ""),
+        "Reject change",
+        '<path d="M7 7l10 10M17 7 7 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+        cardData.saving
+      );
+      const yes = iconButton(
+        "note-yes" + (cardData.decision === "yes" ? " on" : ""),
+        "Accept change",
+        '<path d="M5 12.5 9.2 17 19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+        cardData.saving
+      );
+      prev.onclick = () => {
+        vibrate();
+        review.index = Math.max(0, review.index - 1);
+        mountReview();
+      };
+      next.onclick = () => {
+        vibrate();
+        review.index = Math.min(cards.length - 1, review.index + 1);
+        mountReview();
+      };
+      no.onclick = () => decideReview(false);
+      yes.onclick = () => decideReview(true);
+      const choice = document.createElement("div");
+      choice.className = "note-choice";
+      choice.append(no, yes);
+      actions.append(prev, choice, next);
+      card.appendChild(actions);
+      deck.appendChild(card);
+    }
+    if (review.error && cards.length) {
+      const err = document.createElement("div");
+      err.className = "note-reason";
+      err.textContent = review.error;
+      deck.appendChild(err);
+    }
+  }
+
+  async function decideReview(accept) {
+    const review = state.review;
+    const card = review.proposals[review.index];
+    if (!card || card.saving) return;
+    if (card.decision === (accept ? "yes" : "no")) return;
+    card.saving = true;
+    review.error = "";
+    mountReview();
+    try {
+      await LifeAPI.noteDecision({
+        changelog_id: card.changelog_id,
+        proposal_id: card.id,
+        accept,
+      });
+      card.decision = accept ? "yes" : "no";
+    } catch (err) {
+      review.error = err.message || "Could not save that choice.";
+    } finally {
+      card.saving = false;
+      mountReview();
+    }
+  }
+
+  async function readSSE(res, handleEvent) {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split("\n\n");
+      buf = parts.pop() || "";
+      for (const part of parts) {
+        const line = part.replace(/^data:\s*/, "").trim();
+        if (!line) continue;
+        try { handleEvent(JSON.parse(line)); } catch (_) {}
+      }
+    }
+    if (buf.trim()) {
+      const line = buf.replace(/^data:\s*/, "").trim();
+      if (line) {
+        try { handleEvent(JSON.parse(line)); } catch (_) {}
+      }
+    }
+  }
+
+  async function startReview() {
+    const review = state.review;
+    if (review.running) return;
+    review.running = true;
+    review.error = "";
+    review.proposals = [];
+    review.index = 0;
+    review.seen = 0;
+    review.total = 0;
+    review.currentQuery = "";
+    review.status = "Starting…";
+    const btn = $("review-notes");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Reviewing";
+    }
+    mountReview();
+    try {
+      const res = await LifeAPI.reviewStream({
+        model: state.model || ($("model") && $("model").value) || "",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Review failed");
+      }
+      await readSSE(res, (ev) => {
+        if (!ev || typeof ev !== "object") return;
+        if (ev.type === "progress") {
+          review.seen = ev.index || review.seen;
+          review.total = ev.total || review.total;
+          review.currentQuery = ev.query || "";
+          review.status = review.total
+            ? `Reading ${review.seen} of ${review.total}`
+            : "Reading changelog";
+          const statusEl = document.querySelector("#note-deck .note-status");
+          const waiting = document.querySelector("#note-deck .note-card .note-query");
+          if (statusEl && review.proposals.length) {
+            statusEl.textContent = review.status;
+          } else if (statusEl && waiting && !review.proposals.length) {
+            statusEl.textContent = review.status;
+            waiting.textContent = review.currentQuery || "Going through the changelog.";
+          } else {
+            mountReview();
+          }
+        } else if (ev.type === "proposal" && ev.proposal) {
+          const row = ev.proposal;
+          if (!review.proposals.some((item) => item.id === row.id)) {
+            review.proposals.push(row);
+          }
+          mountReview();
+        } else if (ev.type === "done") {
+          review.status = review.proposals.length
+            ? ""
+            : "Nothing in the log needs a note change.";
+        } else if (ev.type === "error") {
+          review.error = ev.error || "Review failed";
+          review.status = "";
+        }
+      });
+    } catch (err) {
+      review.error = err.message || "Review failed";
+      review.status = "";
+    } finally {
+      review.running = false;
+      if (!review.proposals.length && !review.error && !review.status) {
+        review.status = "Nothing in the log needs a note change.";
+      }
+      const button = $("review-notes");
+      if (button) {
+        button.disabled = false;
+        button.textContent = "Review";
+      }
+      mountReview();
     }
   }
 
