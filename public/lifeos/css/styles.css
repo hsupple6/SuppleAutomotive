@@ -828,18 +828,6 @@ button {
   height: 16px;
 }
 
-.stream-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 10px;
-  z-index: 1;
-  height: 16px;
-  pointer-events: none;
-  background: rgba(0, 0, 0, 0.3);
-  box-shadow: 0 -10px 14px rgba(0, 0, 0, 0.7);
-}
-
 .think {
   width: 22px;
   height: 22px;

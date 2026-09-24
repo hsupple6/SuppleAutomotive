@@ -2239,10 +2239,8 @@
     if (!wrap) return;
     wrap.classList.remove("waiting", "streaming");
     const spinner = wrap.querySelector(":scope > .think");
-    const line = wrap.querySelector(":scope > .stream-line");
     if (!mode) {
       if (spinner) spinner.remove();
-      if (line) line.remove();
       if (wrap._body) wrap._body.classList.remove("waiting");
       return;
     }
@@ -2254,15 +2252,6 @@
       el.setAttribute("aria-label", "Thinking");
       el.innerHTML = "<i></i>";
       wrap.appendChild(el);
-    }
-    if (mode === "stream") {
-      if (!line) {
-        const bar = document.createElement("div");
-        bar.className = "stream-line";
-        wrap.appendChild(bar);
-      }
-    } else if (line) {
-      line.remove();
     }
   }
 
