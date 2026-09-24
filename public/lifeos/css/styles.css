@@ -807,15 +807,32 @@ button {
 }
 
 .md-body.waiting {
-  min-height: 22px;
-  display: flex;
-  align-items: center;
+  display: none;
+}
+
+.bubble.bot.waiting {
+  min-height: 46px;
+  justify-content: center;
+}
+
+.bubble.bot.streaming {
+  position: relative;
+  padding-bottom: 28px;
 }
 
 .think {
   width: 22px;
   height: 22px;
   position: relative;
+  flex: 0 0 auto;
+}
+
+.bubble.bot.streaming .think {
+  position: absolute;
+  left: 12px;
+  bottom: 8px;
+  width: 16px;
+  height: 16px;
 }
 
 .think i {
@@ -828,6 +845,11 @@ button {
   animation: think-spin 0.75s linear infinite;
 }
 
+.bubble.bot.streaming .think i {
+  width: 16px;
+  height: 16px;
+}
+
 .think::after {
   content: "";
   position: absolute;
@@ -838,6 +860,24 @@ button {
   border-radius: 50%;
   background: var(--lime);
   animation: think-core 1.05s var(--ease) infinite;
+}
+
+.bubble.bot.streaming .think::after {
+  left: 4px;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+}
+
+.stream-line {
+  position: absolute;
+  left: 36px;
+  right: 14px;
+  bottom: 14px;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
 }
 
 @keyframes think-spin {
@@ -853,6 +893,10 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.tool-log[hidden] {
+  display: none !important;
 }
 
 .tool-row {

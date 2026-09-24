@@ -2215,25 +2215,39 @@
     wrap.appendChild(body);
     wrap._body = body;
     if (msg.content) renderMarkdown(body, msg.content);
-    else if (state.busy && msg === state.chat[state.chat.length - 1]) setThinking(body, true);
+    else if (state.busy && msg === state.chat[state.chat.length - 1]) setThinking(wrap, "wait");
     return wrap;
   }
 
-  function setThinking(body, on) {
-    if (!body) return;
-    const existing = body.querySelector(".think");
-    if (!on) {
-      if (existing) existing.remove();
-      body.classList.remove("waiting");
+  function setThinking(wrap, mode) {
+    if (!wrap) return;
+    wrap.classList.remove("waiting", "streaming");
+    const spinner = wrap.querySelector(":scope > .think");
+    const line = wrap.querySelector(":scope > .stream-line");
+    if (!mode) {
+      if (spinner) spinner.remove();
+      if (line) line.remove();
+      if (wrap._body) wrap._body.classList.remove("waiting");
       return;
     }
-    if (existing) return;
-    body.classList.add("waiting");
-    const el = document.createElement("div");
-    el.className = "think";
-    el.setAttribute("aria-label", "Thinking");
-    el.innerHTML = "<i></i>";
-    body.appendChild(el);
+    wrap.classList.add(mode === "stream" ? "streaming" : "waiting");
+    if (wrap._body) wrap._body.classList.toggle("waiting", mode === "wait" && !wrap._body.textContent);
+    if (!spinner) {
+      const el = document.createElement("div");
+      el.className = "think";
+      el.setAttribute("aria-label", "Thinking");
+      el.innerHTML = "<i></i>";
+      wrap.appendChild(el);
+    }
+    if (mode === "stream") {
+      if (!line) {
+        const bar = document.createElement("div");
+        bar.className = "stream-line";
+        wrap.appendChild(bar);
+      }
+    } else if (line) {
+      line.remove();
+    }
   }
 
   function chatToolStart(msg, row) {
@@ -2594,15 +2608,25 @@
           else bot.tools.push(Object.assign({ status: ev.ok === false ? "fail" : "ok" }, ev));
           chatToolDone(wrap, ev);
           if (box) box.scrollTop = box.scrollHeight;
+        } else if (ev.type === "reset") {
+          bot.content = "";
+          if (wrap && wrap._body) {
+            if (wrap._body._mdTimer) {
+              clearTimeout(wrap._body._mdTimer);
+              wrap._body._mdTimer = null;
+            }
+            wrap._body.textContent = "";
+          }
+          setThinking(wrap, "wait");
         } else if (ev.type === "token") {
           const piece = ev.text || "";
           if (!piece) return;
-          setThinking(wrap && wrap._body, false);
+          setThinking(wrap, "stream");
           bot.content += piece;
           scheduleMarkdown(wrap && wrap._body, () => bot.content);
           if (box) box.scrollTop = box.scrollHeight;
         } else if (ev.type === "done") {
-          setThinking(wrap && wrap._body, false);
+          setThinking(wrap, false);
           if (ev.reply) bot.content = ev.reply;
           if (wrap && wrap._body) {
             if (wrap._body._mdTimer) {
@@ -2616,7 +2640,7 @@
         } else {
           const piece = ev.message?.content || ev.response || "";
           if (piece) {
-            setThinking(wrap && wrap._body, false);
+            setThinking(wrap, "stream");
             bot.content += piece;
             scheduleMarkdown(wrap && wrap._body, () => bot.content);
           }
