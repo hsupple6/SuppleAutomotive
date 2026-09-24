@@ -2215,7 +2215,25 @@
     wrap.appendChild(body);
     wrap._body = body;
     if (msg.content) renderMarkdown(body, msg.content);
+    else if (state.busy && msg === state.chat[state.chat.length - 1]) setThinking(body, true);
     return wrap;
+  }
+
+  function setThinking(body, on) {
+    if (!body) return;
+    const existing = body.querySelector(".think");
+    if (!on) {
+      if (existing) existing.remove();
+      body.classList.remove("waiting");
+      return;
+    }
+    if (existing) return;
+    body.classList.add("waiting");
+    const el = document.createElement("div");
+    el.className = "think";
+    el.setAttribute("aria-label", "Thinking");
+    el.innerHTML = "<i></i>";
+    body.appendChild(el);
   }
 
   function chatToolStart(msg, row) {
@@ -2579,10 +2597,12 @@
         } else if (ev.type === "token") {
           const piece = ev.text || "";
           if (!piece) return;
+          setThinking(wrap && wrap._body, false);
           bot.content += piece;
           scheduleMarkdown(wrap && wrap._body, () => bot.content);
           if (box) box.scrollTop = box.scrollHeight;
         } else if (ev.type === "done") {
+          setThinking(wrap && wrap._body, false);
           if (ev.reply) bot.content = ev.reply;
           if (wrap && wrap._body) {
             if (wrap._body._mdTimer) {
@@ -2596,6 +2616,7 @@
         } else {
           const piece = ev.message?.content || ev.response || "";
           if (piece) {
+            setThinking(wrap && wrap._body, false);
             bot.content += piece;
             scheduleMarkdown(wrap && wrap._body, () => bot.content);
           }

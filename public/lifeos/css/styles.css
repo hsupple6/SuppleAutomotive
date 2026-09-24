@@ -806,6 +806,49 @@ button {
   white-space: normal;
 }
 
+.md-body.waiting {
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+}
+
+.think {
+  width: 22px;
+  height: 22px;
+  position: relative;
+}
+
+.think i {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(200, 255, 0, 0.2);
+  border-top-color: var(--lime);
+  animation: think-spin 0.75s linear infinite;
+}
+
+.think::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lime);
+  animation: think-core 1.05s var(--ease) infinite;
+}
+
+@keyframes think-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes think-core {
+  0%, 100% { transform: scale(0.55); opacity: 0.35; }
+  50% { transform: scale(1); opacity: 1; }
+}
+
 .tool-log {
   display: flex;
   flex-direction: column;
