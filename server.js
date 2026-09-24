@@ -467,10 +467,12 @@ app.get('/lifeos/:token', function (req, res, next) {
   res.sendFile(path.join(__dirname, 'public', 'lifeos', 'index.html'));
 });
 
-app.get('/hls', function (req, res) {
-  res.redirect(301, '/hls/');
+app.get('/hls', function (req, res, next) {
+  var pathOnly = String(req.originalUrl || '').split('?')[0];
+  if (pathOnly === '/hls') return res.redirect(301, '/hls/');
+  next();
 });
-app.use('/hls', express.static(path.join(__dirname, 'public', 'hls'), { index: 'index.html' }));
+app.use('/hls', express.static(path.join(__dirname, 'public', 'hls'), { index: 'index.html', redirect: false }));
 app.get('/hls/:token', function (req, res, next) {
   if (/\./.test(req.params.token)) return next();
   res.sendFile(path.join(__dirname, 'public', 'hls', 'index.html'));
