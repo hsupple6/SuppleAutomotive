@@ -23,6 +23,7 @@
       queue: [],
       pos: 0,
       flipped: false,
+      revealed: false,
       wrongNow: {},
       sessionRight: 0,
       sessionWrong: 0,
@@ -2065,7 +2066,6 @@
         answer: card.hanzi || card.front,
         pinyin: card.pinyin || "",
         speak: card.hanzi || "",
-        imageOn: "back",
         hanziAnswer: true,
       };
     }
@@ -2076,7 +2076,6 @@
         pinyin: "",
         gloss: card.gloss || card.back || "",
         speak: card.hanzi || "",
-        imageOn: "back",
         hanziAnswer: true,
         pinyinPrompt: true,
       };
@@ -2087,7 +2086,6 @@
         answer: card.gloss || card.back,
         pinyin: card.pinyin || "",
         speak: card.hanzi || card.front,
-        imageOn: card.image_side === "front" ? "front" : "back",
         hanziPrompt: true,
       };
     }
@@ -2096,8 +2094,37 @@
       answer: card.back,
       pinyin: "",
       speak: "",
-      imageOn: card.image_side || "none",
     };
+  }
+
+  function linkTerms(text, defs) {
+    const raw = String(text || "");
+    const items = (Array.isArray(defs) ? defs : [])
+      .filter((row) => row && row.term && row.def)
+      .slice()
+      .sort((a, b) => String(b.term).length - String(a.term).length);
+    if (!raw || !items.length) return esc(raw);
+    const parts = items.map((row) => {
+      const term = String(row.term).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return /^[\u0000-\u007f]+$/.test(row.term) ? `\\b${term}\\b` : term;
+    });
+    const re = new RegExp(parts.join("|"), "gi");
+    const byTerm = new Map(items.map((row) => [String(row.term).toLowerCase(), row]));
+    let html = "";
+    let last = 0;
+    for (const match of raw.matchAll(re)) {
+      const term = match[0];
+      const row = byTerm.get(term.toLowerCase());
+      html += esc(raw.slice(last, match.index));
+      if (row) {
+        html += `<button type="button" class="fc-term" data-term="${esc(row.term)}" data-def="${esc(row.def)}">${esc(term)}</button>`;
+      } else {
+        html += esc(term);
+      }
+      last = match.index + term.length;
+    }
+    html += esc(raw.slice(last));
+    return html;
   }
 
   function speakHanzi(text) {
@@ -2194,6 +2221,7 @@
     state.flash.queue = shuffleIds(cards.map((card) => card.id));
     state.flash.pos = 0;
     state.flash.flipped = false;
+    state.flash.revealed = false;
     state.flash.wrongNow = {};
     state.flash.sessionRight = 0;
     state.flash.sessionWrong = 0;
@@ -2279,32 +2307,34 @@
         </div>`;
     }
     const view = cardView(card, deck);
+    const defs = card.defs || [];
     const phrase = card.kind === "phrase" || String(view.prompt || "").length > 8;
     const promptClass = view.hanziPrompt ? (phrase ? "fc-phrase" : "fc-hanzi") : (view.pinyinPrompt ? "fc-pinyin" : "fc-plain");
     const answerClass = view.hanziAnswer ? (phrase ? "fc-phrase" : "fc-hanzi") : "fc-plain";
-    const showFrontImage = view.imageOn === "front" && card.image && !state.flash.flipped;
-    const showBackImage = view.imageOn === "back" && card.image && state.flash.flipped;
-    const image = (showFrontImage || showBackImage) ? `<img class="fc-img" src="${esc(card.image)}" alt="" referrerpolicy="no-referrer">` : "";
-    const back = state.flash.flipped ? `
-      ${view.pinyin ? `<p class="fc-pinyin">${esc(view.pinyin)}</p>` : ""}
-      <p class="${answerClass}">${esc(view.answer || "")}</p>
-      ${view.gloss ? `<p class="fc-gloss">${esc(view.gloss)}</p>` : ""}
-      ${card.extra ? `<p class="fc-extra">${esc(card.extra)}</p>` : ""}
-      ${card.latex ? `<div class="fc-latex" data-latex="${esc(card.latex)}"></div>` : ""}
-      ${image}
-      ${view.speak ? `<button type="button" class="review-btn" id="fc-speak">Hear it</button>` : ""}
-    ` : `
-      <p class="${promptClass}">${esc(view.prompt || "")}</p>
-      ${image}
-      <p class="fc-tap">Tap to flip</p>`;
+    const front = `
+      <div class="fc-face fc-front">
+        <p class="${promptClass}">${linkTerms(view.prompt, defs)}</p>
+        <p class="fc-tap">Tap to flip</p>
+      </div>`;
+    const back = `
+      <div class="fc-face fc-back">
+        ${view.pinyin ? `<p class="fc-pinyin">${linkTerms(view.pinyin, defs)}</p>` : ""}
+        <p class="${answerClass}">${linkTerms(view.answer, defs)}</p>
+        ${view.gloss ? `<p class="fc-gloss">${linkTerms(view.gloss, defs)}</p>` : ""}
+        ${card.extra ? `<p class="fc-extra">${linkTerms(card.extra, defs)}</p>` : ""}
+        ${card.latex ? `<div class="fc-latex" data-latex="${esc(card.latex)}"></div>` : ""}
+        ${view.speak ? `<button type="button" class="review-btn" id="fc-speak">Hear it</button>` : ""}
+      </div>`;
     return `
       ${head}
-      <div class="fc-card" id="fc-flip" role="button" tabindex="0">${back}</div>
-      ${state.flash.flipped ? `
-        <div class="fc-grade">
-          <button type="button" class="fc-wrong" id="fc-wrong">Wrong</button>
-          <button type="button" class="fc-right" id="fc-right">Right</button>
-        </div>` : ""}`;
+      <div class="fc-card fc-flipper ${state.flash.flipped ? "is-back" : ""}" id="fc-flip" role="button" tabindex="0">
+        <div class="fc-flip-inner">${front}${back}</div>
+      </div>
+      <p class="fc-def" id="fc-def" hidden></p>
+      <div class="fc-grade" id="fc-grade" ${state.flash.revealed ? "" : "hidden"}>
+        <button type="button" class="fc-wrong" id="fc-wrong">Wrong</button>
+        <button type="button" class="fc-right" id="fc-right">Right</button>
+      </div>`;
   }
 
   function wireFlashStage() {
@@ -2333,6 +2363,7 @@
       state.flash.queue = shuffleIds(ids);
       state.flash.pos = 0;
       state.flash.flipped = false;
+      state.flash.revealed = false;
       state.flash.wrongNow = {};
       state.flash.sessionRight = 0;
       state.flash.sessionWrong = 0;
@@ -2341,13 +2372,36 @@
     const redoAll = $("fc-redo-all");
     if (redoAll) redoAll.onclick = () => { vibrate(); startStudy(false); };
     const flip = $("fc-flip");
-    if (flip) flip.onclick = (event) => {
-      if (event.target.closest("#fc-speak")) return;
-      if (state.flash.flipped) return;
-      vibrate();
-      state.flash.flipped = true;
-      renderFlash();
-    };
+    if (flip) {
+      flip.onclick = (event) => {
+        if (event.target.closest("#fc-speak") || event.target.closest(".fc-term")) return;
+        vibrate();
+        state.flash.flipped = !state.flash.flipped;
+        if (state.flash.flipped) state.flash.revealed = true;
+        flip.classList.toggle("is-back", state.flash.flipped);
+        const grade = $("fc-grade");
+        if (grade) grade.hidden = !state.flash.revealed;
+      };
+      flip.querySelectorAll(".fc-term").forEach((btn) => {
+        btn.onclick = (event) => {
+          event.stopPropagation();
+          vibrate();
+          const slot = $("fc-def");
+          if (!slot) return;
+          const same = !slot.hidden && slot.dataset.term === btn.dataset.term;
+          flip.querySelectorAll(".fc-term.on").forEach((node) => node.classList.remove("on"));
+          if (same) {
+            slot.hidden = true;
+            slot.textContent = "";
+            return;
+          }
+          btn.classList.add("on");
+          slot.dataset.term = btn.dataset.term || "";
+          slot.textContent = btn.dataset.def || "";
+          slot.hidden = false;
+        };
+      });
+    }
     const speak = $("fc-speak");
     if (speak) speak.onclick = (event) => {
       event.stopPropagation();
@@ -2393,6 +2447,7 @@
     }
     state.flash.pos += 1;
     state.flash.flipped = false;
+    state.flash.revealed = false;
     renderFlash();
     try {
       await LifeAPI.flashGrade({
@@ -2457,7 +2512,7 @@
     const box = $("flash-messages");
     if (box) {
       if (!flash.chat.length) {
-        box.innerHTML = '<div class="empty">Ask for a deck. Chinese cards keep hanzi, tone-mark pinyin, and the English. Pictures land on the card when they teach something.</div>';
+        box.innerHTML = '<div class="empty">Ask for a deck. Chinese cards keep hanzi, tone-mark pinyin, and a definition for every word. Other decks define only the hard terms.</div>';
       } else {
         flash.chat.forEach((m) => box.appendChild(buildChatBubble(m)));
         box.scrollTop = box.scrollHeight;
