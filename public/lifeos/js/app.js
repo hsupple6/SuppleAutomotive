@@ -2042,6 +2042,22 @@
     const reviewBtn = $("review-notes");
     if (reviewBtn) reviewBtn.onclick = () => { vibrate(); startReview(); };
     mountReview();
+    if (hashRoute().tab === "preview") mountStreamPreview();
+  }
+
+  function mountStreamPreview() {
+    const box = $("messages");
+    if (!box) return;
+    const empty = box.querySelector(".empty");
+    if (empty) empty.remove();
+    const fake = {
+      role: "assistant",
+      content: "Streaming preview.\n\nThe black bar matches the spinner height and sits directly under it.\n\nThis last line runs underneath that bar.",
+    };
+    const wrap = buildChatBubble(fake);
+    box.appendChild(wrap);
+    setThinking(wrap, "stream");
+    box.scrollTop = box.scrollHeight;
   }
 
   function isHttpUrl(s) {
@@ -2758,6 +2774,11 @@
       $("splash").hidden = true;
       $("topbar").hidden = false;
       $("screen").hidden = false;
+      $("tabbar").hidden = false;
+      if (hashRoute().route === "chat" && hashRoute().tab === "preview") {
+        renderChat();
+        return;
+      }
       renderOffline();
     }
   }
