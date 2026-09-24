@@ -159,6 +159,15 @@ const LifeAPI = (() => {
         Object.assign({}, body, { save_only: true, action: "item" })
       );
     },
+    flash() {
+      return request("/v1/flash");
+    },
+    flashGrade(body) {
+      return post("/v1/flash/grade", body, 20000);
+    },
+    flashDelete(body) {
+      return post("/v1/flash/delete", body, 20000);
+    },
     chatStream(body) {
       return request("/v1/ollama/chat", {
         method: "POST",

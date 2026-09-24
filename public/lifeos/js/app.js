@@ -9,6 +9,25 @@
     food: null,
     error: "",
     chat: [],
+    chatTab: "talk",
+    flash: {
+      decks: [],
+      loaded: false,
+      loading: false,
+      query: "",
+      deckId: "",
+      mode: "ask",
+      chat: [],
+      face: "read",
+      filter: "all",
+      queue: [],
+      pos: 0,
+      flipped: false,
+      wrongNow: {},
+      sessionRight: 0,
+      sessionWrong: 0,
+      error: "",
+    },
     model: "",
     models: [],
     busy: false,
@@ -2000,12 +2019,562 @@
     }
   }
 
+  function shuffleIds(list) {
+    const out = list.slice();
+    for (let i = out.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const swap = out[i];
+      out[i] = out[j];
+      out[j] = swap;
+    }
+    return out;
+  }
+
+  function flashDeck() {
+    return state.flash.decks.find((deck) => deck.id === state.flash.deckId) || null;
+  }
+
+  function studyFace(deck) {
+    if (deck && deck.subject === "chinese") return state.flash.face || "read";
+    return "flip";
+  }
+
+  function isChineseCard(card, deck) {
+    return Boolean(card && (card.hanzi || (deck && deck.subject === "chinese")));
+  }
+
+  function cardsInPlay(deck) {
+    const cards = (deck && deck.cards) || [];
+    if (!deck || deck.subject !== "chinese") return cards;
+    if (state.flash.filter === "hanzi") return cards.filter((card) => card.kind === "hanzi");
+    if (state.flash.filter === "phrase") return cards.filter((card) => card.kind === "phrase");
+    return cards;
+  }
+
+  function dueCount(deck) {
+    const face = studyFace(deck);
+    return ((deck && deck.cards) || []).filter((card) => card.faces && card.faces[face] && card.faces[face].due).length;
+  }
+
+  function cardView(card, deck) {
+    const face = studyFace(deck);
+    const chinese = isChineseCard(card, deck);
+    if (chinese && face === "recall") {
+      return {
+        prompt: card.gloss || card.back || card.front,
+        answer: card.hanzi || card.front,
+        pinyin: card.pinyin || "",
+        speak: card.hanzi || "",
+        imageOn: "back",
+        hanziAnswer: true,
+      };
+    }
+    if (chinese && face === "pinyin") {
+      return {
+        prompt: card.pinyin || card.hanzi || card.front,
+        answer: card.hanzi || card.front,
+        pinyin: "",
+        gloss: card.gloss || card.back || "",
+        speak: card.hanzi || "",
+        imageOn: "back",
+        hanziAnswer: true,
+        pinyinPrompt: true,
+      };
+    }
+    if (chinese) {
+      return {
+        prompt: card.hanzi || card.front,
+        answer: card.gloss || card.back,
+        pinyin: card.pinyin || "",
+        speak: card.hanzi || card.front,
+        imageOn: card.image_side === "front" ? "front" : "back",
+        hanziPrompt: true,
+      };
+    }
+    return {
+      prompt: card.front,
+      answer: card.back,
+      pinyin: "",
+      speak: "",
+      imageOn: card.image_side || "none",
+    };
+  }
+
+  function speakHanzi(text) {
+    const line = String(text || "").trim();
+    if (!line || !window.speechSynthesis) return;
+    const utter = new SpeechSynthesisUtterance(line);
+    utter.lang = "zh-CN";
+    utter.rate = 0.82;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utter);
+  }
+
+  function paintLatex(root) {
+    if (!root || !window.katex) return;
+    root.querySelectorAll("[data-latex]").forEach((node) => {
+      const src = node.getAttribute("data-latex") || "";
+      if (!src) return;
+      try {
+        window.katex.render(src, node, { throwOnError: false, displayMode: true });
+      } catch (_) {}
+    });
+  }
+
+  function flashLibraryInner() {
+    const q = state.flash.query.trim().toLowerCase();
+    const decks = state.flash.decks.filter((deck) => {
+      if (!q) return true;
+      const blob = [
+        deck.title,
+        deck.subject,
+        ...((deck.cards || []).map((card) => [card.hanzi, card.pinyin, card.gloss, card.front, card.back].join(" "))),
+      ].join(" ").toLowerCase();
+      return blob.includes(q);
+    });
+    if (!state.flash.loaded) {
+      return '<p class="hero-sub">Loading decks…</p>';
+    }
+    if (!decks.length) {
+      return `<p class="hero-sub">${q ? "No deck matches that." : "No decks yet. Ask on the right."}</p>`;
+    }
+    return `<div class="group">${decks.map((deck) => {
+      const due = dueCount(deck);
+      const on = deck.id === state.flash.deckId && state.flash.mode === "study" ? " on" : "";
+      return `
+        <div class="row fc-deck${on}" data-deck="${esc(deck.id)}">
+          <div class="name">
+            <strong>${esc(deck.title)}</strong>
+            <span>${esc(deck.subject)} · ${(deck.cards || []).length} cards${due ? ` · ${due} to redo` : ""}</span>
+          </div>
+          <button type="button" class="fc-drop" data-drop="${esc(deck.id)}" aria-label="Delete deck">×</button>
+        </div>`;
+    }).join("")}</div>`;
+  }
+
+  function wireFlashLibrary() {
+    const box = $("flash-library");
+    if (!box) return;
+    box.querySelectorAll("[data-deck]").forEach((row) => {
+      row.onclick = (event) => {
+        if (event.target.closest("[data-drop]")) return;
+        vibrate();
+        state.flash.deckId = row.dataset.deck;
+        startStudy(false);
+      };
+    });
+    box.querySelectorAll("[data-drop]").forEach((btn) => {
+      btn.onclick = (event) => {
+        event.stopPropagation();
+        vibrate();
+        deleteDeck(btn.dataset.drop);
+      };
+    });
+  }
+
+  async function refreshDecks(selectId) {
+    const data = await LifeAPI.flash();
+    state.flash.decks = data.decks || [];
+    state.flash.loaded = true;
+    state.flash.loading = false;
+    if (selectId) state.flash.deckId = selectId;
+    const lib = $("flash-library");
+    if (lib) {
+      lib.innerHTML = flashLibraryInner();
+      wireFlashLibrary();
+    }
+  }
+
+  function startStudy(onlyDue) {
+    const deck = flashDeck();
+    if (!deck) return;
+    const face = studyFace(deck);
+    let cards = cardsInPlay(deck);
+    if (onlyDue) cards = cards.filter((card) => card.faces && card.faces[face] && card.faces[face].due);
+    state.flash.queue = shuffleIds(cards.map((card) => card.id));
+    state.flash.pos = 0;
+    state.flash.flipped = false;
+    state.flash.wrongNow = {};
+    state.flash.sessionRight = 0;
+    state.flash.sessionWrong = 0;
+    state.flash.mode = "study";
+    renderFlash();
+  }
+
+  async function deleteDeck(id) {
+    if (!window.confirm("Delete this deck? It will not come back.")) return;
+    try {
+      await LifeAPI.flashDelete({ deck_id: id });
+      if (state.flash.deckId === id) {
+        state.flash.deckId = "";
+        state.flash.mode = "ask";
+      }
+      await refreshDecks();
+      if (state.flash.mode !== "study") renderFlash();
+    } catch (err) {
+      state.flash.error = err.message || "Could not delete that deck.";
+      renderFlash();
+    }
+  }
+
+  function currentStudyCard(deck) {
+    const id = state.flash.queue[state.flash.pos];
+    return ((deck && deck.cards) || []).find((card) => card.id === id) || null;
+  }
+
+  function flashStageHTML() {
+    if (state.flash.mode === "study") return "";
+    const models = state.models;
+    return `
+      <div class="flash-ask">
+        <div class="chat-bar">
+          <select class="select" id="flash-model">${models.map((m) => (
+            `<option value="${esc(m.name)}" ${m.name === state.model ? "selected" : ""}>${esc(m.name)}</option>`
+          )).join("")}</select>
+        </div>
+        <div class="messages" id="flash-messages"></div>
+        <form class="composer" id="flash-composer">
+          <textarea id="flash-prompt" rows="1" placeholder="A deck on tones, the femur, torque…"></textarea>
+          <button class="send" type="submit" aria-label="Send">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </form>
+      </div>`;
+  }
+
+  function studyStageHTML() {
+    const deck = flashDeck();
+    if (!deck) return '<div class="empty">Pick a deck.</div>';
+    const total = state.flash.queue.length;
+    const card = currentStudyCard(deck);
+    const face = studyFace(deck);
+    const missed = Object.keys(state.flash.wrongNow).length;
+    const chinese = deck.subject === "chinese";
+    const filters = chinese ? `
+      <div class="fc-chips">
+        ${[["all", "All"], ["hanzi", "字"], ["phrase", "短语"]].map(([id, label]) => (
+          `<button type="button" class="pill ${state.flash.filter === id ? "on" : ""}" data-filter="${id}">${label}</button>`
+        )).join("")}
+        ${[["read", "字 → 义"], ["recall", "义 → 字"], ["pinyin", "拼音 → 字"]].map(([id, label]) => (
+          `<button type="button" class="pill ${face === id ? "on" : ""}" data-face="${id}">${label}</button>`
+        )).join("")}
+      </div>` : "";
+    const head = `
+      <div class="fc-study-bar">
+        <button type="button" class="review-btn" id="fc-ask">Ask</button>
+        <div class="fc-progress">${card ? `${state.flash.pos + 1} / ${total}` : "Done"}</div>
+        <button type="button" class="review-btn" id="fc-redo-due">Redo missed</button>
+      </div>
+      ${filters}`;
+    if (!card) {
+      const empty = !total;
+      return `
+        ${head}
+        <div class="fc-done">
+          <p class="fc-score">${empty ? "Nothing in this pile." : `${state.flash.sessionRight} right · ${missed} still missed`}</p>
+          <div class="fc-grade">
+            <button type="button" class="fc-wrong" id="fc-redo-miss">Redo missed</button>
+            <button type="button" class="fc-right" id="fc-redo-all">Redo all</button>
+          </div>
+        </div>`;
+    }
+    const view = cardView(card, deck);
+    const phrase = card.kind === "phrase" || String(view.prompt || "").length > 8;
+    const promptClass = view.hanziPrompt ? (phrase ? "fc-phrase" : "fc-hanzi") : (view.pinyinPrompt ? "fc-pinyin" : "fc-plain");
+    const answerClass = view.hanziAnswer ? (phrase ? "fc-phrase" : "fc-hanzi") : "fc-plain";
+    const showFrontImage = view.imageOn === "front" && card.image && !state.flash.flipped;
+    const showBackImage = view.imageOn === "back" && card.image && state.flash.flipped;
+    const image = (showFrontImage || showBackImage) ? `<img class="fc-img" src="${esc(card.image)}" alt="" referrerpolicy="no-referrer">` : "";
+    const back = state.flash.flipped ? `
+      ${view.pinyin ? `<p class="fc-pinyin">${esc(view.pinyin)}</p>` : ""}
+      <p class="${answerClass}">${esc(view.answer || "")}</p>
+      ${view.gloss ? `<p class="fc-gloss">${esc(view.gloss)}</p>` : ""}
+      ${card.extra ? `<p class="fc-extra">${esc(card.extra)}</p>` : ""}
+      ${card.latex ? `<div class="fc-latex" data-latex="${esc(card.latex)}"></div>` : ""}
+      ${image}
+      ${view.speak ? `<button type="button" class="review-btn" id="fc-speak">Hear it</button>` : ""}
+    ` : `
+      <p class="${promptClass}">${esc(view.prompt || "")}</p>
+      ${image}
+      <p class="fc-tap">Tap to flip</p>`;
+    return `
+      ${head}
+      <div class="fc-card" id="fc-flip" role="button" tabindex="0">${back}</div>
+      ${state.flash.flipped ? `
+        <div class="fc-grade">
+          <button type="button" class="fc-wrong" id="fc-wrong">Wrong</button>
+          <button type="button" class="fc-right" id="fc-right">Right</button>
+        </div>` : ""}`;
+  }
+
+  function wireFlashStage() {
+    const ask = $("fc-ask");
+    if (ask) ask.onclick = () => { vibrate(); state.flash.mode = "ask"; renderFlash(); };
+    document.querySelectorAll("[data-filter]").forEach((btn) => {
+      btn.onclick = () => {
+        vibrate();
+        state.flash.filter = btn.dataset.filter;
+        startStudy(false);
+      };
+    });
+    document.querySelectorAll("[data-face]").forEach((btn) => {
+      btn.onclick = () => {
+        vibrate();
+        state.flash.face = btn.dataset.face;
+        startStudy(false);
+      };
+    });
+    const due = $("fc-redo-due");
+    if (due) due.onclick = () => { vibrate(); startStudy(true); };
+    const redoMiss = $("fc-redo-miss");
+    if (redoMiss) redoMiss.onclick = () => {
+      vibrate();
+      const ids = Object.keys(state.flash.wrongNow);
+      state.flash.queue = shuffleIds(ids);
+      state.flash.pos = 0;
+      state.flash.flipped = false;
+      state.flash.wrongNow = {};
+      state.flash.sessionRight = 0;
+      state.flash.sessionWrong = 0;
+      renderFlash();
+    };
+    const redoAll = $("fc-redo-all");
+    if (redoAll) redoAll.onclick = () => { vibrate(); startStudy(false); };
+    const flip = $("fc-flip");
+    if (flip) flip.onclick = (event) => {
+      if (event.target.closest("#fc-speak")) return;
+      if (state.flash.flipped) return;
+      vibrate();
+      state.flash.flipped = true;
+      renderFlash();
+    };
+    const speak = $("fc-speak");
+    if (speak) speak.onclick = (event) => {
+      event.stopPropagation();
+      vibrate();
+      const deck = flashDeck();
+      const card = currentStudyCard(deck);
+      if (card) speakHanzi(card.hanzi || card.front);
+    };
+    const wrong = $("fc-wrong");
+    if (wrong) wrong.onclick = () => gradeStudy(false);
+    const right = $("fc-right");
+    if (right) right.onclick = () => gradeStudy(true);
+    paintLatex($("flash-stage"));
+  }
+
+  async function gradeStudy(correct) {
+    const deck = flashDeck();
+    const card = currentStudyCard(deck);
+    if (!deck || !card) return;
+    vibrate();
+    const face = studyFace(deck);
+    if (correct) {
+      state.flash.sessionRight += 1;
+      delete state.flash.wrongNow[card.id];
+    } else {
+      state.flash.sessionWrong += 1;
+      state.flash.wrongNow[card.id] = true;
+      const later = state.flash.queue.indexOf(card.id, state.flash.pos + 1);
+      if (later < 0) {
+        const at = Math.min(state.flash.queue.length, state.flash.pos + 3);
+        state.flash.queue.splice(at, 0, card.id);
+      }
+    }
+    const bucket = card.faces && card.faces[face];
+    if (bucket) {
+      if (correct) {
+        bucket.right = Number(bucket.right || 0) + 1;
+        bucket.due = false;
+      } else {
+        bucket.wrong = Number(bucket.wrong || 0) + 1;
+        bucket.due = true;
+      }
+    }
+    state.flash.pos += 1;
+    state.flash.flipped = false;
+    renderFlash();
+    try {
+      await LifeAPI.flashGrade({
+        deck_id: deck.id,
+        card_id: card.id,
+        face,
+        correct,
+      });
+    } catch (err) {
+      state.flash.error = err.message || "Could not save that mark.";
+    }
+  }
+
+  function renderFlash() {
+    setChrome("Cards", "Chat");
+    const flash = state.flash;
+    if (!flash.loaded && !flash.loading) {
+      flash.loading = true;
+      LifeAPI.flash().then((data) => {
+        flash.decks = data.decks || [];
+        flash.loaded = true;
+        flash.loading = false;
+        if (hashRoute().route === "chat" && state.chatTab === "cards") renderFlash();
+      }).catch((err) => {
+        flash.loading = false;
+        flash.loaded = true;
+        flash.error = err.message || "Could not load decks.";
+        if (hashRoute().route === "chat" && state.chatTab === "cards") renderFlash();
+      });
+    }
+    $("screen").innerHTML = `
+      <div class="flash">
+        ${pills([["talk", "Chat"], ["cards", "Cards"]], "cards", "chat")}
+        ${flash.error ? `<p class="err">${esc(flash.error)}</p>` : ""}
+        <div class="flash-layout ${flash.mode === "study" ? "studying" : ""}">
+          <aside class="flash-library">
+            <input class="fc-search" id="fc-search" type="search" placeholder="Search decks" value="${esc(flash.query)}">
+            <div id="flash-library">${flashLibraryInner()}</div>
+          </aside>
+          <section class="flash-stage" id="flash-stage">
+            ${flash.mode === "study" ? studyStageHTML() : flashStageHTML()}
+          </section>
+        </div>
+      </div>`;
+    wirePills();
+    wireFlashLibrary();
+    const search = $("fc-search");
+    if (search) {
+      search.oninput = () => {
+        flash.query = search.value;
+        const lib = $("flash-library");
+        if (lib) {
+          lib.innerHTML = flashLibraryInner();
+          wireFlashLibrary();
+        }
+      };
+    }
+    if (flash.mode === "study") {
+      wireFlashStage();
+      return;
+    }
+    const box = $("flash-messages");
+    if (box) {
+      if (!flash.chat.length) {
+        box.innerHTML = '<div class="empty">Ask for a deck. Chinese cards keep hanzi, tone-mark pinyin, and the English. Pictures land on the card when they teach something.</div>';
+      } else {
+        flash.chat.forEach((m) => box.appendChild(buildChatBubble(m)));
+        box.scrollTop = box.scrollHeight;
+      }
+    }
+    const modelEl = $("flash-model");
+    if (modelEl) modelEl.onchange = () => { state.model = modelEl.value; };
+    const form = $("flash-composer");
+    if (form) form.onsubmit = (e) => { e.preventDefault(); sendFlashChat(); };
+    const prompt = $("flash-prompt");
+    if (prompt) {
+      prompt.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendFlashChat();
+        }
+      });
+    }
+  }
+
+  async function sendFlashChat() {
+    const input = $("flash-prompt");
+    const text = (input?.value || "").trim();
+    if (!text || state.busy) return;
+    state.busy = true;
+    const flash = state.flash;
+    flash.chat.push({ role: "user", content: text });
+    const bot = { role: "assistant", content: "", tools: [] };
+    flash.chat.push(bot);
+    input.value = "";
+    renderFlash();
+    const wrap = document.querySelector("#flash-messages .bubble.bot:last-child");
+    const box = $("flash-messages");
+    try {
+      const history = flash.chat.slice(0, -1).map((m) => ({ role: m.role, content: m.content }));
+      const res = await LifeAPI.chatStream({
+        model: state.model || ($("flash-model") && $("flash-model").value),
+        stream: true,
+        mode: "flash",
+        messages: history,
+      });
+      if (!res.ok) throw new Error("Chat failed");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      const handleEvent = (ev) => {
+        if (!ev || typeof ev !== "object") return;
+        if (ev.type === "tool_start") {
+          bot.tools.push({ name: ev.name, arguments: ev.arguments || {}, status: "running" });
+          chatToolStart(wrap, ev);
+          if (box) box.scrollTop = box.scrollHeight;
+        } else if (ev.type === "tool_done") {
+          const last = [...bot.tools].reverse().find((t) => t.name === ev.name && t.status === "running");
+          if (last) Object.assign(last, ev, { status: ev.ok === false ? "fail" : "ok" });
+          else bot.tools.push(Object.assign({ status: ev.ok === false ? "fail" : "ok" }, ev));
+          chatToolDone(wrap, ev);
+          if (ev.deck && ev.deck.id) refreshDecks(ev.deck.id);
+          if (box) box.scrollTop = box.scrollHeight;
+        } else if (ev.type === "reset") {
+          bot.content = "";
+          if (wrap && wrap._body) {
+            if (wrap._body._mdTimer) {
+              clearTimeout(wrap._body._mdTimer);
+              wrap._body._mdTimer = null;
+            }
+            wrap._body.textContent = "";
+          }
+          setThinking(wrap, "wait");
+        } else if (ev.type === "token") {
+          const piece = ev.text || "";
+          if (!piece) return;
+          setThinking(wrap, "stream");
+          bot.content += piece;
+          scheduleMarkdown(wrap && wrap._body, () => bot.content);
+          if (box) box.scrollTop = box.scrollHeight;
+        } else if (ev.type === "done") {
+          setThinking(wrap, false);
+          if (ev.reply) bot.content = ev.reply;
+          if (wrap && wrap._body) {
+            if (wrap._body._mdTimer) {
+              clearTimeout(wrap._body._mdTimer);
+              wrap._body._mdTimer = null;
+            }
+            renderMarkdown(wrap._body, bot.content);
+          }
+        } else if (ev.type === "error") {
+          throw new Error(ev.error || "Chat failed");
+        }
+      };
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop() || "";
+        for (const part of parts) {
+          const line = part.replace(/^data:\s*/, "").trim();
+          if (!line) continue;
+          try { handleEvent(JSON.parse(line)); } catch (_) {}
+        }
+      }
+      if (wrap && wrap._body) renderMarkdown(wrap._body, bot.content);
+    } catch (err) {
+      bot.content = err.message || "Could not reach Ollama.";
+      renderFlash();
+    } finally {
+      state.busy = false;
+    }
+  }
+
   function renderChat() {
     setChrome("Ollama", "Local");
     const models = state.models;
     const reviewing = state.review.running;
     $("screen").innerHTML = `
       <div class="chat">
+        ${pills([["talk", "Chat"], ["cards", "Cards"]], "talk", "chat")}
         <div class="chat-bar">
           <select class="select" id="model">${models.map((m) => (
             `<option value="${esc(m.name)}" ${m.name === state.model ? "selected" : ""}>${esc(m.name)}</option>`
@@ -2041,6 +2610,7 @@
     });
     const reviewBtn = $("review-notes");
     if (reviewBtn) reviewBtn.onclick = () => { vibrate(); startReview(); };
+    wirePills();
     mountReview();
     if (hashRoute().tab === "preview") mountStreamPreview();
   }
@@ -2075,6 +2645,7 @@
       web_fetch: "Open page",
       image_search: "Image search",
       recall_hayden: "Your notes",
+      save_flashcards: "Save deck",
     };
     return labels[name] || name || "Tool";
   }
@@ -2272,6 +2843,7 @@
     if (!detail && name === "web_search") detail = "Searching…";
     if (!detail && name === "image_search") detail = "Finding pictures…";
     if (!detail && name === "recall_hayden") detail = "Reading your notes…";
+    if (!detail && name === "save_flashcards") detail = "Saving the deck…";
     if (detail) detailEl.textContent = detail;
     else detailEl.remove();
     el.dataset.arg = detail || "";
@@ -2693,6 +3265,10 @@
     const nextHash = location.hash || "#home";
     const tabChanged = nextHash !== state.lastHash;
     state.route = route;
+    if (route === "chat") {
+      if (tab === "cards" || tab === "talk") state.chatTab = tab;
+      else if (!tab) state.chatTab = "talk";
+    }
     if (route === "life" && tab) state.lifeTab = tab;
     if (route === "food" && tab) state.foodTab = tab === "meals" ? "pantry" : tab;
     if (route !== "macros") closeSheet();
@@ -2721,7 +3297,10 @@
     else if (route === "life") renderLife();
     else if (route === "food") renderFood();
     else if (route === "macros") renderMacros();
-    else if (route === "chat") renderChat();
+    else if (route === "chat") {
+      if (state.chatTab === "cards") renderFlash();
+      else renderChat();
+    }
     else renderHome();
 
     if (tabChanged && route !== "chat") {
