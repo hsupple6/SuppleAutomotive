@@ -1,4 +1,4 @@
 window.HLS_CONFIG = {
-  apiBase: "https://proxy-sing-attached-subscribers.trycloudflare.com",
+  apiBase: "https://lifeos-api.suppleautomotive.com",
   accessToken: "n4Kx8Qm2Rw7Lp9Cf",
 };
