@@ -2752,6 +2752,50 @@ input[type="search"].field {
 
 .fc-score { font-size: 22px; color: var(--text); }
 
+.fc-making {
+  align-self: stretch;
+  border-radius: 22px;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  min-height: 112px;
+}
+
+.fc-making-face {
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.fc-making-face p {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fc-making-face b {
+  font-size: 16px;
+  letter-spacing: -0.03em;
+}
+
+.fc-making.running {
+  animation: fc-pulse 0.9s var(--ease) infinite;
+}
+
+.fc-making.ok .fc-making-face p { color: var(--lime); }
+.fc-making.fail .fc-making-face p { color: var(--red); }
+
+@keyframes fc-pulse {
+  0%, 100% { border-color: rgba(255, 255, 255, 0.18); }
+  50% { border-color: rgba(200, 255, 0, 0.7); }
+}
+
 @media (min-width: 900px) {
   .flash-layout.studying .flash-library { display: flex; }
 }

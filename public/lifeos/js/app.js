@@ -2885,6 +2885,20 @@
     if (!msg || !msg._tools) return;
     msg._tools.hidden = false;
     const name = row.name || "tool";
+    if (name === "save_flashcards") {
+      const el = document.createElement("div");
+      el.className = "fc-making running";
+      el.innerHTML = '<div class="fc-making-face"><span class="think"><i></i></span><p>Making the deck</p><b></b></div>';
+      const title = hintFromArgs(row.arguments);
+      const label = el.querySelector("b");
+      if (title) label.textContent = title;
+      else label.remove();
+      msg._tools.appendChild(el);
+      const stack = msg._pendingTools.get(name) || [];
+      stack.push(el);
+      msg._pendingTools.set(name, stack);
+      return;
+    }
     const el = document.createElement("div");
     el.className = "tool-row running";
     el.innerHTML =
@@ -2919,6 +2933,20 @@
       el = (msg._pendingTools.get(name) || []).pop();
     }
     if (!el) return;
+    if (el.classList.contains("fc-making")) {
+      el.classList.remove("running");
+      el.classList.add(ok ? "ok" : "fail");
+      const face = el.querySelector(".fc-making-face");
+      const title = (row.deck && row.deck.title) || hintFromArgs(row.arguments) || (ok ? "Deck saved" : "Could not save");
+      const count = row.deck && row.deck.count;
+      face.replaceChildren();
+      const line = document.createElement("p");
+      line.textContent = ok ? "Deck ready" : "Could not save";
+      const name = document.createElement("b");
+      name.textContent = count ? `${title} · ${count}` : title;
+      face.append(line, name);
+      return;
+    }
     el.classList.remove("running");
     el.classList.add(ok ? "ok" : "fail");
     const status = el.querySelector(".tool-status");
