@@ -9,8 +9,13 @@ const HlsAPI = (() => {
   }
 
   function apiBase() {
-    const stored = localStorage.getItem(KEYS.apiBase) || "";
-    return (stored || config().apiBase || "").replace(/\/+$/, "");
+    const fromConfig = (config().apiBase || "").replace(/\/+$/, "");
+    let stored = (localStorage.getItem(KEYS.apiBase) || "").replace(/\/+$/, "");
+    if (stored.indexOf(".trycloudflare.com") !== -1 && fromConfig) {
+      localStorage.removeItem(KEYS.apiBase);
+      stored = "";
+    }
+    return stored || fromConfig;
   }
 
   function token() {
