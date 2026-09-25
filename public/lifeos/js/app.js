@@ -279,8 +279,9 @@
   function setChrome(title, eyebrow) {
     $("title").textContent = title;
     $("eyebrow").textContent = eyebrow || "LifeOS";
+    const route = hashRoute().route;
     document.querySelectorAll(".tab").forEach((btn) => {
-      btn.classList.toggle("on", btn.dataset.route === state.route);
+      btn.classList.toggle("on", btn.dataset.route === route);
     });
   }
 
@@ -298,15 +299,15 @@
 
   function glyph(kind) {
     if (kind === "macros") {
-      return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.2" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v4.6l3 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      return '<svg class="ico ico-macro" width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="7.6" stroke="currentColor" stroke-width="1.7"/><path class="hand" d="M12 8.1V12.2l2.7 1.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     }
     if (kind === "food-calculator") {
-      return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M8 3v8a3 3 0 1 0 6 0V3M12 11v10M5 21h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+      return '<svg class="ico ico-food" width="20" height="20" viewBox="0 0 24 24" fill="none"><path class="fork" d="M8 3.4v5.6M6.2 3.4V7M9.8 3.4V7M8 8.6V20.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path class="knife" d="M15.6 3.6c1.7 1.7 1.7 4 0 5.8V20.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
     }
     if (kind === "ollama") {
-      return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>';
+      return '<svg class="ico ico-chat" width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5.4 16.8 4.6 20l2.9-1.2A7.8 7.8 0 1 0 5.4 16.8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle class="d1" cx="8.6" cy="11.2" r="0.9" fill="currentColor"/><circle class="d2" cx="12" cy="11.2" r="0.9" fill="currentColor"/><circle class="d3" cx="15.4" cy="11.2" r="0.9" fill="currentColor"/></svg>';
     }
-    return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 18V6m0 12h16M8 14v4m4-8v8m4-5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+    return '<svg class="ico ico-life" width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 19.2h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path class="b1" d="M7.2 19.2V13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path class="b2" d="M12 19.2V8.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path class="b3" d="M16.8 19.2V11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
   }
 
   function renderOffline() {
@@ -347,23 +348,153 @@
     };
   }
 
+  function homeRing(pct) {
+    const r = 26;
+    const c = 2 * Math.PI * r;
+    const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
+    const dash = (clamped / 100) * c;
+    const tone = clamped > 100 ? "var(--red)" : "var(--lime)";
+    return `<svg class="home-ring" viewBox="0 0 68 68" aria-hidden="true">
+      <circle cx="34" cy="34" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4.5"/>
+      <circle cx="34" cy="34" r="${r}" fill="none" stroke="${tone}" stroke-width="4.5" stroke-linecap="round"
+        stroke-dasharray="${dash.toFixed(2)} ${c.toFixed(2)}" transform="rotate(-90 34 34)"/>
+    </svg>`;
+  }
+
+  function homeApps(apps) {
+    const order = ["life-calculator", "food-calculator", "macros", "ollama"];
+    const primary = order
+      .map((kind) => apps.find((app) => app.kind === kind))
+      .filter(Boolean);
+    const extra = apps.filter((app) => !order.includes(app.kind));
+    return { primary, extra };
+  }
+
   function renderHome() {
-    setChrome(greet(), "LifeOS");
+    setChrome("", "LifeOS");
     const s = state.status || {};
-    const apps = s.apps || [];
+    const services = s.services || {};
+    const { primary, extra } = homeApps(s.apps || []);
+    const life = state.life && state.life.summary;
+    const stats = (state.food && state.food.pantry_stats) || null;
+    const soon = (stats && stats.soonest) || {};
+    const day = (state.macros && state.macros.day) || null;
+    const settings = (state.macros && state.macros.settings) || null;
+    const eaten = Number(day && day.totals && day.totals.calories) || 0;
+    const goal = Number(settings && settings.calories) || 0;
+    const pct = goal > 0 ? Math.round((eaten / goal) * 100) : 0;
+    const dateLabel = new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    });
+    let calNote = "Today’s log loads here";
+    if (state.macros && goal > 0) {
+      const left = goal - eaten;
+      calNote = left > 0
+        ? `${num(left, 0)} kcal left`
+        : left < 0
+          ? `${num(Math.abs(left), 0)} kcal over`
+          : "Right on target";
+    } else if (state.macros) {
+      calNote = eaten ? `${num(eaten, 0)} kcal logged` : "Nothing logged yet";
+    }
+    const worth = life ? money(life.net_worth, 0) : "—";
+    const worthSub = life
+      ? `${money(life.liquid_worth, 0)} liquid · ${life.burn_months == null ? "—" : Number(life.burn_months).toFixed(0) + " mo runway"}`
+      : "Cash, credit, and runway";
+    const pantryCount = stats ? String(stats.in_house || 0) : "—";
+    const pantrySub = stats
+      ? `${stats.low || 0} running low${soon.name && Number(stats.low) > 0 ? " · " + soon.name + " next" : ""}`
+      : "Stock in the house";
+    const pulse = [
+      ["Life", services.life_calculator],
+      ["Kitchen", services.finance_db],
+      ["Models", services.ollama],
+    ];
+    const macroBits = [
+      ["Protein", day && day.protein],
+      ["Carbs", day && day.carb],
+      ["Fat", day && day.fat],
+    ];
+
     $("screen").innerHTML = `
-      <div class="stack">
-        ${chips(s.services)}
-        <div class="apps">
-          ${apps.map((app) => `
-            <button type="button" class="app-tile ${esc(app.accent || "white")}" data-go="${esc(app.route)}">
-              <span class="live ${app.running ? "" : "off"}"></span>
-              <span class="glyph">${glyph(app.kind)}</span>
-              <h2>${esc(app.name)}</h2>
-              <p>${esc(app.blurb || "")}</p>
-            </button>
-          `).join("")}
-        </div>
+      <div class="home-page">
+        <header class="home-intro">
+          <div>
+            <p class="home-date">${esc(dateLabel)}</p>
+            <h2 class="home-greet">${esc(greet())}</h2>
+          </div>
+          <div class="home-pulse" aria-label="Systems">
+            ${pulse.map(([label, on]) => (
+              `<span class="${on ? "on" : ""}"><i></i>${esc(label)}</span>`
+            )).join("")}
+          </div>
+        </header>
+
+        <section class="home-bento" aria-label="Today">
+          <button type="button" class="home-card home-today" data-go="macros">
+            <div class="home-card-top">
+              <span class="home-kicker">Today</span>
+              <span class="home-link">Macros</span>
+            </div>
+            <div class="home-today-main">
+              ${homeRing(pct)}
+              <div>
+                <p class="home-figure">${state.macros ? num(eaten, 0) : "—"}</p>
+                <p class="home-note">${esc(calNote)}</p>
+              </div>
+            </div>
+            <div class="home-splits">
+              ${macroBits.map(([label, band]) => `
+                <div>
+                  <b>${band ? num(band.actual || 0, 0) : "—"}<small>g</small></b>
+                  <span>${label}</span>
+                </div>`).join("")}
+            </div>
+          </button>
+
+          <button type="button" class="home-card home-stat" data-go="life">
+            <div class="home-card-top">
+              <span class="home-kicker">Net worth</span>
+              <span class="home-link">Life</span>
+            </div>
+            <p class="home-figure">${esc(worth)}</p>
+            <p class="home-note">${esc(worthSub)}</p>
+          </button>
+
+          <button type="button" class="home-card home-stat" data-go="food">
+            <div class="home-card-top">
+              <span class="home-kicker">Pantry</span>
+              <span class="home-link">Food</span>
+            </div>
+            <p class="home-figure">${esc(pantryCount)}</p>
+            <p class="home-note">${esc(pantrySub)}</p>
+          </button>
+        </section>
+
+        <section class="home-open" aria-label="Apps">
+          <p class="home-kicker">Open</p>
+          <div class="home-apps">
+            ${primary.map((app) => `
+              <button type="button" class="home-app ${esc(app.accent || "white")}" data-go="${esc(app.route)}">
+                <span class="home-glyph">${glyph(app.kind)}</span>
+                <span class="home-app-copy">
+                  <strong>${esc(app.name)}</strong>
+                  <em>${esc(app.blurb || "")}</em>
+                </span>
+                <span class="live ${app.running ? "" : "off"}"></span>
+              </button>`).join("")}
+          </div>
+          ${extra.length ? `
+            <div class="home-extra">
+              ${extra.map((app) => `
+                <button type="button" class="home-extra-row" data-go="${esc(app.route)}">
+                  <strong>${esc(app.name)}</strong>
+                  <span>${esc(app.blurb || "Project")}</span>
+                </button>`).join("")}
+            </div>` : ""}
+        </section>
       </div>`;
     $("screen").querySelectorAll("[data-go]").forEach((btn) => {
       btn.onclick = () => { vibrate(); go(btn.dataset.go); };
@@ -449,12 +580,20 @@
             <div class="amt">${money(r.typical_amount, 0)}</div>
           </div>`).join("") || '<div class="empty">No recurring patterns yet.</div>'}</div>`;
     } else {
+      const liquid = Math.max(0, Number(sum.liquid_worth || 0));
+      const retire = Math.max(0, Number(sum.retirement_worth || 0));
+      const pile = liquid + retire || 1;
       body = `
-        <div class="hero blue">
-          <p class="hero-kicker">Net worth</p>
-          <p class="hero-value">${money(sum.net_worth, 0)}</p>
-          <p class="hero-sub">${money(sum.liquid_worth, 0)} liquid · ${money(sum.retirement_worth, 0)} retirement</p>
-        </div>
+        <section class="viz-card viz-cal">
+          <p class="home-kicker">Net worth</p>
+          <p class="home-figure">${money(sum.net_worth, 0)}</p>
+          <p class="home-note">${money(sum.liquid_worth, 0)} liquid · ${money(sum.retirement_worth, 0)} retirement</p>
+          <div class="ombre-split" aria-hidden="true">
+            <i class="liquid" style="width:${(liquid / pile) * 100}%"></i>
+            <i class="retire" style="width:${(retire / pile) * 100}%"></i>
+          </div>
+          <div class="viz-split-key"><span>Liquid</span><span>Retirement</span></div>
+        </section>
         <div class="metrics">
           <div class="metric"><span class="label">Bills / mo</span><span class="value">${money(sum.expense_monthly, 0)}</span></div>
           <div class="metric"><span class="label">Runway</span><span class="value">${sum.burn_months == null ? "—" : Number(sum.burn_months).toFixed(0) + " mo"}</span></div>
@@ -578,7 +717,7 @@
           const width = Math.min(100, stock);
           return `<div class="stock-card ${tone}">
             <div class="row" style="border:0;padding:0 0 8px">
-              <div class="name"><strong>${esc(i.name)}</strong><span>${i.days_to_empty == null ? "eat to start days/%" : Number(i.days_to_empty).toFixed(0) + " days left"}</span></div>
+              <div class="name"><strong>${esc(i.name)}</strong><span>${i.days_to_empty == null ? "Not eaten yet" : Number(i.days_to_empty).toFixed(0) + " days left"}</span></div>
               <div class="amt">${Math.round(stock)}%</div>
             </div>
             <div class="track"><div class="fill on" style="width:${width}%"></div></div>
@@ -1141,55 +1280,73 @@
       ["dinner", "Dinner"],
     ];
 
+    const goal = Number(settings.calories || 0);
+    const eaten = Number(day.totals?.calories || 0);
+    const calPct = goal > 0 ? Math.min(140, Math.round((eaten / goal) * 100)) : 0;
+    const bands = [
+      ["p", "Protein", day.protein, "p"],
+      ["c", "Carbs", day.carb, "c"],
+      ["f", "Fat", day.fat, "f"],
+    ];
     $("screen").innerHTML = `
       <div class="stack macros-page">
-        <div class="dow-wrap">
+        <div class="viz-week">
           <button type="button" class="dow-shift" id="prevWeek" aria-label="Previous week">‹</button>
-          <div class="dow">
+          <div class="viz-days">
             ${days.map((d) => {
+              const kcal = Number(d.totals?.calories || 0);
+              const h = goal > 0 && kcal ? Math.max(12, Math.min(100, Math.round((kcal / goal) * 100))) : (kcal ? 40 : 8);
               const on = d.date === date ? "on" : "";
-              const isToday = d.date === today ? "today" : "";
               const future = d.date > today ? "future" : "";
-              const logged = (d.totals && d.totals.count) ? "logged" : "";
               const hit = d.hit && d.hit.all ? "hit" : "";
-              const n = Number(String(d.date).slice(-2));
-              return `<button type="button" class="dow-day ${on} ${isToday} ${future} ${logged} ${hit}" data-day="${esc(d.date)}"><b>${esc(d.label)}</b><i>${n}</i></button>`;
+              return `<button type="button" class="viz-day ${on} ${future} ${hit}" data-day="${esc(d.date)}">
+                <span class="viz-bar"><i style="height:${h}%"></i></span>
+                <b>${esc(d.label)}</b>
+              </button>`;
             }).join("")}
           </div>
           <button type="button" class="dow-shift" id="nextWeek" aria-label="Next week">›</button>
         </div>
-        <div class="macros-board">
-          <div class="macros-side">
-            <div class="cal-hero">
-              ${macroRingHTML(day, settings)}
-              <p class="cal-status ${esc(cal.status || "empty")}">${esc(calStatus)}</p>
+        <section class="viz-card viz-cal">
+          <div class="viz-cal-top">
+            <div>
+              <p class="home-kicker">Eaten</p>
+              <p class="home-figure">${num(eaten, 0)}</p>
+              <p class="home-note">${esc(calStatus)}${goal ? ` · ${num(goal, 0)} kcal target` : ""}</p>
             </div>
-            <button type="button" class="targets-btn" id="targetsBtn">
-              <span>Daily targets</span>
-              <b>${num(settings.calories || 0, 0)} kcal · ${num(settings.protein_pct || 0, 0)} / ${num(settings.carb_pct || 0, 0)} / ${num(settings.fat_pct || 0, 0)}</b>
-            </button>
+            <button type="button" class="viz-chip" id="targetsBtn">${num(settings.protein_pct || 0, 0)} / ${num(settings.carb_pct || 0, 0)} / ${num(settings.fat_pct || 0, 0)}</button>
           </div>
-          <div class="meals-row">
-            ${meals.map(([id, label]) => {
-              const rows = (day.meals && day.meals[id]) || [];
-              const kcal = rows.reduce((s, r) => s + Number(r.calories || 0), 0);
-              return `
-                <div class="meal-block">
-                  <div class="meal-head">
-                    <h3>${label}${rows.length ? `<em>${num(kcal, 0)} kcal</em>` : ""}</h3>
-                    <button type="button" class="add-mini" data-add="${id}" aria-label="Log ${label}">+</button>
-                  </div>
-                  <div class="meal-body">
-                    ${rows.map((r) => `
-                      <div class="row">
-                        <div class="name"><strong>${esc(r.item_name)}</strong><span>${esc(qtyLabel(r.qty, r.unit))} · P${num(r.protein_g, 0)} C${num(r.carb_g, 0)} F${num(r.fat_g, 0)}</span></div>
-                        <div class="amt">${num(r.calories, 0)}</div>
-                        <button type="button" class="kill" data-del="${esc(r.id)}" aria-label="Remove">×</button>
-                      </div>`).join("") || `<div class="empty" style="padding:8px 14px 18px">Nothing yet.</div>`}
-                  </div>
-                </div>`;
+          <div class="ombre-track lg" aria-hidden="true"><div class="ombre-fill cal" style="width:${Math.min(calPct, 100)}%"></div></div>
+          <div class="viz-bands">
+            ${bands.map(([, label, band, key]) => {
+              const pct = Math.min(100, Number(band?.pct || 0));
+              return `<div class="viz-band">
+                <div class="viz-band-top"><span>${label}</span><b>${num(band?.actual || 0, 0)}<small> / ${num(band?.target || 0, 0)}g</small></b></div>
+                <div class="ombre-track"><div class="ombre-fill ${key}" style="width:${pct}%"></div></div>
+              </div>`;
             }).join("")}
           </div>
+        </section>
+        <div class="meals-row">
+          ${meals.map(([id, label]) => {
+            const rows = (day.meals && day.meals[id]) || [];
+            const kcal = rows.reduce((s, r) => s + Number(r.calories || 0), 0);
+            return `
+              <div class="meal-block">
+                <div class="meal-head">
+                  <h3>${label}${rows.length ? `<em>${num(kcal, 0)} kcal</em>` : ""}</h3>
+                  <button type="button" class="add-mini" data-add="${id}" aria-label="Log ${label}">+</button>
+                </div>
+                <div class="meal-body">
+                  ${rows.map((r) => `
+                    <div class="row">
+                      <div class="name"><strong>${esc(r.item_name)}</strong><span>${esc(qtyLabel(r.qty, r.unit))} · P${num(r.protein_g, 0)} C${num(r.carb_g, 0)} F${num(r.fat_g, 0)}</span></div>
+                      <div class="amt">${num(r.calories, 0)}</div>
+                      <button type="button" class="kill" data-del="${esc(r.id)}" aria-label="Remove">×</button>
+                    </div>`).join("") || `<div class="empty" style="padding:8px 14px 18px">Nothing logged.</div>`}
+                </div>
+              </div>`;
+          }).join("")}
         </div>
       </div>`;
     $("screen").querySelectorAll("[data-day]").forEach((btn) => {
@@ -2160,10 +2317,10 @@
       return blob.includes(q);
     });
     if (!state.flash.loaded) {
-      return '<p class="hero-sub">Loading decks…</p>';
+      return `<div class="deck-wait"><span class="think" aria-hidden="true"><i></i></span><p>Loading decks</p></div>`;
     }
     if (!decks.length) {
-      return `<p class="hero-sub">${q ? "No deck matches that." : "No decks yet. Ask on the right."}</p>`;
+      return `<p class="hero-sub">${q ? "No deck matches that." : "No decks yet. Ask below."}</p>`;
     }
     return `<div class="group">${decks.map((deck) => {
       const due = dueCount(deck);
@@ -2252,14 +2409,8 @@
 
   function flashStageHTML() {
     if (state.flash.mode === "study") return "";
-    const models = state.models;
     return `
       <div class="flash-ask">
-        <div class="chat-bar">
-          <select class="select" id="flash-model">${models.map((m) => (
-            `<option value="${esc(m.name)}" ${m.name === state.model ? "selected" : ""}>${esc(m.name)}</option>`
-          )).join("")}</select>
-        </div>
         <div class="messages" id="flash-messages"></div>
         <form class="composer" id="flash-composer">
           <textarea id="flash-prompt" rows="1" placeholder="A deck on tones, the femur, torque…"></textarea>
@@ -2480,7 +2631,10 @@
     }
     $("screen").innerHTML = `
       <div class="flash">
-        ${pills([["talk", "Chat"], ["cards", "Cards"]], "cards", "chat")}
+        <div class="chat-head">
+          ${pills([["talk", "Chat"], ["cards", "Cards"]], "cards", "chat")}
+          <span class="tok-rate" id="tokRate" hidden>0 tok/s</span>
+        </div>
         ${flash.error ? `<p class="err">${esc(flash.error)}</p>` : ""}
         <div class="flash-layout ${flash.mode === "study" ? "studying" : ""}">
           <aside class="flash-library">
@@ -2512,14 +2666,17 @@
     const box = $("flash-messages");
     if (box) {
       if (!flash.chat.length) {
-        box.innerHTML = '<div class="empty">Ask for a deck. Chinese cards keep hanzi, tone-mark pinyin, and a definition for every word. Other decks define only the hard terms.</div>';
+        box.innerHTML = `
+          <div class="chat-empty">
+            <p class="home-kicker">Decks</p>
+            <h2>Ask for a deck.</h2>
+            <p>Chinese cards keep hanzi, tone-mark pinyin, and a definition. Other decks define only the hard terms.</p>
+          </div>`;
       } else {
         flash.chat.forEach((m) => box.appendChild(buildChatBubble(m)));
         box.scrollTop = box.scrollHeight;
       }
     }
-    const modelEl = $("flash-model");
-    if (modelEl) modelEl.onchange = () => { state.model = modelEl.value; };
     const form = $("flash-composer");
     if (form) form.onsubmit = (e) => { e.preventDefault(); sendFlashChat(); };
     const prompt = $("flash-prompt");
@@ -2538,6 +2695,7 @@
     const text = (input?.value || "").trim();
     if (!text || state.busy) return;
     state.busy = true;
+    resetRate();
     const flash = state.flash;
     flash.chat.push({ role: "user", content: text });
     const bot = { role: "assistant", content: "", tools: [] };
@@ -2586,7 +2744,8 @@
           if (!piece) return;
           setThinking(wrap, "stream");
           bot.content += piece;
-          scheduleMarkdown(wrap && wrap._body, () => bot.content);
+          noteToken();
+          paintStream(wrap && wrap._body, bot.content);
           if (box) box.scrollTop = box.scrollHeight;
         } else if (ev.type === "done") {
           setThinking(wrap, false);
@@ -2625,20 +2784,17 @@
 
   function renderChat() {
     setChrome("Ollama", "Local");
-    const models = state.models;
     const reviewing = state.review.running;
     $("screen").innerHTML = `
       <div class="chat">
-        ${pills([["talk", "Chat"], ["cards", "Cards"]], "talk", "chat")}
-        <div class="chat-bar">
-          <select class="select" id="model">${models.map((m) => (
-            `<option value="${esc(m.name)}" ${m.name === state.model ? "selected" : ""}>${esc(m.name)}</option>`
-          )).join("")}</select>
+        <div class="chat-head">
+          ${pills([["talk", "Chat"], ["cards", "Cards"]], "talk", "chat")}
+          <span class="tok-rate" id="tokRate" hidden>0 tok/s</span>
           <button class="review-btn" id="review-notes" type="button" ${reviewing ? "disabled" : ""}>${reviewing ? "Reviewing" : "Review"}</button>
         </div>
         <div class="messages" id="messages"></div>
         <form class="composer" id="composer">
-          <textarea id="prompt" rows="1" placeholder="Message"></textarea>
+          <textarea id="prompt" rows="1" placeholder="Message this PC"></textarea>
           <button class="send" type="submit" aria-label="Send">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -2646,13 +2802,16 @@
       </div>`;
     const box = $("messages");
     if (!state.chat.length) {
-      box.innerHTML = '<div class="empty">Ask the model running on this PC. It can search the web and show pictures.</div>';
+      box.innerHTML = `
+        <div class="chat-empty">
+          <p class="home-kicker">On this PC</p>
+          <h2>Ask the model.</h2>
+          <p>It can search the web, pull pictures, and answer from the machine running LifeOS.</p>
+        </div>`;
     } else {
       state.chat.forEach((m) => box.appendChild(buildChatBubble(m)));
       box.scrollTop = box.scrollHeight;
     }
-    const modelEl = $("model");
-    if (modelEl) modelEl.onchange = () => { state.model = modelEl.value; };
     $("composer").onsubmit = (e) => {
       e.preventDefault();
       sendChat();
@@ -2737,6 +2896,36 @@
     } catch (_) {
       el.textContent = raw;
     }
+  }
+
+  const streamRate = { t0: 0, n: 0 };
+
+  function resetRate() {
+    streamRate.t0 = 0;
+    streamRate.n = 0;
+    const el = $("tokRate");
+    if (el) el.hidden = true;
+  }
+
+  function noteToken() {
+    const now = performance.now();
+    if (!streamRate.t0) streamRate.t0 = now;
+    streamRate.n += 1;
+    const el = $("tokRate");
+    if (!el) return;
+    const sec = Math.max(0.05, (now - streamRate.t0) / 1000);
+    const rate = streamRate.n / sec;
+    el.hidden = false;
+    el.textContent = `${rate >= 100 ? Math.round(rate) : rate.toFixed(1)} tok/s`;
+  }
+
+  function paintStream(el, text) {
+    if (!el) return;
+    if (el._mdTimer) {
+      clearTimeout(el._mdTimer);
+      el._mdTimer = null;
+    }
+    el.textContent = text;
   }
 
   function scheduleMarkdown(el, getText) {
@@ -2856,8 +3045,10 @@
     body.className = "md-body";
     wrap.appendChild(body);
     wrap._body = body;
+    const liveChat = state.chat[state.chat.length - 1] === msg;
+    const liveFlash = state.flash.chat[state.flash.chat.length - 1] === msg;
     if (msg.content) renderMarkdown(body, msg.content);
-    else if (state.busy && msg === state.chat[state.chat.length - 1]) setThinking(wrap, "wait");
+    else if (state.busy && (liveChat || liveFlash)) setThinking(wrap, "wait");
     return wrap;
   }
 
@@ -2867,11 +3058,21 @@
     const spinner = wrap.querySelector(":scope > .think");
     if (!mode) {
       if (spinner) spinner.remove();
-      if (wrap._body) wrap._body.classList.remove("waiting");
+      if (wrap._body) {
+        wrap._body.classList.remove("waiting");
+        delete wrap._body.dataset.stream;
+      }
       return;
     }
     wrap.classList.add(mode === "stream" ? "streaming" : "waiting");
-    if (wrap._body) wrap._body.classList.toggle("waiting", mode === "wait" && !wrap._body.textContent);
+    if (wrap._body) {
+      wrap._body.classList.toggle("waiting", mode === "wait" && !wrap._body.textContent);
+      if (mode === "stream") delete wrap._body.dataset.stream;
+    }
+    if (mode === "stream") {
+      if (spinner) spinner.remove();
+      return;
+    }
     if (!spinner) {
       const el = document.createElement("div");
       el.className = "think";
@@ -2885,37 +3086,21 @@
     if (!msg || !msg._tools) return;
     msg._tools.hidden = false;
     const name = row.name || "tool";
-    if (name === "save_flashcards") {
-      const el = document.createElement("div");
-      el.className = "fc-making running";
-      el.innerHTML = '<div class="fc-making-face"><span class="think"><i></i></span><p>Making the deck</p><b></b></div>';
-      const title = hintFromArgs(row.arguments);
-      const label = el.querySelector("b");
-      if (title) label.textContent = title;
-      else label.remove();
-      msg._tools.appendChild(el);
-      const stack = msg._pendingTools.get(name) || [];
-      stack.push(el);
-      msg._pendingTools.set(name, stack);
-      return;
-    }
+    const hint = hintFromArgs(row.arguments);
     const el = document.createElement("div");
-    el.className = "tool-row running";
-    el.innerHTML =
-      '<span class="tool-dot"></span>' +
-      '<div class="tool-main"><div class="tool-name"></div><div class="tool-detail"></div></div>' +
-      '<span class="tool-status">Working</span>';
+    el.className = "tool-chip running";
+    el.innerHTML = '<button type="button" class="tool-chip-hit"><span class="tool-name"></span><em class="tool-hint"></em></button><div class="tool-more" hidden></div>';
     el.querySelector(".tool-name").textContent = toolLabel(name);
-    const detailEl = el.querySelector(".tool-detail");
-    let detail = hintFromArgs(row.arguments);
-    if (!detail && name === "web_fetch") detail = "Reading page…";
-    if (!detail && name === "web_search") detail = "Searching…";
-    if (!detail && name === "image_search") detail = "Finding pictures…";
-    if (!detail && name === "recall_hayden") detail = "Reading your notes…";
-    if (!detail && name === "save_flashcards") detail = "Saving the deck…";
-    if (detail) detailEl.textContent = detail;
-    else detailEl.remove();
-    el.dataset.arg = detail || "";
+    const hintEl = el.querySelector(".tool-hint");
+    if (hint) hintEl.textContent = hint;
+    else hintEl.remove();
+    el.dataset.arg = hint || "";
+    const more = el.querySelector(".tool-more");
+    el.querySelector(".tool-chip-hit").onclick = () => {
+      if (!more.textContent) return;
+      more.hidden = !more.hidden;
+      el.classList.toggle("open", !more.hidden);
+    };
     msg._tools.appendChild(el);
     const stack = msg._pendingTools.get(name) || [];
     stack.push(el);
@@ -2933,32 +3118,23 @@
       el = (msg._pendingTools.get(name) || []).pop();
     }
     if (!el) return;
-    if (el.classList.contains("fc-making")) {
-      el.classList.remove("running");
-      el.classList.add(ok ? "ok" : "fail");
-      const face = el.querySelector(".fc-making-face");
-      const title = (row.deck && row.deck.title) || hintFromArgs(row.arguments) || (ok ? "Deck saved" : "Could not save");
-      const count = row.deck && row.deck.count;
-      face.replaceChildren();
-      const line = document.createElement("p");
-      line.textContent = ok ? "Deck ready" : "Could not save";
-      const name = document.createElement("b");
-      name.textContent = count ? `${title} · ${count}` : title;
-      face.append(line, name);
-      return;
-    }
     el.classList.remove("running");
-    el.classList.add(ok ? "ok" : "fail");
-    const status = el.querySelector(".tool-status");
-    if (status) status.textContent = ok ? "Done" : "Failed";
-    const detailEl = el.querySelector(".tool-detail") || (() => {
-      const d = document.createElement("div");
-      d.className = "tool-detail";
-      el.querySelector(".tool-main").appendChild(d);
-      return d;
-    })();
-    const arg = el.dataset.arg || hintFromArgs(row.arguments);
-    detailEl.textContent = [arg, row.summary].filter(Boolean).join("\n");
+    if (!ok) el.classList.add("fail");
+    if (name === "save_flashcards" && row.deck) {
+      const hintEl = el.querySelector(".tool-hint") || document.createElement("em");
+      hintEl.className = "tool-hint";
+      const count = row.deck.count;
+      hintEl.textContent = count ? `${row.deck.title || "Deck"} · ${count}` : (row.deck.title || "Deck");
+      if (!hintEl.parentElement) el.querySelector(".tool-chip-hit").appendChild(hintEl);
+    }
+    const summary = String(row.summary || "").trim();
+    const arg = el.dataset.arg || "";
+    const extra = summary && summary !== arg ? summary : "";
+    const more = el.querySelector(".tool-more");
+    if (more && extra) {
+      more.textContent = extra;
+      el.classList.add("can-open");
+    }
     if (ok && Array.isArray(row.articles) && row.articles.length) {
       renderArticleCards(msg._tools, row.articles);
     }
@@ -3238,6 +3414,7 @@
     const text = (input?.value || "").trim();
     if (!text || state.busy) return;
     state.busy = true;
+    resetRate();
     state.chat.push({ role: "user", content: text });
     const bot = { role: "assistant", content: "", tools: [] };
     state.chat.push(bot);
@@ -3283,7 +3460,8 @@
           if (!piece) return;
           setThinking(wrap, "stream");
           bot.content += piece;
-          scheduleMarkdown(wrap && wrap._body, () => bot.content);
+          noteToken();
+          paintStream(wrap && wrap._body, bot.content);
           if (box) box.scrollTop = box.scrollHeight;
         } else if (ev.type === "done") {
           setThinking(wrap, false);
@@ -3302,7 +3480,8 @@
           if (piece) {
             setThinking(wrap, "stream");
             bot.content += piece;
-            scheduleMarkdown(wrap && wrap._body, () => bot.content);
+            noteToken();
+            paintStream(wrap && wrap._body, bot.content);
           }
         }
       };
@@ -3337,6 +3516,81 @@
     $("screen").querySelectorAll("[data-tab]").forEach((btn) => {
       btn.onclick = () => { vibrate(); go(btn.dataset.tab); };
     });
+  }
+
+  const chatAscii = { drawing: false, started: false };
+
+  function syncChatAscii(on) {
+    const layer = $("chatAscii");
+    const video = $("chatAsciiVideo");
+    const canvas = $("chatAsciiCanvas");
+    if (!layer || !video || !canvas) return;
+    layer.hidden = !on;
+    if (!on) {
+      chatAscii.drawing = false;
+      video.pause();
+      return;
+    }
+    const ctx = canvas.getContext("2d");
+    const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    video.muted = true;
+    video.defaultMuted = true;
+    video.playsInline = true;
+    video.loop = true;
+    video.controls = false;
+
+    function sizeCanvas() {
+      const w = layer.clientWidth || window.innerWidth;
+      const h = layer.clientHeight || window.innerHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.max(1, Math.floor(w * dpr));
+      canvas.height = Math.max(1, Math.floor(h * dpr));
+    }
+
+    function drawCover() {
+      if (!ctx || video.readyState < 2) return;
+      const cw = canvas.width;
+      const ch = canvas.height;
+      const vw = video.videoWidth || 16;
+      const vh = video.videoHeight || 9;
+      const scale = Math.max(cw / vw, ch / vh);
+      const dw = vw * scale;
+      const dh = vh * scale;
+      ctx.drawImage(video, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+    }
+
+    function loop() {
+      if (!chatAscii.drawing) return;
+      drawCover();
+      requestAnimationFrame(loop);
+    }
+
+    function startDraw() {
+      if (chatAscii.drawing) return;
+      chatAscii.drawing = true;
+      sizeCanvas();
+      loop();
+    }
+
+    if (!chatAscii.started) {
+      chatAscii.started = true;
+      video.addEventListener("playing", startDraw);
+      window.addEventListener("resize", () => {
+        if (!layer.hidden) sizeCanvas();
+      });
+    }
+
+    sizeCanvas();
+    if (reduced) {
+      video.pause();
+      const paint = () => { sizeCanvas(); drawCover(); };
+      if (video.readyState >= 2) paint();
+      else video.addEventListener("loadeddata", paint, { once: true });
+      return;
+    }
+    const play = video.play();
+    if (play && play.then) play.then(startDraw).catch(() => {});
+    else startDraw();
   }
 
   function render() {
@@ -3375,6 +3629,9 @@
     $("screen").hidden = false;
     $("tabbar").hidden = false;
     $("app").classList.remove("locked");
+    $("app").classList.toggle("is-home", route === "home");
+    $("app").classList.toggle("is-chat", route === "chat");
+    syncChatAscii(route === "chat");
 
     if (route === "settings") renderSettings();
     else if (route === "life") renderLife();
@@ -3389,6 +3646,9 @@
     if (tabChanged && route !== "chat") {
       $("screen").scrollTop = 0;
     }
+    document.querySelectorAll(".tab").forEach((btn) => {
+      btn.classList.toggle("on", btn.dataset.route === route);
+    });
     state.lastHash = nextHash;
   }
 

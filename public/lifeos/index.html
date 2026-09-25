@@ -23,8 +23,11 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
-  <link rel="stylesheet" href="css/styles.css?v=29">
+  <link rel="stylesheet" href="css/styles.css?v=43">
   <script src="config.js?v=28"></script>
   <script>
     (function () {
@@ -47,6 +50,20 @@
 <body>
   <div id="phone">
     <div id="app">
+      <div id="chatAscii" class="chat-ascii" hidden>
+        <video
+          id="chatAsciiVideo"
+          src="/hayden-supple/ASCII/ascii-animation.mp4"
+          muted
+          loop
+          playsinline
+          webkit-playsinline
+          preload="auto"
+          disablepictureinpicture
+        ></video>
+        <canvas id="chatAsciiCanvas"></canvas>
+        <div class="chat-ascii-tint"></div>
+      </div>
       <div id="splash" class="splash">
         <div class="splash-mark" aria-hidden="true"></div>
         <p class="splash-word">LifeOS</p>
@@ -57,9 +74,9 @@
           <h1 class="large-title" id="title">Home</h1>
         </div>
         <button class="icon-btn" id="gear" type="button" aria-label="Settings">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.7"/>
-            <path d="M19.4 13a7.8 7.8 0 0 0 .1-2l2-1.5-2-3.4-2.4 1a7.7 7.7 0 0 0-1.7-1L15 4h-6l-.4 2.1a7.7 7.7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.5a7.8 7.8 0 0 0 .1 2l-2 1.5 2 3.4 2.4-1a7.7 7.7 0 0 0 1.7 1L9 20h6l.4-2.1a7.7 7.7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+          <svg class="ico ico-gear" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M12 3.2v2.1M12 18.7v2.1M3.2 12h2.1M18.7 12h2.1M5.8 5.8l1.5 1.5M16.7 16.7l1.5 1.5M18.2 5.8l-1.5 1.5M7.3 16.7l-1.5 1.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
           </svg>
         </button>
       </header>
@@ -67,31 +84,31 @@
       <nav class="tabbar" id="tabbar" hidden aria-label="LifeOS">
         <button type="button" data-route="home" class="tab on">
           <span class="tab-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-7H10v7H5a1 1 0 0 1-1-1v-9.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            <svg class="ico ico-home" width="22" height="22" viewBox="0 0 24 24" fill="none"><path class="roof" d="M4 11.2 12 4.4l8 6.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path class="walls" d="M6.4 10.4V19.2h11.2v-8.8" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path class="door" d="M10.3 19.2v-4.4h3.4v4.4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
           </span>
           Home
         </button>
         <button type="button" data-route="life" class="tab">
           <span class="tab-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 18V6m0 12h16M8 14v4m4-8v8m4-5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <svg class="ico ico-life" width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 19.2h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path class="b1" d="M7.2 19.2V13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path class="b2" d="M12 19.2V8.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path class="b3" d="M16.8 19.2V11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           </span>
           Life
         </button>
         <button type="button" data-route="food" class="tab">
           <span class="tab-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M8 3v8a3 3 0 1 0 6 0V3M5 21h14M12 11v10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <svg class="ico ico-food" width="22" height="22" viewBox="0 0 24 24" fill="none"><path class="fork" d="M8 3.4v5.6M6.2 3.4V7M9.8 3.4V7M8 8.6V20.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path class="knife" d="M15.6 3.6c1.7 1.7 1.7 4 0 5.8V20.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           </span>
           Food
         </button>
         <button type="button" data-route="macros" class="tab">
           <span class="tab-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.2" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v4.6l3 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg class="ico ico-macro" width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="7.6" stroke="currentColor" stroke-width="1.7"/><path class="hand" d="M12 8.1V12.2l2.7 1.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
           Macros
         </button>
         <button type="button" data-route="chat" class="tab">
           <span class="tab-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 18.5 4 21l3.2-1.4A9 9 0 1 0 5 18.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            <svg class="ico ico-chat" width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5.4 16.8 4.6 20l2.9-1.2A7.8 7.8 0 1 0 5.4 16.8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle class="d1" cx="8.6" cy="11.2" r="0.9" fill="currentColor"/><circle class="d2" cx="12" cy="11.2" r="0.9" fill="currentColor"/><circle class="d3" cx="15.4" cy="11.2" r="0.9" fill="currentColor"/></svg>
           </span>
           Chat
         </button>
@@ -102,6 +119,6 @@
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
   <script src="js/api.js?v=22"></script>
-  <script src="js/app.js?v=29"></script>
+  <script src="js/app.js?v=43"></script>
 </body>
 </html>
