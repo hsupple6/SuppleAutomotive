@@ -2872,9 +2872,44 @@
     return String(args.about || args.query || args.q || args.url || "").trim();
   }
 
+  function liftMath(raw) {
+    const slots = [];
+    let s = raw;
+    if (s.split("$$").length % 2 === 0) s += "$$";
+    const take = (tex, display) => {
+      const id = slots.length;
+      slots.push({ tex: String(tex || "").trim(), display });
+      return display ? `\n\nMATHSLOT${id}END\n\n` : `MATHSLOT${id}END`;
+    };
+    s = s.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => take(tex, true));
+    s = s.replace(/\\\[([\s\S]+?)\\\]/g, (_, tex) => take(tex, true));
+    s = s.replace(/\\\(([\s\S]+?)\\\)/g, (_, tex) => take(tex, false));
+    s = s.replace(/(^|[^\\$])\$(?!\$)([^$\n]+?)\$(?!\$)/g, (m, pre, tex) => pre + take(tex, false));
+    s = s.replace(/\$([^$\n]+)$/g, (_, tex) => take(tex, false));
+    return { text: s, slots };
+  }
+
+  function paintMath(html, slots) {
+    if (!slots.length || !window.katex) return html;
+    return html.replace(/MATHSLOT(\d+)END/g, (_, n) => {
+      const slot = slots[Number(n)];
+      if (!slot || !slot.tex) return "";
+      try {
+        return window.katex.renderToString(slot.tex, {
+          throwOnError: false,
+          displayMode: slot.display,
+        });
+      } catch (_) {
+        return slot.tex;
+      }
+    });
+  }
+
   function renderMarkdown(el, text) {
-    const raw = String(text || "");
+    let raw = String(text || "");
     if (!el) return;
+    const fences = raw.match(/```/g);
+    if (fences && fences.length % 2 === 1) raw += "\n```";
     if (!raw.trim()) {
       el.textContent = "";
       return;
@@ -2884,11 +2919,13 @@
       return;
     }
     try {
+      const lifted = liftMath(raw);
       marked.setOptions({ gfm: true, breaks: true });
-      el.innerHTML = DOMPurify.sanitize(marked.parse(raw), {
+      const html = DOMPurify.sanitize(marked.parse(lifted.text), {
         USE_PROFILES: { html: true },
         ADD_ATTR: ["target", "rel"],
       });
+      el.innerHTML = paintMath(html, lifted.slots);
       el.querySelectorAll('a[href^="http"]').forEach((a) => {
         a.setAttribute("target", "_blank");
         a.setAttribute("rel", "noopener noreferrer");
@@ -2921,11 +2958,8 @@
 
   function paintStream(el, text) {
     if (!el) return;
-    if (el._mdTimer) {
-      clearTimeout(el._mdTimer);
-      el._mdTimer = null;
-    }
-    el.textContent = text;
+    el._streamText = text;
+    scheduleMarkdown(el, () => el._streamText || "");
   }
 
   function scheduleMarkdown(el, getText) {
