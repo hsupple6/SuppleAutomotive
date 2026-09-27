@@ -102,6 +102,9 @@ const LifeAPI = (() => {
     life: () => request("/v1/life"),
     food: () => request("/v1/food"),
     models: () => request("/v1/ollama/models"),
+    warm(body) {
+      return post("/v1/ollama/warm", body || {}, 300000);
+    },
     receipt(body) {
       return request("/v1/food/receipt", {
         method: "POST",
@@ -125,6 +128,12 @@ const LifeAPI = (() => {
     },
     macroDelete(body) {
       return post("/v1/macros/delete", body);
+    },
+    weightLog(body) {
+      return post("/v1/macros/weight", body);
+    },
+    weightDelete(body) {
+      return post("/v1/macros/weight-delete", body);
     },
     async meals() {
       try {

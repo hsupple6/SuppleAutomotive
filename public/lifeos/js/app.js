@@ -31,6 +31,12 @@
     },
     model: "",
     models: [],
+    ollamaLive: null,
+    warming: false,
+    warmAt: 0,
+    warmError: "",
+    ollamaTimer: 0,
+    readyClock: 0,
     busy: false,
     review: {
       running: false,
@@ -68,6 +74,10 @@
     macroNew: null,
     macroPickedRecipe: null,
     macroLogTab: "meals",
+    weightBusy: false,
+    weightErr: "",
+    macrosEntered: false,
+    weightDrawKey: "",
   };
 
   const CAT_COLOR = {
@@ -286,14 +296,15 @@
   }
 
   function chips(services) {
+    const loaded = ((state.status && state.status.ollama && state.status.ollama.loaded) || []).length > 0;
     const rows = [
-      ["PC", true],
-      ["Ollama", services?.ollama],
-      ["Life", services?.life_calculator],
-      ["DB", services?.finance_db],
+      ["PC", "on"],
+      ["Ollama", services?.ollama ? (loaded ? "on" : "wait") : ""],
+      ["Life", services?.life_calculator ? "on" : ""],
+      ["DB", services?.finance_db ? "on" : ""],
     ];
-    return `<div class="status-line">${rows.map(([label, on]) => (
-      `<span class="chip ${on ? "on" : ""}"><i></i>${esc(label)}</span>`
+    return `<div class="status-line">${rows.map(([label, tone]) => (
+      `<span class="chip ${tone}"><i></i>${esc(label)}</span>`
     )).join("")}</div>`;
   }
 
@@ -407,10 +418,12 @@
     const pantrySub = stats
       ? `${stats.low || 0} running low${soon.name && Number(stats.low) > 0 ? " · " + soon.name + " next" : ""}`
       : "Stock in the house";
+    const ollama = s.ollama || {};
+    const gpu = (ollama.loaded || []).length ? "on" : services.ollama ? "wait" : "";
     const pulse = [
-      ["Life", services.life_calculator],
-      ["Kitchen", services.finance_db],
-      ["Models", services.ollama],
+      ["Life", services.life_calculator ? "on" : ""],
+      ["Kitchen", services.finance_db ? "on" : ""],
+      [gpu === "on" ? "Ready" : gpu === "wait" ? "Cold" : "Models", gpu],
     ];
     const macroBits = [
       ["Protein", day && day.protein],
@@ -426,8 +439,8 @@
             <h2 class="home-greet">${esc(greet())}</h2>
           </div>
           <div class="home-pulse" aria-label="Systems">
-            ${pulse.map(([label, on]) => (
-              `<span class="${on ? "on" : ""}"><i></i>${esc(label)}</span>`
+            ${pulse.map(([label, tone]) => (
+              `<span class="${tone}"><i></i>${esc(label)}</span>`
             )).join("")}
           </div>
         </header>
@@ -1253,6 +1266,382 @@
     return status === "over" ? `${label} over` : `${label} left`;
   }
 
+  function weightPoints() {
+    const rows = (state.macros && state.macros.weights) || [];
+    return rows
+      .map((row) => ({
+        id: String(row.id || ""),
+        date: String(row.date || "").slice(0, 10),
+        lbs: Number(row.lbs),
+      }))
+      .filter((row) => /^\d{4}-\d{2}-\d{2}$/.test(row.date) && Number.isFinite(row.lbs))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  function weightTrend(points) {
+    const n = points.length;
+    if (n < 2) return null;
+    const t0 = Date.parse(`${points[0].date}T12:00:00`);
+    const xs = points.map((p) => (Date.parse(`${p.date}T12:00:00`) - t0) / 86400000);
+    let sx = 0;
+    let sy = 0;
+    let sxx = 0;
+    let sxy = 0;
+    points.forEach((p, i) => {
+      sx += xs[i];
+      sy += p.lbs;
+      sxx += xs[i] * xs[i];
+      sxy += xs[i] * p.lbs;
+    });
+    const den = n * sxx - sx * sx;
+    const slope = Math.abs(den) < 1e-9 ? 0 : (n * sxy - sx * sy) / den;
+    const intercept = (sy - slope * sx) / n;
+    return { slope, intercept, perWeek: slope * 7, xs };
+  }
+
+  function signedLb(n, digits) {
+    if (!Number.isFinite(n) || Math.abs(n) < 0.005) return (0).toFixed(digits);
+    const abs = Math.abs(n).toLocaleString("en-US", {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    });
+    return `${n > 0 ? "+" : "−"}${abs}`;
+  }
+
+  function weightDateLabel(iso, withYear) {
+    return new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", withYear
+      ? { month: "short", day: "numeric", year: "numeric" }
+      : { month: "short", day: "numeric" });
+  }
+
+  function weightCopy(points, trend) {
+    const latest = points[points.length - 1];
+    if (!latest) {
+      return {
+        figure: "—",
+        meta: "Log a weigh-in. The line draws in after the second day.",
+        slope: "",
+        slopeClass: "",
+      };
+    }
+    if (!trend) {
+      return {
+        figure: num(latest.lbs, 1),
+        meta: "One more day and the slope shows up.",
+        slope: "",
+        slopeClass: "",
+      };
+    }
+    const delta = latest.lbs - points[0].lbs;
+    const digits = Math.abs(trend.perWeek) >= 10 ? 1 : 2;
+    return {
+      figure: num(latest.lbs, 1),
+      meta: `${signedLb(delta, 1)} lb since ${weightDateLabel(points[0].date, false)}`,
+      slope: `${signedLb(trend.perWeek, digits)} lb/wk`,
+      slopeClass: trend.perWeek < -0.01 ? "down" : trend.perWeek > 0.01 ? "up" : "flat",
+    };
+  }
+
+  function smoothLine(pts) {
+    if (pts.length < 2) return "";
+    const n = (v) => Number(v).toFixed(2);
+    if (pts.length === 2) return `M ${n(pts[0].x)} ${n(pts[0].y)} L ${n(pts[1].x)} ${n(pts[1].y)}`;
+    let d = `M ${n(pts[0].x)} ${n(pts[0].y)}`;
+    for (let i = 0; i < pts.length - 1; i += 1) {
+      const p0 = pts[Math.max(0, i - 1)];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[Math.min(pts.length - 1, i + 2)];
+      const c1x = p1.x + (p2.x - p0.x) / 6;
+      let c1y = p1.y + (p2.y - p0.y) / 6;
+      const c2x = p2.x - (p3.x - p1.x) / 6;
+      let c2y = p2.y - (p3.y - p1.y) / 6;
+      const top = Math.min(p1.y, p2.y) - 18;
+      const bot = Math.max(p1.y, p2.y) + 18;
+      c1y = Math.max(top, Math.min(bot, c1y));
+      c2y = Math.max(top, Math.min(bot, c2y));
+      d += ` C ${n(c1x)} ${n(c1y)}, ${n(c2x)} ${n(c2y)}, ${n(p2.x)} ${n(p2.y)}`;
+    }
+    return d;
+  }
+
+  function paintWeightChart(draw) {
+    const host = $("wtStage");
+    if (!host) return;
+    if (host._raf) cancelAnimationFrame(host._raf);
+    if (host._rafTrend) cancelAnimationFrame(host._rafTrend);
+    host._raf = 0;
+    host._rafTrend = 0;
+    const points = weightPoints();
+    const trend = weightTrend(points);
+    const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const animate = Boolean(draw) && !reduced && points.length > 0;
+    const W = 720;
+    const H = 228;
+    const plotL = 18;
+    const plotR = 702;
+    const plotT = 18;
+    const plotB = 184;
+    const grids = [0.28, 0.52, 0.76].map((p) => {
+      const y = plotT + (plotB - plotT) * p;
+      return `<line class="wt-grid" x1="${plotL}" y1="${y.toFixed(1)}" x2="${plotR}" y2="${y.toFixed(1)}" />`;
+    }).join("");
+
+    let body = "";
+    if (!points.length) {
+      const y = (plotT + plotB) / 2;
+      body = `
+        ${grids}
+        <line class="wt-trend" x1="${plotL}" y1="${y}" x2="${plotR}" y2="${y}" />
+        <text class="wt-empty" x="${W / 2}" y="${y - 16}" text-anchor="middle">The chart draws itself once you log a weight.</text>`;
+    } else {
+      const t0 = Date.parse(`${points[0].date}T12:00:00`);
+      const t1 = Date.parse(`${points[points.length - 1].date}T12:00:00`);
+      const span = Math.max(1, t1 - t0);
+      const ys = points.map((p) => p.lbs);
+      let lo = Math.min(...ys);
+      let hi = Math.max(...ys);
+      let trendEnds = null;
+      if (trend) {
+        const y0 = trend.intercept;
+        const y1 = trend.intercept + trend.slope * ((t1 - t0) / 86400000);
+        lo = Math.min(lo, y0, y1);
+        hi = Math.max(hi, y0, y1);
+        trendEnds = [y0, y1];
+      }
+      const pad = Math.max(0.6, (hi - lo) * 0.22);
+      lo -= pad;
+      hi += pad;
+      if (hi - lo < 1) {
+        lo -= 0.5;
+        hi += 0.5;
+      }
+      const xOf = (iso) => {
+        if (points.length === 1) return (plotL + plotR) / 2;
+        const t = Date.parse(`${iso}T12:00:00`);
+        return plotL + ((t - t0) / span) * (plotR - plotL);
+      };
+      const yOf = (lbs) => plotT + (1 - (lbs - lo) / (hi - lo)) * (plotB - plotT);
+      const plotted = points.map((p) => ({ ...p, x: xOf(p.date), y: yOf(p.lbs) }));
+      const d = smoothLine(plotted);
+      const area = plotted.length > 1
+        ? `${d} L ${plotted[plotted.length - 1].x.toFixed(2)} ${plotB} L ${plotted[0].x.toFixed(2)} ${plotB} Z`
+        : "";
+      const withYear = points[points.length - 1].date.slice(0, 4) !== points[0].date.slice(0, 4);
+      const labelAt = (p, anchor) => (
+        `<text class="wt-xlab" x="${p.x.toFixed(1)}" y="212" text-anchor="${anchor}">${esc(weightDateLabel(p.date, withYear))}</text>`
+      );
+      const labels = [labelAt(plotted[0], plotted.length === 1 ? "middle" : "start")];
+      if (plotted.length > 2 && (t1 - t0) / 86400000 > 20) {
+        const mid = plotted[Math.floor(plotted.length / 2)];
+        labels.push(labelAt(mid, "middle"));
+      }
+      if (plotted.length > 1) labels.push(labelAt(plotted[plotted.length - 1], "end"));
+      const hiY = yOf(Math.max(...ys));
+      const loY = yOf(Math.min(...ys));
+      const ylabs = Math.abs(hiY - loY) > 36
+        ? `<text class="wt-ylab" x="${plotL}" y="${(hiY - 8).toFixed(1)}">${esc(num(Math.max(...ys), 1))}</text>
+           <text class="wt-ylab" x="${plotL}" y="${(loY + 14).toFixed(1)}">${esc(num(Math.min(...ys), 1))}</text>`
+        : "";
+      let trendLine = "";
+      if (trendEnds) {
+        const x1 = xOf(points[0].date);
+        const y1 = yOf(trendEnds[0]);
+        const x2 = xOf(points[points.length - 1].date);
+        const y2 = yOf(trendEnds[1]);
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const spanPx = Math.hypot(dx, dy) || 1;
+        const shift = 9;
+        const ox = (-dy / spanPx) * shift;
+        const oy = (dx / spanPx) * shift;
+        const down = oy >= 0 ? 1 : -1;
+        trendLine = `<path class="wt-trend" clip-path="url(#wtTrendClip)" d="M ${(x1 + ox * down).toFixed(2)} ${(y1 + oy * down).toFixed(2)} L ${(x2 + ox * down).toFixed(2)} ${(y2 + oy * down).toFixed(2)}" />`;
+      }
+      const dots = plotted.map((p, i) => {
+        const last = i === plotted.length - 1;
+        return `<g class="wt-dot${last ? " last" : ""}">
+          <circle class="wt-hit" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="16"><title>${esc(weightDateLabel(p.date, true))} · ${esc(num(p.lbs, 1))} lb</title></circle>
+          ${last ? `<circle class="wt-ring" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="10" />` : ""}
+          <circle class="wt-mark" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${last ? 4.6 : 3.3}" />
+        </g>`;
+      }).join("");
+      body = `
+        ${grids}
+        ${ylabs}
+        ${area ? `<path class="wt-area" fill="url(#wtFill)" d="${area}" />` : ""}
+        ${trendLine}
+        ${d ? `<path class="wt-glow" d="${d}" />` : ""}
+        ${d ? `<path class="wt-line" stroke="url(#wtStroke)" d="${d}" />` : ""}
+        ${dots}
+        ${d ? `<g class="wt-comet" opacity="0"><circle r="12" fill="#c8ff00" opacity="0.22"/><circle r="3.2" fill="#ffffff"/></g>` : ""}
+        ${labels.join("")}`;
+    }
+
+    host.classList.toggle("is-pending", animate);
+    host.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight over time">
+        <defs>
+          <linearGradient id="wtStroke" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#f4ff9a"/>
+            <stop offset="0.48" stop-color="#c8ff00"/>
+            <stop offset="1" stop-color="#7dffb3"/>
+          </linearGradient>
+          <linearGradient id="wtFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#c8ff00" stop-opacity="0.34"/>
+            <stop offset="1" stop-color="#c8ff00" stop-opacity="0"/>
+          </linearGradient>
+          <clipPath id="wtTrendClip">
+            <rect id="wtTrendRect" x="0" y="0" width="${animate ? 0 : W}" height="${H}"></rect>
+          </clipPath>
+        </defs>
+        ${body}
+      </svg>`;
+    if (!animate) return;
+    const line = host.querySelector(".wt-line");
+    const glow = host.querySelector(".wt-glow");
+    const area = host.querySelector(".wt-area");
+    const comet = host.querySelector(".wt-comet");
+    const rect = host.querySelector("#wtTrendRect");
+    const len = line ? line.getTotalLength() : 0;
+    const delay = 280;
+    const dur = 1150;
+    if (line && len) {
+      line.style.strokeDasharray = `${len}`;
+      line.style.strokeDashoffset = `${len}`;
+      if (glow) {
+        glow.style.strokeDasharray = `${len}`;
+        glow.style.strokeDashoffset = `${len}`;
+      }
+      window.setTimeout(() => {
+        if (!line.isConnected) return;
+        const ease = "cubic-bezier(0.22, 1, 0.36, 1)";
+        line.style.transition = `stroke-dashoffset ${dur}ms ${ease}`;
+        line.style.strokeDashoffset = "0";
+        if (glow) {
+          glow.style.transition = `stroke-dashoffset ${dur}ms ${ease}`;
+          glow.style.strokeDashoffset = "0";
+        }
+        if (area) {
+          area.style.transition = "opacity 0.9s ease 0.12s";
+          area.style.opacity = "1";
+        }
+      }, delay);
+    } else if (area) {
+      area.style.opacity = "1";
+    }
+    host.querySelectorAll(".wt-dot").forEach((g, i) => {
+      const bits = [g.querySelector(".wt-mark"), g.querySelector(".wt-ring")].filter(Boolean);
+      bits.forEach((el) => {
+        el.style.transformBox = "fill-box";
+        el.style.transformOrigin = "center";
+        el.style.transform = "scale(0)";
+      });
+      const at = delay + (points.length < 2 ? 80 : (i / (points.length - 1)) * dur);
+      window.setTimeout(() => {
+        bits.forEach((el) => {
+          if (!el.isConnected) return;
+          el.style.transition = "transform 0.48s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease";
+          el.style.transform = "scale(1)";
+          el.style.opacity = "1";
+        });
+      }, at);
+    });
+    if (comet && line && len) {
+      const t0 = performance.now();
+      const step = (now) => {
+        if (!line.isConnected) return;
+        const t = Math.min(1, Math.max(0, (now - t0 - delay) / dur));
+        const ease = 1 - Math.pow(1 - t, 3);
+        const pt = line.getPointAtLength(Math.max(0, Math.min(len, ease * len)));
+        comet.setAttribute("transform", `translate(${pt.x.toFixed(2)} ${pt.y.toFixed(2)})`);
+        comet.setAttribute("opacity", t > 0.01 && t < 0.995 ? "1" : "0");
+        if (t < 1) host._raf = requestAnimationFrame(step);
+      };
+      host._raf = requestAnimationFrame(step);
+    }
+    if (rect) {
+      const start = performance.now();
+      const grow = (now) => {
+        if (!rect.isConnected) return;
+        const t = Math.min(1, Math.max(0, (now - start - 520) / 880));
+        const ease = 1 - Math.pow(1 - t, 3);
+        rect.setAttribute("width", String(W * ease));
+        if (t < 1) host._rafTrend = requestAnimationFrame(grow);
+      };
+      host._rafTrend = requestAnimationFrame(grow);
+    }
+  }
+
+  function playMacroFills() {
+    document.querySelectorAll(".macros-page .ombre-fill").forEach((el, i) => {
+      const target = el.style.width || "0%";
+      el.style.transition = "none";
+      el.style.width = "0%";
+      requestAnimationFrame(() => {
+        el.style.transition = `width 0.95s cubic-bezier(0.16, 1, 0.3, 1) ${120 + i * 80}ms`;
+        el.style.width = target;
+      });
+    });
+  }
+
+  function applyWeightPayload(data) {
+    const view = state.macroDate;
+    state.macros = data;
+    state.macroDate = view || (data && data.date) || state.macroDate;
+    state.weightErr = "";
+  }
+
+  async function saveWeight(event) {
+    event.preventDefault();
+    if (state.weightBusy) return;
+    const lbs = Number(String($("wtLbs")?.value || "").trim());
+    const day = ($("wtDate")?.value || state.macroDate || todayISO()).slice(0, 10);
+    if (!Number.isFinite(lbs) || lbs <= 0) {
+      state.weightErr = "Enter a weight.";
+      renderMacros();
+      return;
+    }
+    state.weightBusy = true;
+    state.weightErr = "";
+    const btn = $("wtSave");
+    if (btn) btn.disabled = true;
+    try {
+      const data = await LifeAPI.weightLog({
+        lbs,
+        date: day,
+        view: state.macroDate || todayISO(),
+      });
+      applyWeightPayload(data);
+    } catch (err) {
+      state.weightErr = err.status === 404
+        ? "Restart LifeOS on the PC, then log again."
+        : (err.message || "Could not save that weigh-in.");
+    }
+    state.weightBusy = false;
+    renderMacros();
+  }
+
+  async function deleteWeight(id) {
+    if (!id || state.weightBusy) return;
+    vibrate();
+    state.weightBusy = true;
+    state.weightErr = "";
+    try {
+      const data = await LifeAPI.weightDelete({
+        id,
+        view: state.macroDate || todayISO(),
+      });
+      applyWeightPayload(data);
+    } catch (err) {
+      state.weightErr = err.status === 404
+        ? "Restart LifeOS on the PC, then try again."
+        : (err.message || "Could not remove that weigh-in.");
+    }
+    state.weightBusy = false;
+    renderMacros();
+  }
+
   function renderMacros() {
     const data = state.macros;
     const date = state.macroDate || todayISO();
@@ -1288,8 +1677,17 @@
       ["c", "Carbs", day.carb, "c"],
       ["f", "Fat", day.fat, "f"],
     ];
+    const weights = weightPoints();
+    const trend = weightTrend(weights);
+    const copy = weightCopy(weights, trend);
+    const weightKey = weights.map((row) => `${row.date}:${row.lbs}`).join("|");
+    const enterPage = !state.macrosEntered;
+    const drawLine = enterPage || weightKey !== state.weightDrawKey;
+    state.macrosEntered = true;
+    state.weightDrawKey = weightKey;
+    const chips = [...weights].reverse();
     $("screen").innerHTML = `
-      <div class="stack macros-page">
+      <div class="stack macros-page${enterPage ? " is-enter" : ""}">
         <div class="viz-week">
           <button type="button" class="dow-shift" id="prevWeek" aria-label="Previous week">‹</button>
           <div class="viz-days">
@@ -1326,6 +1724,33 @@
               </div>`;
             }).join("")}
           </div>
+        </section>
+        <section class="wt-card">
+          <div class="wt-head">
+            <div>
+              <p class="home-kicker">Weight</p>
+              <p class="wt-figure">${esc(copy.figure)}${copy.figure === "—" ? "" : "<small>lb</small>"}</p>
+              <p class="wt-meta">${esc(copy.meta)}</p>
+            </div>
+            ${copy.slope ? `<div class="wt-slope ${copy.slopeClass}"><span>Avg slope</span><b>${esc(copy.slope)}</b></div>` : ""}
+          </div>
+          <div class="wt-stage" id="wtStage"></div>
+          <div class="wt-key" ${weights.length < 2 ? "hidden" : ""}>
+            <span><i class="solid"></i>Weigh-ins</span>
+            <span><i class="dotted"></i>Avg slope</span>
+          </div>
+          ${state.weightErr ? `<p class="err">${esc(state.weightErr)}</p>` : ""}
+          <form class="wt-log" id="wtForm">
+            <input class="field" id="wtDate" type="date" value="${esc(date)}" required aria-label="Weigh-in date">
+            <input class="field" id="wtLbs" inputmode="decimal" placeholder="lb" autocomplete="off" aria-label="Weight in pounds" ${state.weightBusy ? "disabled" : ""}>
+            <button class="wt-save" id="wtSave" type="submit" ${state.weightBusy ? "disabled" : ""}>Log</button>
+          </form>
+          ${chips.length ? `<div class="wt-chips">${chips.map((row) => `
+            <span class="wt-chip">
+              <em>${esc(weightDateLabel(row.date, false))}</em>
+              <b>${esc(num(row.lbs, 1))}</b>
+              <button type="button" data-wdel="${esc(row.id)}" aria-label="Remove ${esc(weightDateLabel(row.date, true))}">×</button>
+            </span>`).join("")}</div>` : ""}
         </section>
         <div class="meals-row">
           ${meals.map(([id, label]) => {
@@ -1364,6 +1789,13 @@
     });
     const targets = $("targetsBtn");
     if (targets) targets.onclick = () => openTargetsSheet();
+    const wtForm = $("wtForm");
+    if (wtForm) wtForm.onsubmit = saveWeight;
+    $("screen").querySelectorAll("[data-wdel]").forEach((btn) => {
+      btn.onclick = () => deleteWeight(btn.dataset.wdel);
+    });
+    paintWeightChart(drawLine);
+    if (enterPage) playMacroFills();
     if (state.macroSheet === "log") drawLogSheet();
     if (state.macroSheet === "targets") drawTargetsSheet();
   }
@@ -2633,6 +3065,7 @@
       <div class="flash">
         <div class="chat-head">
           ${pills([["talk", "Chat"], ["cards", "Cards"]], "cards", "chat")}
+          <button class="model-ready" id="modelReady" type="button"></button>
           <span class="tok-rate" id="tokRate" hidden>0 tok/s</span>
         </div>
         ${flash.error ? `<p class="err">${esc(flash.error)}</p>` : ""}
@@ -2647,6 +3080,7 @@
         </div>
       </div>`;
     wirePills();
+    mountReady();
     wireFlashLibrary();
     const search = $("fc-search");
     if (search) {
@@ -2695,7 +3129,7 @@
     const text = (input?.value || "").trim();
     if (!text || state.busy) return;
     state.busy = true;
-    resetRate();
+    beginModelUse();
     const flash = state.flash;
     flash.chat.push({ role: "user", content: text });
     const bot = { role: "assistant", content: "", tools: [] };
@@ -2779,6 +3213,8 @@
       renderFlash();
     } finally {
       state.busy = false;
+      if (!residentModel()) state.warming = false;
+      paintReady();
     }
   }
 
@@ -2789,6 +3225,7 @@
       <div class="chat">
         <div class="chat-head">
           ${pills([["talk", "Chat"], ["cards", "Cards"]], "talk", "chat")}
+          <button class="model-ready" id="modelReady" type="button"></button>
           <span class="tok-rate" id="tokRate" hidden>0 tok/s</span>
           <button class="review-btn" id="review-notes" type="button" ${reviewing ? "disabled" : ""}>${reviewing ? "Reviewing" : "Review"}</button>
         </div>
@@ -2806,7 +3243,7 @@
         <div class="chat-empty">
           <p class="home-kicker">On this PC</p>
           <h2>Ask the model.</h2>
-          <p>It can search the web, pull pictures, and answer from the machine running LifeOS.</p>
+          <p id="readyHint">It can search the web, pull pictures, and answer from the machine running LifeOS.</p>
         </div>`;
     } else {
       state.chat.forEach((m) => box.appendChild(buildChatBubble(m)));
@@ -2825,6 +3262,7 @@
     const reviewBtn = $("review-notes");
     if (reviewBtn) reviewBtn.onclick = () => { vibrate(); startReview(); };
     wirePills();
+    mountReady();
     mountReview();
     if (hashRoute().tab === "preview") mountStreamPreview();
   }
@@ -2942,6 +3380,7 @@
     streamRate.n = 0;
     const el = $("tokRate");
     if (el) el.hidden = true;
+    paintReady();
   }
 
   function noteToken() {
@@ -2954,6 +3393,210 @@
     const rate = streamRate.n / sec;
     el.hidden = false;
     el.textContent = `${rate >= 100 ? Math.round(rate) : rate.toFixed(1)} tok/s`;
+    if (state.warming) {
+      state.warming = false;
+      state.warmError = "";
+      if (!residentModel()) {
+        const name = state.model || ((installedModel() || {}).name || "");
+        if (name) rememberLoaded([{ name }]);
+      }
+    }
+    const ready = $("modelReady");
+    if (ready) ready.hidden = true;
+  }
+
+  function modelKey(name) {
+    return String(name || "").trim().toLowerCase().replace(/:latest$/, "");
+  }
+
+  function installedModel() {
+    const models = state.models || [];
+    const want = modelKey(state.model);
+    return models.find((row) => modelKey(row.name) === want) || models[0] || null;
+  }
+
+  function loadedRows() {
+    const live = state.ollamaLive;
+    if (live && Array.isArray(live.loaded)) return live.loaded;
+    return (state.status && state.status.ollama && state.status.ollama.loaded) || [];
+  }
+
+  function residentModel() {
+    const want = modelKey((installedModel() || {}).name || state.model);
+    const rows = loadedRows();
+    if (!want) return rows[0] || null;
+    return rows.find((row) => modelKey(row.name) === want) || null;
+  }
+
+  function ollamaUp() {
+    if (state.ollamaLive && typeof state.ollamaLive.up === "boolean") return state.ollamaLive.up;
+    return !!(state.status && state.status.services && state.status.services.ollama);
+  }
+
+  function bytesLabel(n) {
+    const v = Number(n) || 0;
+    if (v < 1024 * 1024) return "";
+    const gb = v / (1024 * 1024 * 1024);
+    if (gb >= 1) return `${gb >= 10 ? Math.round(gb) : gb.toFixed(1)} GB`;
+    return `${Math.max(1, Math.round(v / (1024 * 1024)))} MB`;
+  }
+
+  function stayLabel(iso) {
+    const at = Date.parse(iso || "");
+    if (!Number.isFinite(at) || at < Date.UTC(2000, 0, 1)) return "";
+    const min = Math.round((at - Date.now()) / 60000);
+    if (min <= 0) return "";
+    if (min < 60) return `${min}m`;
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return m ? `${h}h ${m}m` : `${h}h`;
+  }
+
+  function readyInfo() {
+    if (!ollamaUp()) {
+      return { tone: "off", label: "Offline", hint: "Ollama isn’t running on this PC." };
+    }
+    const resident = residentModel();
+    const installed = installedModel();
+    const disk = bytesLabel(installed && installed.size);
+    if (state.warming || (state.busy && !resident)) {
+      const sec = Math.max(0, Math.round((Date.now() - (state.warmAt || Date.now())) / 1000));
+      return {
+        tone: "load",
+        label: sec ? `Loading ${sec}s` : "Loading",
+        hint: "Weights are moving into GPU memory. Usage stays low until that copy finishes.",
+      };
+    }
+    if (resident) {
+      const left = stayLabel(resident.expires_at);
+      const mem = bytesLabel(resident.size_vram || resident.size);
+      return {
+        tone: "ready",
+        label: left ? `Ready ${left}` : "Ready",
+        hint: mem
+          ? `${mem} in GPU memory${left ? `. Stays loaded for ${left}` : ""}.`
+          : "In GPU memory. The next reply can start immediately.",
+      };
+    }
+    return {
+      tone: "cold",
+      label: disk ? `Cold ${disk}` : "Cold",
+      hint: state.warmError || "Still on disk. Tap to load it into the GPU before the first message.",
+    };
+  }
+
+  function rememberLoaded(loaded) {
+    const rows = Array.isArray(loaded) ? loaded : [];
+    state.ollamaLive = Object.assign({}, state.ollamaLive || {}, { up: true, loaded: rows });
+    if (!state.status) state.status = {};
+    state.status.ollama = Object.assign({}, state.status.ollama || {}, { up: true, loaded: rows });
+    if (state.status.services) state.status.services.ollama = true;
+  }
+
+  function paintReady() {
+    const info = readyInfo();
+    const hint = $("readyHint");
+    if (hint && !state.chat.length) {
+      hint.textContent = info.tone === "cold" || info.tone === "load" || info.tone === "off"
+        ? info.hint
+        : "It can search the web, pull pictures, and answer from the machine running LifeOS.";
+    }
+    const el = $("modelReady");
+    if (!el) return;
+    const tok = $("tokRate");
+    el.hidden = !!(tok && !tok.hidden);
+    el.className = `model-ready ${info.tone}`;
+    el.textContent = info.label;
+    el.title = info.hint;
+    el.disabled = info.tone !== "cold";
+  }
+
+  function armReadyClock() {
+    if (state.readyClock) return;
+    state.readyClock = setInterval(() => {
+      if (!state.warming) {
+        clearInterval(state.readyClock);
+        state.readyClock = 0;
+        return;
+      }
+      paintReady();
+    }, 1000);
+  }
+
+  function beginModelUse() {
+    resetRate();
+    if (!residentModel()) {
+      if (!state.warming) state.warmAt = Date.now();
+      state.warming = true;
+      state.warmError = "";
+      armReadyClock();
+      paintReady();
+    }
+  }
+
+  async function refreshOllama() {
+    if (hashRoute().route !== "chat") return;
+    try {
+      const data = await LifeAPI.models();
+      state.ollamaLive = data;
+      if (state.status) {
+        state.status.ollama = Object.assign({}, state.status.ollama || {}, {
+          up: !!data.up,
+          loaded: data.loaded || [],
+          models: data.models || (state.status.ollama && state.status.ollama.models) || [],
+        });
+        if (state.status.services) state.status.services.ollama = !!data.up;
+      }
+      if (Array.isArray(data.models) && data.models.length) {
+        state.models = data.models;
+        if (!state.model && data.models[0]) state.model = data.models[0].name;
+      }
+      if (residentModel()) {
+        state.warming = false;
+        state.warmError = "";
+      }
+    } catch (_) {}
+    paintReady();
+  }
+
+  function watchOllama() {
+    if (state.ollamaTimer) return;
+    refreshOllama();
+    state.ollamaTimer = setInterval(refreshOllama, 2500);
+  }
+
+  function stopOllamaWatch() {
+    if (!state.ollamaTimer) return;
+    clearInterval(state.ollamaTimer);
+    state.ollamaTimer = 0;
+  }
+
+  async function warmModel() {
+    if (state.warming || state.busy || readyInfo().tone !== "cold") return;
+    const model = (installedModel() || {}).name || state.model;
+    if (!model) return;
+    state.warming = true;
+    state.warmError = "";
+    state.warmAt = Date.now();
+    armReadyClock();
+    paintReady();
+    try {
+      const data = await LifeAPI.warm({ model });
+      if (data && Array.isArray(data.loaded)) rememberLoaded(data.loaded);
+      state.warmError = "";
+    } catch (err) {
+      state.warmError = err.message || "Could not load the model.";
+    } finally {
+      if (!state.busy) state.warming = false;
+      paintReady();
+    }
+  }
+
+  function mountReady() {
+    paintReady();
+    const el = $("modelReady");
+    if (el) el.onclick = () => { vibrate(); warmModel(); };
+    watchOllama();
   }
 
   function paintStream(el, text) {
@@ -3448,7 +4091,7 @@
     const text = (input?.value || "").trim();
     if (!text || state.busy) return;
     state.busy = true;
-    resetRate();
+    beginModelUse();
     state.chat.push({ role: "user", content: text });
     const bot = { role: "assistant", content: "", tools: [] };
     state.chat.push(bot);
@@ -3543,6 +4186,8 @@
       renderChat();
     } finally {
       state.busy = false;
+      if (!residentModel()) state.warming = false;
+      paintReady();
     }
   }
 
@@ -3642,7 +4287,11 @@
     }
     if (route === "life" && tab) state.lifeTab = tab;
     if (route === "food" && tab) state.foodTab = tab === "meals" ? "pantry" : tab;
-    if (route !== "macros") closeSheet();
+    if (route !== "macros") {
+      closeSheet();
+      state.macrosEntered = false;
+      state.weightDrawKey = "";
+    }
     if (route === "macros") {
       const nextDate = /^\d{4}-\d{2}-\d{2}$/.test(tab) ? tab : (state.macroDate || todayISO());
       state.macroDate = nextDate;
@@ -3666,6 +4315,8 @@
     $("app").classList.toggle("is-home", route === "home");
     $("app").classList.toggle("is-chat", route === "chat");
     syncChatAscii(route === "chat");
+
+    if (route !== "chat") stopOllamaWatch();
 
     if (route === "settings") renderSettings();
     else if (route === "life") renderLife();
