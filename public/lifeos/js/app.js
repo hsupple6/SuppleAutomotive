@@ -3155,14 +3155,14 @@
         if (ev.type === "tool_start") {
           bot.tools.push({ name: ev.name, arguments: ev.arguments || {}, status: "running" });
           chatToolStart(wrap, ev);
-          if (box) box.scrollTop = box.scrollHeight;
+          followBottom(box);
         } else if (ev.type === "tool_done") {
           const last = [...bot.tools].reverse().find((t) => t.name === ev.name && t.status === "running");
           if (last) Object.assign(last, ev, { status: ev.ok === false ? "fail" : "ok" });
           else bot.tools.push(Object.assign({ status: ev.ok === false ? "fail" : "ok" }, ev));
           chatToolDone(wrap, ev);
           if (ev.deck && ev.deck.id) refreshDecks(ev.deck.id);
-          if (box) box.scrollTop = box.scrollHeight;
+          followBottom(box);
         } else if (ev.type === "reset") {
           bot.content = "";
           if (wrap && wrap._body) {
@@ -3180,7 +3180,7 @@
           bot.content += piece;
           noteToken();
           paintStream(wrap && wrap._body, bot.content);
-          if (box) box.scrollTop = box.scrollHeight;
+          followBottom(box);
         } else if (ev.type === "done") {
           setThinking(wrap, false);
           if (ev.reply) bot.content = ev.reply;
@@ -3599,6 +3599,27 @@
     watchOllama();
   }
 
+  function wireFollow(box) {
+    if (!box || box._followWired) return;
+    box._followWired = true;
+    box._follow = true;
+    const check = () => {
+      box._follow = box.scrollHeight - box.scrollTop - box.clientHeight < 32;
+    };
+    box.addEventListener("scroll", () => { if (!box._touching) check(); }, { passive: true });
+    box.addEventListener("wheel", (e) => { if (e.deltaY < 0) box._follow = false; }, { passive: true });
+    box.addEventListener("touchstart", () => { box._touching = true; box._follow = false; }, { passive: true });
+    box.addEventListener("touchend", () => { box._touching = false; check(); }, { passive: true });
+    box.addEventListener("touchcancel", () => { box._touching = false; check(); }, { passive: true });
+    box.addEventListener("pointerdown", (e) => { if (e.target === box) box._follow = false; });
+  }
+
+  function followBottom(box) {
+    if (!box) return;
+    wireFollow(box);
+    if (box._follow) box.scrollTop = box.scrollHeight;
+  }
+
   function paintStream(el, text) {
     if (!el) return;
     el._streamText = text;
@@ -3611,6 +3632,7 @@
     el._mdTimer = setTimeout(() => {
       el._mdTimer = null;
       renderMarkdown(el, typeof getText === "function" ? getText() : getText);
+      followBottom(el.closest(".messages"));
     }, 40);
   }
 
@@ -4115,13 +4137,13 @@
         if (ev.type === "tool_start") {
           bot.tools.push({ name: ev.name, arguments: ev.arguments || {}, status: "running" });
           chatToolStart(wrap, ev);
-          if (box) box.scrollTop = box.scrollHeight;
+          followBottom(box);
         } else if (ev.type === "tool_done") {
           const last = [...bot.tools].reverse().find((t) => t.name === ev.name && t.status === "running");
           if (last) Object.assign(last, ev, { status: ev.ok === false ? "fail" : "ok" });
           else bot.tools.push(Object.assign({ status: ev.ok === false ? "fail" : "ok" }, ev));
           chatToolDone(wrap, ev);
-          if (box) box.scrollTop = box.scrollHeight;
+          followBottom(box);
         } else if (ev.type === "reset") {
           bot.content = "";
           if (wrap && wrap._body) {
@@ -4139,7 +4161,7 @@
           bot.content += piece;
           noteToken();
           paintStream(wrap && wrap._body, bot.content);
-          if (box) box.scrollTop = box.scrollHeight;
+          followBottom(box);
         } else if (ev.type === "done") {
           setThinking(wrap, false);
           if (ev.reply) bot.content = ev.reply;
