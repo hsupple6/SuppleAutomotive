@@ -986,6 +986,14 @@ button {
   white-space: pre-wrap;
 }
 
+.tool-sources {
+  padding: 0 8px 10px;
+}
+
+.tool-sources[hidden] {
+  display: none !important;
+}
+
 .tool-chip.fail .tool-name { color: #ffb4ae; }
 
 .tool-row {

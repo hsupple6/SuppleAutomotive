@@ -3796,9 +3796,14 @@
     el.dataset.arg = hint || "";
     const more = el.querySelector(".tool-more");
     el.querySelector(".tool-chip-hit").onclick = () => {
-      if (!more.textContent) return;
-      more.hidden = !more.hidden;
-      el.classList.toggle("open", !more.hidden);
+      const sources = el.querySelector(".tool-sources");
+      const hasMore = !!more.textContent;
+      const hasSources = !!(sources && sources.childElementCount);
+      if (!hasMore && !hasSources) return;
+      const open = !el.classList.contains("open");
+      el.classList.toggle("open", open);
+      more.hidden = !open || !hasMore;
+      if (sources) sources.hidden = !open;
     };
     msg._tools.appendChild(el);
     const stack = msg._pendingTools.get(name) || [];
@@ -3834,8 +3839,23 @@
       more.textContent = extra;
       el.classList.add("can-open");
     }
-    if (ok && Array.isArray(row.articles) && row.articles.length) {
-      renderArticleCards(msg._tools, row.articles);
+    if (ok && name === "web_search" && Array.isArray(row.articles) && row.articles.length) {
+      let sources = el.querySelector(".tool-sources");
+      if (!sources) {
+        sources = document.createElement("div");
+        sources.className = "tool-sources";
+        el.appendChild(sources);
+      }
+      sources.replaceChildren();
+      renderArticleCards(sources, row.articles);
+      el.classList.add("can-open");
+      const show = row.show_sources === true;
+      sources.hidden = !show;
+      if (show) {
+        el.classList.add("open");
+        const extra = el.querySelector(".tool-more");
+        if (extra && extra.textContent) extra.hidden = false;
+      }
     }
     if (ok && Array.isArray(row.images) && row.images.length) {
       renderImageGallery(msg._tools, row.images);
@@ -4108,10 +4128,27 @@
     }
   }
 
+  function wantsSources(text) {
+    return /\b(sources?|citations?|references?|urls?)\b|\b(show|see|give|list).{0,32}\blinks?\b|\bwhere did you\b/i.test(String(text || ""));
+  }
+
+  function revealSources() {
+    const nodes = document.querySelectorAll("#messages .tool-sources");
+    const sources = nodes[nodes.length - 1];
+    if (!sources) return;
+    sources.hidden = false;
+    const chip = sources.closest(".tool-chip");
+    if (!chip) return;
+    chip.classList.add("open", "can-open");
+    const more = chip.querySelector(".tool-more");
+    if (more && more.textContent) more.hidden = false;
+  }
+
   async function sendChat() {
     const input = $("prompt");
     const text = (input?.value || "").trim();
     if (!text || state.busy) return;
+    if (wantsSources(text)) revealSources();
     state.busy = true;
     beginModelUse();
     state.chat.push({ role: "user", content: text });
