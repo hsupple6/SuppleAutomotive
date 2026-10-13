@@ -1751,11 +1751,11 @@
     }
     if (id === "lunch" && !plan.windows.morningClosed && plan.morningEaten > 0) {
       const next = Math.round(plan.lunchForecast);
-      if (next !== Math.round(part.budget)) return `${num(next, 0)} after 10:30`;
+      if (next !== Math.round(part.budget)) return `becomes ${num(next, 0)} at 10:30`;
     }
     if (id === "dinner" && plan.windows.morningClosed && !plan.windows.lunchClosed && plan.lunchEaten > 0) {
       const next = Math.round(plan.dinnerForecast);
-      if (next !== Math.round(part.budget)) return `${num(next, 0)} after 4:00`;
+      if (next !== Math.round(part.budget)) return `becomes ${num(next, 0)} at 4:00`;
     }
     return "";
   }
@@ -1860,6 +1860,16 @@
     }, Math.max(1000, target.getTime() - now.getTime()));
   }
 
+  function dayBalance(plan) {
+    const used = Math.round(plan.parts.breakfast.eaten + plan.parts.lunch.eaten + plan.parts.dinner.eaten);
+    if (!plan.goal) return `<span>${num(used, 0)} used</span>`;
+    const left = plan.goal - used;
+    const remain = left < 0
+      ? `<b class="over">${num(Math.abs(left), 0)} over</b>`
+      : `<b>${num(left, 0)} left</b>`;
+    return `<span>${num(used, 0)} used</span>${remain}`;
+  }
+
   function slotBar(part) {
     const budget = Number(part.budget);
     const eaten = Number(part.eaten);
@@ -1927,8 +1937,12 @@
             <div>
               <p class="home-kicker">Daily target</p>
               <p class="day-target">${plan.goal ? `${num(plan.goal, 0)}<small>kcal</small>` : "Set a target"}</p>
+              <p class="day-balance">${dayBalance(plan)}</p>
             </div>
-            <button type="button" class="viz-chip" id="targetsBtn">${num(settings.protein_pct || 0, 0)} / ${num(settings.carb_pct || 0, 0)} / ${num(settings.fat_pct || 0, 0)}</button>
+            <div class="day-hero-actions">
+              <button type="button" class="viz-chip" id="targetsBtn">${num(settings.protein_pct || 0, 0)} / ${num(settings.carb_pct || 0, 0)} / ${num(settings.fat_pct || 0, 0)}</button>
+              <button type="button" class="add-mini" data-add="${plan.windows.live || focusId}" aria-label="Log ${esc((DAY_PARTS.find((part) => part.id === (plan.windows.live || focusId)) || focusMeta).name)}">+</button>
+            </div>
           </div>
           ${macroRingHTML(day, settings, focusRead, focusMeta)}
         </section>
@@ -1985,16 +1999,22 @@
           </div>
           ${state.weightErr ? `<p class="err">${esc(state.weightErr)}</p>` : ""}
           <form class="wt-log" id="wtForm">
-            <input class="field" id="wtDate" type="date" value="${esc(date)}" required aria-label="Weigh-in date">
-            <input class="field" id="wtLbs" inputmode="decimal" placeholder="lb" autocomplete="off" aria-label="Weight in pounds" ${state.weightBusy ? "disabled" : ""}>
+            <label class="wt-field">
+              <span>Date</span>
+              <input class="field" id="wtDate" type="date" value="${esc(date)}" required aria-label="Weigh-in date">
+            </label>
+            <label class="wt-field">
+              <span>Pounds</span>
+              <input class="field" id="wtLbs" inputmode="decimal" placeholder="0.0" autocomplete="off" aria-label="Weight in pounds" ${state.weightBusy ? "disabled" : ""}>
+            </label>
             <button class="wt-save" id="wtSave" type="submit" ${state.weightBusy ? "disabled" : ""}>Log</button>
           </form>
-          ${chips.length ? `<div class="wt-chips">${chips.map((row) => `
-            <span class="wt-chip">
-              <em>${esc(weightDateLabel(row.date, false))}</em>
-              <b>${esc(num(row.lbs, 1))}</b>
+          ${chips.length ? `<div class="wt-history">${chips.map((row) => `
+            <div class="wt-row">
+              <span>${esc(weightDateLabel(row.date, false))}</span>
+              <b>${esc(num(row.lbs, 1))}<small>lb</small></b>
               <button type="button" data-wdel="${esc(row.id)}" aria-label="Remove ${esc(weightDateLabel(row.date, true))}">×</button>
-            </span>`).join("")}</div>` : ""}
+            </div>`).join("")}</div>` : ""}
         </section>
       </div>`;
     $("screen").innerHTML = pane === "weight" ? weightHTML : macroHTML;
