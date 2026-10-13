@@ -78,6 +78,11 @@
     weightErr: "",
     macrosEntered: false,
     weightDrawKey: "",
+    macroPane: "macros",
+    macroFocus: "",
+    macroFocusDate: "",
+    macroClock: 0,
+    macroClockDirty: false,
   };
 
   const CAT_COLOR = {
@@ -185,56 +190,86 @@
     return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${span > 180 ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
   }
 
-  function macroRingHTML(day, settings) {
-    const cal = day.calories || {};
-    const calPct = clamp01(Number(cal.pct || 0) / 100);
-    const calColor = cal.status === "over" ? "var(--red)" : "var(--lime)";
+  const DAY_PARTS = [
+    { id: "breakfast", name: "Morning", when: "Until 10:30" },
+    { id: "lunch", name: "Lunch", when: "10:30 – 4:00" },
+    { id: "dinner", name: "Dinner", when: "From 4:00" },
+  ];
+  const MORNING_KCAL = 500;
+  const MORNING_CUT = 10 * 60 + 30;
+  const DINNER_CUT = 16 * 60;
+
+  function macroRingHTML(day, settings, readout, partMeta) {
     const shares = [
-      { key: "p", band: day.protein, share: Number(settings.protein_pct || 0), color: "var(--red)", label: "P" },
-      { key: "c", band: day.carb, share: Number(settings.carb_pct || 0), color: "var(--blue)", label: "C" },
-      { key: "f", band: day.fat, share: Number(settings.fat_pct || 0), color: "var(--yellow)", label: "F" },
+      { key: "p", name: "Protein", band: day.protein, share: Number(settings.protein_pct || 0), color: "#c8ff00" },
+      { key: "c", name: "Carbs", band: day.carb, share: Number(settings.carb_pct || 0), color: "#64d2ff" },
+      { key: "f", name: "Fat", band: day.fat, share: Number(settings.fat_pct || 0), color: "#ff9f0a" },
     ];
-    const totalShare = shares.reduce((s, x) => s + Math.max(0, x.share), 0) || 100;
-    const gap = 8;
+    const totalShare = shares.reduce((sum, row) => sum + Math.max(0, row.share), 0) || 100;
+    const gap = 18;
     const usable = 360 - gap * shares.length;
-    let angle = 0;
-    const cx = 100;
-    const cy = 100;
-    const outer = 88;
-    const inner = 66;
-    const segs = shares.map((x) => {
-      const sweep = usable * (Math.max(0, x.share) / totalShare);
-      const start = angle + gap / 2;
-      angle += sweep + gap;
-      return { ...x, start, sweep, fill: sweep * clamp01(Number(x.band?.pct || 0) / 100) };
+    const cx = 110;
+    const cy = 110;
+    const radius = 86;
+    let cursor = 0;
+    const segs = shares.map((row) => {
+      const sweep = usable * (Math.max(0, row.share) / totalShare);
+      const start = cursor + gap / 2;
+      cursor += sweep + gap;
+      const target = Number(row.band?.target || 0);
+      const actual = Number(row.band?.actual || 0);
+      const pct = target > 0 ? Math.round((actual / target) * 100) : Math.round(Number(row.band?.pct || 0));
+      return {
+        ...row,
+        start,
+        sweep,
+        fill: sweep * clamp01(pct / 100),
+        pct,
+        actual,
+        target,
+      };
     });
-    const track = segs.map((s) => {
-      const d = arcD(cx, cy, outer, s.start, s.sweep);
-      return d ? `<path d="${d}" stroke="#2c2c2e" fill="none" stroke-width="12" stroke-linecap="butt"/>` : "";
+    const track = segs.map((seg) => {
+      const d = arcD(cx, cy, radius, seg.start, seg.sweep);
+      return d ? `<path d="${d}" stroke="${seg.color}" stroke-opacity="0.18" fill="none" stroke-width="16" stroke-linecap="round"/>` : "";
     }).join("");
-    const fills = segs.map((s) => {
-      const d = arcD(cx, cy, outer, s.start, s.fill);
-      return d ? `<path d="${d}" stroke="${s.color}" fill="none" stroke-width="12" stroke-linecap="butt"/>` : "";
+    const fills = segs.map((seg) => {
+      const d = arcD(cx, cy, radius, seg.start, seg.fill);
+      return d ? `<path class="ring-fill ${seg.key}" d="${d}" stroke="${seg.color}" fill="none" stroke-width="16" stroke-linecap="round" stroke-dasharray="0 1"/>` : "";
     }).join("");
-    const circ = 2 * Math.PI * inner;
+    const summary = segs.map((seg) => `${seg.name} ${seg.pct}%`).join(", ");
     return `
-      <div class="macro-ring">
-        <svg viewBox="0 0 200 200" aria-hidden="true">
-          ${track}${fills}
-          <circle cx="${cx}" cy="${cy}" r="${inner}" fill="none" stroke="#2c2c2e" stroke-width="12"/>
-          ${calPct > 0 ? `<circle cx="${cx}" cy="${cy}" r="${inner}" fill="none" stroke="${calColor}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${(circ * calPct).toFixed(2)} ${circ.toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"/>` : ""}
-        </svg>
-        <div class="macro-ring-core">
-          <p class="cal-eaten">${num(day.totals?.calories || 0, 0)}</p>
-          <p class="cal-goal">of ${num(settings.calories || 0, 0)}</p>
+      <div class="day-hero-body">
+        <div class="day-orb">
+          <svg viewBox="0 0 220 220" role="img" aria-label="Daily macros, ${esc(summary)}">
+            <defs>
+              <radialGradient id="dayDisc" cx="50%" cy="38%" r="68%">
+                <stop offset="0" stop-color="#1c1c1c"/>
+                <stop offset="1" stop-color="#070707"/>
+              </radialGradient>
+            </defs>
+            ${track}
+            ${fills}
+            <circle cx="${cx}" cy="${cy}" r="70" fill="url(#dayDisc)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+          </svg>
+          <div class="day-core${readout.tone === "over" ? " is-over" : ""}${readout.tone === "roll" ? " is-roll" : ""}">
+            <p class="day-kicker">kcal ${esc(readout.word)}</p>
+            <p class="day-num">${num(readout.n, 0)}</p>
+            <p class="day-sub">${esc(partMeta.name)}</p>
+            <p class="day-when">${esc(partMeta.when)}</p>
+          </div>
         </div>
-      </div>
-      <div class="macro-legend">
-        ${segs.map((s) => `
-          <div class="macro-leg ${s.key}">
-            <b>${s.label}</b>
-            <span>${num(s.band?.actual || 0, 0)} / ${num(s.band?.target || 0, 0)}g</span>
-          </div>`).join("")}
+        <div class="day-legs">
+          ${segs.map((seg) => `
+            <div class="day-leg ${seg.key}">
+              <i style="background:${seg.color}"></i>
+              <div>
+                <strong>${seg.name}</strong>
+                <span>${num(seg.actual, 0)} / ${num(seg.target, 0)}g</span>
+              </div>
+              <b style="color:${seg.color}">${num(seg.pct, 0)}%</b>
+            </div>`).join("")}
+        </div>
       </div>`;
   }
 
@@ -1642,89 +1677,298 @@
     renderMacros();
   }
 
+  function mealRows(day, id) {
+    return (day && day.meals && day.meals[id]) || [];
+  }
+
+  function mealEaten(day, id) {
+    return Math.round(mealRows(day, id).reduce((sum, row) => sum + Number(row.calories || 0), 0));
+  }
+
+  function dayWindows(date) {
+    const today = todayISO();
+    if (date < today) return { morningClosed: true, lunchClosed: true, live: "" };
+    if (date > today) return { morningClosed: false, lunchClosed: false, live: "" };
+    const now = new Date();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    if (mins < MORNING_CUT) return { morningClosed: false, lunchClosed: false, live: "breakfast" };
+    if (mins < DINNER_CUT) return { morningClosed: true, lunchClosed: false, live: "lunch" };
+    return { morningClosed: true, lunchClosed: true, live: "dinner" };
+  }
+
+  function macroPlan(goal, day, date) {
+    const windows = dayWindows(date);
+    const morningEaten = mealEaten(day, "breakfast");
+    const lunchEaten = mealEaten(day, "lunch");
+    const dinnerEaten = mealEaten(day, "dinner");
+    const rest = Math.max(0, Math.round(Number(goal) || 0) - MORNING_KCAL);
+    const lunchBase = Math.round(rest / 2);
+    const dinnerBase = rest - lunchBase;
+    const morningLeft = MORNING_KCAL - morningEaten;
+    const lunchRoll = windows.morningClosed ? morningLeft : 0;
+    const lunchBudget = lunchBase + lunchRoll;
+    const lunchForecast = lunchBase + morningLeft;
+    const dinnerRoll = windows.lunchClosed ? (lunchBudget - lunchEaten) : 0;
+    const dinnerBudget = dinnerBase + dinnerRoll;
+    const dinnerForecast = dinnerBase + (lunchForecast - lunchEaten);
+    return {
+      windows,
+      morningEaten,
+      lunchEaten,
+      dinnerEaten,
+      lunchForecast,
+      dinnerForecast,
+      goal: Math.round(Number(goal) || 0),
+      parts: {
+        breakfast: { budget: MORNING_KCAL, eaten: morningEaten, roll: 0 },
+        lunch: { budget: lunchBudget, eaten: lunchEaten, roll: lunchRoll },
+        dinner: { budget: dinnerBudget, eaten: dinnerEaten, roll: dinnerRoll },
+      },
+    };
+  }
+
+  function focusedPart(date, windows) {
+    if (DAY_PARTS.some((part) => part.id === state.macroFocus)) return state.macroFocus;
+    if (windows.live) return windows.live;
+    if (date < todayISO()) return "dinner";
+    return "breakfast";
+  }
+
+  function partReadout(id, part, windows) {
+    const left = Math.round(part.budget) - Math.round(part.eaten);
+    const closed = (id === "breakfast" && windows.morningClosed) || (id === "lunch" && windows.lunchClosed);
+    if (left < 0) return { n: Math.abs(left), word: "over", tone: "over" };
+    if (closed && left > 0) return { n: left, word: "rolled", tone: "roll" };
+    return { n: Math.max(0, left), word: "left", tone: "" };
+  }
+
+  function slotNote(id, plan) {
+    const part = plan.parts[id];
+    const roll = Math.round(part.roll);
+    if (roll) {
+      const from = id === "lunch" ? "morning" : "lunch";
+      return roll > 0 ? `+${num(roll, 0)} from ${from}` : `−${num(Math.abs(roll), 0)} from ${from}`;
+    }
+    if (id === "lunch" && !plan.windows.morningClosed && plan.morningEaten > 0) {
+      const next = Math.round(plan.lunchForecast);
+      if (next !== Math.round(part.budget)) return `${num(next, 0)} after 10:30`;
+    }
+    if (id === "dinner" && plan.windows.morningClosed && !plan.windows.lunchClosed && plan.lunchEaten > 0) {
+      const next = Math.round(plan.dinnerForecast);
+      if (next !== Math.round(part.budget)) return `${num(next, 0)} after 4:00`;
+    }
+    return "";
+  }
+
+  function paneSwitch(active) {
+    const tab = (id, label) => (
+      `<button type="button" role="tab" data-pane="${id}" aria-selected="${active === id}" class="${active === id ? "on" : ""}">${label}</button>`
+    );
+    return `<div class="macro-switch" role="tablist" aria-label="Macros">${tab("macros", "Macros")}${tab("weight", "Weight")}</div>`;
+  }
+
+  function bindPaneSwitch() {
+    $("screen").querySelectorAll("[data-pane]").forEach((btn) => {
+      btn.onclick = () => {
+        if (state.macroPane === btn.dataset.pane) return;
+        vibrate();
+        state.macroPane = btn.dataset.pane;
+        renderMacros();
+      };
+    });
+  }
+
+  function macroSnapshot() {
+    const data = state.macros;
+    const date = state.macroDate || todayISO();
+    if (!data || data.date !== date) return null;
+    const plan = macroPlan(Number(data.settings?.calories || 0), data.day || {}, date);
+    const id = focusedPart(date, plan.windows);
+    const meta = DAY_PARTS.find((part) => part.id === id) || DAY_PARTS[0];
+    return { plan, id, meta, readout: partReadout(id, plan.parts[id], plan.windows), date, data };
+  }
+
+  function paintMacroFocus() {
+    const snap = macroSnapshot();
+    const core = document.querySelector("#screen .day-core");
+    if (!snap || !core) return false;
+    core.classList.toggle("is-over", snap.readout.tone === "over");
+    core.classList.toggle("is-roll", snap.readout.tone === "roll");
+    const kicker = core.querySelector(".day-kicker");
+    const figure = core.querySelector(".day-num");
+    const sub = core.querySelector(".day-sub");
+    const when = core.querySelector(".day-when");
+    if (kicker) kicker.textContent = `kcal ${snap.readout.word}`;
+    if (figure) figure.textContent = num(snap.readout.n, 0);
+    if (sub) sub.textContent = snap.meta.name;
+    if (when) when.textContent = snap.meta.when;
+    document.querySelectorAll("#screen .slot-card").forEach((card) => {
+      card.classList.toggle("is-on", card.dataset.slot === snap.id);
+    });
+    return true;
+  }
+
+  function playDayMotion() {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.querySelectorAll("#screen .ring-fill").forEach((path, i) => {
+      const len = path.getTotalLength();
+      if (!len) return;
+      if (reduce) {
+        path.style.strokeDasharray = `${len} ${len}`;
+        return;
+      }
+      path.style.strokeDasharray = `0 ${len}`;
+      path.style.strokeDashoffset = "0";
+      window.setTimeout(() => {
+        if (!path.isConnected) return;
+        path.style.transition = "stroke-dasharray 1s cubic-bezier(0.16, 1, 0.3, 1)";
+        path.style.strokeDasharray = `${len} ${len}`;
+      }, 90 + i * 80);
+    });
+    if (reduce) return;
+    document.querySelectorAll("#screen .slot-fill").forEach((el, i) => {
+      const target = el.style.width || "0%";
+      el.style.transition = "none";
+      el.style.width = "0%";
+      requestAnimationFrame(() => {
+        if (!el.isConnected) return;
+        el.style.transition = `width 0.9s cubic-bezier(0.16, 1, 0.3, 1) ${i * 70}ms`;
+        el.style.width = target;
+      });
+    });
+  }
+
+  function armMacroClock() {
+    window.clearTimeout(state.macroClock);
+    state.macroClock = 0;
+    const date = state.macroDate || todayISO();
+    if (hashRoute().route !== "macros" || date !== todayISO()) return;
+    const now = new Date();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    const next = [MORNING_CUT, DINNER_CUT].find((cut) => cut > mins);
+    if (next == null) return;
+    const target = new Date(now);
+    target.setHours(0, 0, 0, 0);
+    target.setMinutes(next);
+    target.setSeconds(1);
+    state.macroClock = window.setTimeout(() => {
+      state.macroClock = 0;
+      if (hashRoute().route !== "macros") return;
+      if (state.macroSheet || state.macroPane === "weight") state.macroClockDirty = true;
+      else renderMacros();
+      armMacroClock();
+    }, Math.max(1000, target.getTime() - now.getTime()));
+  }
+
+  function slotBar(part) {
+    const budget = Number(part.budget);
+    const eaten = Number(part.eaten);
+    if (budget > 0) return Math.max(0, Math.min(100, Math.round((eaten / budget) * 100)));
+    return eaten > 0 ? 100 : 0;
+  }
+
   function renderMacros() {
     const data = state.macros;
     const date = state.macroDate || todayISO();
-    setChrome(prettyDay(date), "Macros");
+    const pane = state.macroPane === "weight" ? "weight" : "macros";
+    setChrome(pane === "weight" ? "Weight" : prettyDay(date), "Macros");
     if (!data || data.date !== date) {
       $("screen").innerHTML = `<div class="empty">Loading…</div>`;
       return;
+    }
+    if (state.macroFocusDate !== date) {
+      state.macroFocus = "";
+      state.macroFocusDate = date;
     }
     const day = data.day || {};
     const week = data.week || {};
     const settings = data.settings || {};
     const today = data.today || todayISO();
     const days = week.days || [];
-    const cal = day.calories || {};
-    const calStatus = cal.status === "empty"
-      ? "Nothing logged"
-      : cal.status === "hit"
-        ? "Calories hit"
-        : cal.status === "over"
-          ? `${num(Math.abs(cal.delta || 0), 0)} over`
-          : `${num(Math.abs(cal.delta || 0), 0)} left`;
-    const meals = [
-      ["breakfast", "Breakfast"],
-      ["lunch", "Lunch"],
-      ["dinner", "Dinner"],
-    ];
-
-    const goal = Number(settings.calories || 0);
-    const eaten = Number(day.totals?.calories || 0);
-    const calPct = goal > 0 ? Math.min(140, Math.round((eaten / goal) * 100)) : 0;
-    const bands = [
-      ["p", "Protein", day.protein, "p"],
-      ["c", "Carbs", day.carb, "c"],
-      ["f", "Fat", day.fat, "f"],
-    ];
+    const plan = macroPlan(Number(settings.calories || 0), day, date);
+    const focusId = focusedPart(date, plan.windows);
+    const focusMeta = DAY_PARTS.find((part) => part.id === focusId) || DAY_PARTS[0];
+    const focusRead = partReadout(focusId, plan.parts[focusId], plan.windows);
     const weights = weightPoints();
     const trend = weightTrend(weights);
     const copy = weightCopy(weights, trend);
     const weightKey = weights.map((row) => `${row.date}:${row.lbs}`).join("|");
-    const enterPage = !state.macrosEntered;
-    const drawLine = enterPage || weightKey !== state.weightDrawKey;
+    const enterPage = !state.macrosEntered || state.macroPaneDrawn !== pane;
+    const drawLine = pane === "weight" && (enterPage || weightKey !== state.weightDrawKey);
     state.macrosEntered = true;
-    state.weightDrawKey = weightKey;
+    state.macroPaneDrawn = pane;
+    if (pane === "weight") state.weightDrawKey = weightKey;
+    state.macroClockDirty = false;
     const chips = [...weights].reverse();
-    $("screen").innerHTML = `
-      <div class="stack macros-page${enterPage ? " is-enter" : ""}">
-        <div class="viz-week">
-          <button type="button" class="dow-shift" id="prevWeek" aria-label="Previous week">‹</button>
-          <div class="viz-days">
-            ${days.map((d) => {
-              const kcal = Number(d.totals?.calories || 0);
-              const h = goal > 0 && kcal ? Math.max(12, Math.min(100, Math.round((kcal / goal) * 100))) : (kcal ? 40 : 8);
-              const on = d.date === date ? "on" : "";
-              const future = d.date > today ? "future" : "";
-              const hit = d.hit && d.hit.all ? "hit" : "";
-              return `<button type="button" class="viz-day ${on} ${future} ${hit}" data-day="${esc(d.date)}">
-                <span class="viz-bar"><i style="height:${h}%"></i></span>
-                <b>${esc(d.label)}</b>
-              </button>`;
-            }).join("")}
-          </div>
-          <button type="button" class="dow-shift" id="nextWeek" aria-label="Next week">›</button>
+    const weekHTML = `
+      <div class="viz-week">
+        <button type="button" class="dow-shift" id="prevWeek" aria-label="Previous week">‹</button>
+        <div class="viz-days">
+          ${days.map((d) => {
+            const kcal = Number(d.totals?.calories || 0);
+            const h = plan.goal > 0 && kcal ? Math.max(12, Math.min(100, Math.round((kcal / plan.goal) * 100))) : (kcal ? 40 : 8);
+            const on = d.date === date ? "on" : "";
+            const future = d.date > today ? "future" : "";
+            const hit = d.hit && d.hit.all ? "hit" : "";
+            return `<button type="button" class="viz-day ${on} ${future} ${hit}" data-day="${esc(d.date)}">
+              <span class="viz-bar"><i style="height:${h}%"></i></span>
+              <b>${esc(d.label)}</b>
+            </button>`;
+          }).join("")}
         </div>
-        <section class="viz-card viz-cal">
-          <div class="viz-cal-top">
+        <button type="button" class="dow-shift" id="nextWeek" aria-label="Next week">›</button>
+      </div>`;
+    const macroHTML = `
+      <div class="stack macros-page${enterPage ? " is-enter" : ""}">
+        ${paneSwitch("macros")}
+        ${weekHTML}
+        <section class="day-hero">
+          <div class="day-hero-top">
             <div>
-              <p class="home-kicker">Eaten</p>
-              <p class="home-figure">${num(eaten, 0)}</p>
-              <p class="home-note">${esc(calStatus)}${goal ? ` · ${num(goal, 0)} kcal target` : ""}</p>
+              <p class="home-kicker">Daily target</p>
+              <p class="day-target">${plan.goal ? `${num(plan.goal, 0)}<small>kcal</small>` : "Set a target"}</p>
             </div>
             <button type="button" class="viz-chip" id="targetsBtn">${num(settings.protein_pct || 0, 0)} / ${num(settings.carb_pct || 0, 0)} / ${num(settings.fat_pct || 0, 0)}</button>
           </div>
-          <div class="ombre-track lg" aria-hidden="true"><div class="ombre-fill cal" style="width:${Math.min(calPct, 100)}%"></div></div>
-          <div class="viz-bands">
-            ${bands.map(([, label, band, key]) => {
-              const pct = Math.min(100, Number(band?.pct || 0));
-              return `<div class="viz-band">
-                <div class="viz-band-top"><span>${label}</span><b>${num(band?.actual || 0, 0)}<small> / ${num(band?.target || 0, 0)}g</small></b></div>
-                <div class="ombre-track"><div class="ombre-fill ${key}" style="width:${pct}%"></div></div>
-              </div>`;
-            }).join("")}
-          </div>
+          ${macroRingHTML(day, settings, focusRead, focusMeta)}
         </section>
+        <div class="day-periods">
+          ${DAY_PARTS.map((part) => {
+            const slot = plan.parts[part.id];
+            const read = partReadout(part.id, slot, plan.windows);
+            const note = slotNote(part.id, plan);
+            const rows = mealRows(day, part.id);
+            const now = plan.windows.live === part.id;
+            return `
+              <section class="slot-card${focusId === part.id ? " is-on" : ""}${now ? " is-now" : ""}${read.tone === "over" ? " is-over" : ""}" data-slot="${part.id}">
+                <div class="slot-top">
+                  <button type="button" class="slot-focus" data-focus="${part.id}">
+                    <span class="slot-when">${esc(part.when)}${now ? `<em class="slot-now"><i></i>Now</em>` : ""}</span>
+                    <strong>${esc(part.name)}</strong>
+                  </button>
+                  <button type="button" class="add-mini" data-add="${part.id}" aria-label="Log ${esc(part.name)}">+</button>
+                </div>
+                <button type="button" class="slot-meter" data-focus="${part.id}">
+                  <span class="slot-left ${read.tone}">${num(read.n, 0)} ${esc(read.word)}</span>
+                  <span class="slot-of">of ${num(Math.round(slot.budget), 0)}</span>
+                  <span class="slot-track" aria-hidden="true"><i class="slot-fill" style="width:${slotBar(slot)}%"></i></span>
+                  ${note ? `<em class="slot-note">${esc(note)}</em>` : ""}
+                </button>
+                <div class="slot-foods">
+                  ${rows.map((row) => `
+                    <div class="row">
+                      <div class="name"><strong>${esc(row.item_name)}</strong><span>${esc(qtyLabel(row.qty, row.unit))} · P${num(row.protein_g, 0)} C${num(row.carb_g, 0)} F${num(row.fat_g, 0)}</span></div>
+                      <div class="amt">${num(row.calories, 0)}</div>
+                      <button type="button" class="kill" data-del="${esc(row.id)}" aria-label="Remove ${esc(row.item_name)}">×</button>
+                    </div>`).join("") || `<p class="slot-empty">Nothing logged</p>`}
+                </div>
+              </section>`;
+          }).join("")}
+        </div>
+      </div>`;
+    const weightHTML = `
+      <div class="stack macros-page weight-page${enterPage ? " is-enter" : ""}">
+        ${paneSwitch("weight")}
         <section class="wt-card">
           <div class="wt-head">
             <div>
@@ -1752,50 +1996,43 @@
               <button type="button" data-wdel="${esc(row.id)}" aria-label="Remove ${esc(weightDateLabel(row.date, true))}">×</button>
             </span>`).join("")}</div>` : ""}
         </section>
-        <div class="meals-row">
-          ${meals.map(([id, label]) => {
-            const rows = (day.meals && day.meals[id]) || [];
-            const kcal = rows.reduce((s, r) => s + Number(r.calories || 0), 0);
-            return `
-              <div class="meal-block">
-                <div class="meal-head">
-                  <h3>${label}${rows.length ? `<em>${num(kcal, 0)} kcal</em>` : ""}</h3>
-                  <button type="button" class="add-mini" data-add="${id}" aria-label="Log ${label}">+</button>
-                </div>
-                <div class="meal-body">
-                  ${rows.map((r) => `
-                    <div class="row">
-                      <div class="name"><strong>${esc(r.item_name)}</strong><span>${esc(qtyLabel(r.qty, r.unit))} · P${num(r.protein_g, 0)} C${num(r.carb_g, 0)} F${num(r.fat_g, 0)}</span></div>
-                      <div class="amt">${num(r.calories, 0)}</div>
-                      <button type="button" class="kill" data-del="${esc(r.id)}" aria-label="Remove">×</button>
-                    </div>`).join("") || `<div class="empty" style="padding:8px 14px 18px">Nothing logged.</div>`}
-                </div>
-              </div>`;
-          }).join("")}
-        </div>
       </div>`;
-    $("screen").querySelectorAll("[data-day]").forEach((btn) => {
-      btn.onclick = () => { vibrate(); go("macros", btn.dataset.day); };
-    });
-    const prev = $("prevWeek");
-    const next = $("nextWeek");
-    if (prev) prev.onclick = () => { vibrate(); go("macros", shiftDate(date, -7)); };
-    if (next) next.onclick = () => { vibrate(); go("macros", shiftDate(date, 7)); };
-    $("screen").querySelectorAll("[data-add]").forEach((btn) => {
-      btn.onclick = () => openLogSheet(btn.dataset.add);
-    });
-    $("screen").querySelectorAll("[data-del]").forEach((btn) => {
-      btn.onclick = () => deleteMacroLog(btn.dataset.del);
-    });
-    const targets = $("targetsBtn");
-    if (targets) targets.onclick = () => openTargetsSheet();
-    const wtForm = $("wtForm");
-    if (wtForm) wtForm.onsubmit = saveWeight;
-    $("screen").querySelectorAll("[data-wdel]").forEach((btn) => {
-      btn.onclick = () => deleteWeight(btn.dataset.wdel);
-    });
-    paintWeightChart(drawLine);
-    if (enterPage) playMacroFills();
+    $("screen").innerHTML = pane === "weight" ? weightHTML : macroHTML;
+    bindPaneSwitch();
+    if (pane === "weight") {
+      const wtForm = $("wtForm");
+      if (wtForm) wtForm.onsubmit = saveWeight;
+      $("screen").querySelectorAll("[data-wdel]").forEach((btn) => {
+        btn.onclick = () => deleteWeight(btn.dataset.wdel);
+      });
+      paintWeightChart(drawLine);
+    } else {
+      $("screen").querySelectorAll("[data-day]").forEach((btn) => {
+        btn.onclick = () => { vibrate(); go("macros", btn.dataset.day); };
+      });
+      const prev = $("prevWeek");
+      const next = $("nextWeek");
+      if (prev) prev.onclick = () => { vibrate(); go("macros", shiftDate(date, -7)); };
+      if (next) next.onclick = () => { vibrate(); go("macros", shiftDate(date, 7)); };
+      $("screen").querySelectorAll("[data-add]").forEach((btn) => {
+        btn.onclick = () => openLogSheet(btn.dataset.add);
+      });
+      $("screen").querySelectorAll("[data-del]").forEach((btn) => {
+        btn.onclick = () => deleteMacroLog(btn.dataset.del);
+      });
+      $("screen").querySelectorAll("[data-focus]").forEach((btn) => {
+        btn.onclick = () => {
+          const id = btn.dataset.focus;
+          vibrate();
+          state.macroFocus = state.macroFocus === id ? "" : id;
+          if (!paintMacroFocus()) renderMacros();
+        };
+      });
+      const targets = $("targetsBtn");
+      if (targets) targets.onclick = () => openTargetsSheet();
+      playDayMotion();
+    }
+    armMacroClock();
     if (state.macroSheet === "log") drawLogSheet();
     if (state.macroSheet === "targets") drawTargetsSheet();
   }
@@ -1813,6 +2050,9 @@
     state.macroNew = null;
     state.macroPickedRecipe = null;
     state.macroLogLines = null;
+    const refresh = state.macroClockDirty && hashRoute().route === "macros";
+    state.macroClockDirty = false;
+    if (refresh) renderMacros();
   }
 
   function openLogSheet(meal) {
@@ -1874,28 +2114,15 @@
     })).filter((line) => line.item_id && Number.isFinite(line.qty) && line.qty > 0);
   }
 
-  function drawLogSheet() {
-    document.getElementById("sheet")?.remove();
+  function paintLogHits() {
+    const box = $("logHits");
+    if (!box) return;
     const foods = state.macros?.foods || mealFoods();
     const recipes = savedMeals();
-    const mealLabel = state.macroMeal[0].toUpperCase() + state.macroMeal.slice(1);
-    const el = document.createElement("div");
-    el.id = "sheet";
-    if (state.macroMode === "new") {
-      drawNewItemSheet(el, mealLabel);
-      return;
-    }
-    const picked = state.macroPicked;
     const recipe = state.macroPickedRecipe;
-    if (recipe && !state.macroLogLines) state.macroLogLines = cloneMealLines(recipe);
-    const logLines = recipe ? (state.macroLogLines || []) : null;
-    const qty = state.macroQty === "" && picked ? picked.usual_qty : state.macroQty;
-    const live = picked ? scaledFood(picked, qty) : null;
-    const logTot = logLines ? mealTotals(logLines) : null;
     const q = (state.macroQuery || "").trim().toLowerCase();
     const foodHits = q ? foods.filter((f) => (f.name || "").toLowerCase().includes(q)).slice(0, 16) : [];
     const mealHits = (!recipe && q) ? recipes.filter((m) => (m.name || "").toLowerCase().includes(q)).slice(0, 12) : [];
-    el.className = "sheet sheet-log";
     const hitRows = [
       ...mealHits.map((m) => {
         const tot = mealTotalsOf(m);
@@ -1911,6 +2138,73 @@
           <div class="amt">${recipe ? "Add" : esc(f.unit)}</div>
         </button>`),
     ].join("");
+    if (!q) {
+      box.innerHTML = `<div class="empty">${recipe ? "Search to add an ingredient." : "Search a food or meal."}${recipe ? "" : ` <button type="button" class="text-link" id="newMealBtn">New meal</button>`}</div>`;
+    } else {
+      box.innerHTML = hitRows || `<div class="empty">No match.</div>`;
+    }
+    const newMeal = $("newMealBtn");
+    if (newMeal) {
+      newMeal.onclick = () => {
+        vibrate();
+        state.macroPickedRecipe = { id: "", name: "", lines: [] };
+        state.macroPicked = null;
+        state.macroLogLines = [];
+        state.macroQuery = "";
+        drawLogSheet();
+      };
+    }
+    box.querySelectorAll("[data-recipe]").forEach((btn) => {
+      btn.onclick = () => {
+        const meal = recipes.find((m) => m.id === btn.dataset.recipe);
+        if (!meal) return;
+        vibrate();
+        state.macroPickedRecipe = meal;
+        state.macroPicked = null;
+        state.macroLogLines = cloneMealLines(meal);
+        state.macroQuery = "";
+        drawLogSheet();
+      };
+    });
+    box.querySelectorAll("[data-food]").forEach((btn) => {
+      btn.onclick = () => {
+        const food = foods.find((f) => f.id === btn.dataset.food);
+        if (!food) return;
+        vibrate();
+        if (state.macroPickedRecipe) {
+          state.macroLogLines = state.macroLogLines || [];
+          pushMealLine(state.macroLogLines, food.id);
+          state.macroQuery = "";
+          drawLogSheet();
+          return;
+        }
+        state.macroPicked = food;
+        state.macroPickedRecipe = null;
+        state.macroLogLines = null;
+        state.macroQty = food.usual_qty;
+        state.macroQuery = "";
+        drawLogSheet();
+      };
+    });
+  }
+
+  function drawLogSheet() {
+    document.getElementById("sheet")?.remove();
+    const mealLabel = { breakfast: "Morning", lunch: "Lunch", dinner: "Dinner" }[state.macroMeal] || "Meal";
+    const el = document.createElement("div");
+    el.id = "sheet";
+    if (state.macroMode === "new") {
+      drawNewItemSheet(el, mealLabel);
+      return;
+    }
+    const picked = state.macroPicked;
+    const recipe = state.macroPickedRecipe;
+    if (recipe && !state.macroLogLines) state.macroLogLines = cloneMealLines(recipe);
+    const logLines = recipe ? (state.macroLogLines || []) : null;
+    const qty = state.macroQty === "" && picked ? picked.usual_qty : state.macroQty;
+    const live = picked ? scaledFood(picked, qty) : null;
+    const logTot = logLines ? mealTotals(logLines) : null;
+    el.className = "sheet sheet-log";
     el.innerHTML = `
       <div class="sheet-top">
         <h2>Log ${esc(mealLabel)}</h2>
@@ -1918,7 +2212,7 @@
       </div>
       <div class="sheet-body">
         ${state.macroErr ? `<p class="err">${esc(state.macroErr)}</p>` : ""}
-        <input class="field search-field" id="foodSearch" type="search" placeholder="${recipe ? "Search to add an ingredient" : "Search foods or meals"}" value="${esc(state.macroQuery)}" autocomplete="off" enterkeyhint="search">
+        <input class="field search-field" id="foodSearch" type="search" placeholder="${recipe ? "Search to add an ingredient" : "Search foods or meals"}" value="${esc(state.macroQuery)}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
         ${recipe ? `
           <div class="preview">
             <input class="field" id="logMealName" placeholder="meal name" value="${esc(recipe.name || "")}" autocomplete="off">
@@ -1941,9 +2235,7 @@
           </div>
           <p class="hero-sub">${num(live?.calories || 0, 0)} kcal · P${num(live?.protein_g || 0, 0)} C${num(live?.carb_g || 0, 0)} F${num(live?.fat_g || 0, 0)}</p>
         ` : ""}
-        <div class="group log-hits" id="logHits">
-          ${q ? (hitRows || `<div class="empty">No match.</div>`) : `<div class="empty">${recipe ? "Search to add an ingredient." : "Search a food or meal."}${recipe ? "" : ` <button type="button" class="text-link" id="newMealBtn">New meal</button>`}</div>`}
-        </div>
+        <div class="group log-hits" id="logHits"></div>
       </div>
       <div class="sheet-foot log-actions">
         <button type="button" class="ghost" id="newItemBtn">New item</button>
@@ -1957,58 +2249,10 @@
     if (search) {
       search.oninput = () => {
         state.macroQuery = search.value;
-        drawLogSheet();
-        const next = $("foodSearch");
-        if (next) {
-          next.focus();
-          const n = next.value.length;
-          next.setSelectionRange(n, n);
-        }
+        paintLogHits();
       };
     }
-    const newMeal = $("newMealBtn");
-    if (newMeal) {
-      newMeal.onclick = () => {
-        vibrate();
-        state.macroPickedRecipe = { id: "", name: "", lines: [] };
-        state.macroPicked = null;
-        state.macroLogLines = [];
-        state.macroQuery = "";
-        drawLogSheet();
-      };
-    }
-    el.querySelectorAll("[data-recipe]").forEach((btn) => {
-      btn.onclick = () => {
-        const meal = recipes.find((m) => m.id === btn.dataset.recipe);
-        if (!meal) return;
-        vibrate();
-        state.macroPickedRecipe = meal;
-        state.macroPicked = null;
-        state.macroLogLines = cloneMealLines(meal);
-        state.macroQuery = "";
-        drawLogSheet();
-      };
-    });
-    el.querySelectorAll("[data-food]").forEach((btn) => {
-      btn.onclick = () => {
-        const food = foods.find((f) => f.id === btn.dataset.food);
-        if (!food) return;
-        vibrate();
-        if (state.macroPickedRecipe) {
-          state.macroLogLines = state.macroLogLines || [];
-          pushMealLine(state.macroLogLines, food.id);
-          state.macroQuery = "";
-          drawLogSheet();
-          return;
-        }
-        state.macroPicked = food;
-        state.macroPickedRecipe = null;
-        state.macroLogLines = null;
-        state.macroQty = food.usual_qty;
-        state.macroQuery = "";
-        drawLogSheet();
-      };
-    });
+    paintLogHits();
     if (logLines) wireIngEditors(el, logLines, () => drawLogSheet());
     const nameEl = $("logMealName");
     if (nameEl && recipe) {
@@ -4350,6 +4594,11 @@
       closeSheet();
       state.macrosEntered = false;
       state.weightDrawKey = "";
+      state.macroPaneDrawn = "";
+      if (state.macroClock) {
+        window.clearTimeout(state.macroClock);
+        state.macroClock = 0;
+      }
     }
     if (route === "macros") {
       const nextDate = /^\d{4}-\d{2}-\d{2}$/.test(tab) ? tab : (state.macroDate || todayISO());
