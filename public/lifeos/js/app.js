@@ -210,13 +210,15 @@
   ];
   const PHASES = [
     { id: "breakfast", meal: "breakfast", name: "Breakfast", kind: "meal", opens: 4 * 60, opensLabel: "4:00 AM" },
-    { id: "snack-am", meal: "snack-am", name: "Snack", kind: "snack", cap: 250 },
+    { id: "snack-am", meal: "snack-am", name: "Snack", kind: "snack", cap: 200 },
     { id: "lunch", meal: "lunch", name: "Lunch", kind: "meal", opens: 11 * 60, opensLabel: "11:00 AM" },
-    { id: "snack-mid", meal: "snack-mid", name: "Snack", kind: "snack", cap: 250 },
+    { id: "snack-mid", meal: "snack-mid", name: "Snack", kind: "snack", cap: 200 },
     { id: "dinner", meal: "dinner", name: "Dinner", kind: "meal", opens: 18 * 60 + 30, opensLabel: "6:30 PM" },
     { id: "snack-pm", meal: "snack-pm", name: "Snack", kind: "snack", cap: 150, usesRemaining: true },
   ];
-  const MORNING_KCAL = 500;
+  const BREAKFAST_KCAL = 250;
+  const LUNCH_KCAL = 550;
+  const DINNER_KCAL = 550;
   const GATE_CUTS = [4 * 60, 11 * 60, 18 * 60 + 30];
 
   function macroRingHTML(day, settings, readout, partMeta) {
@@ -1753,24 +1755,23 @@
 
   function macroPlan(goal, day, progress) {
     const done = new Set((progress && progress.done) || []);
-    const morningEaten = mealEaten(day, "breakfast");
-    const lunchEaten = mealEaten(day, "lunch");
-    const dinnerEaten = mealEaten(day, "dinner");
-    const rest = Math.max(0, Math.round(Number(goal) || 0) - MORNING_KCAL);
-    const lunchBase = Math.round(rest / 2);
-    const dinnerBase = rest - lunchBase;
-    const morningLeft = MORNING_KCAL - morningEaten;
-    const lunchRoll = done.has("breakfast") ? morningLeft : 0;
-    const lunchBudget = lunchBase + lunchRoll;
-    const dinnerRoll = done.has("lunch") ? (lunchBudget - lunchEaten) : 0;
-    const dinnerBudget = dinnerBase + dinnerRoll;
+    const target = Math.round(Number(goal) || 0);
+    const scale = target && target !== 1900 ? target / 1900 : 1;
+    const cut = (n, last) => last ? n : Math.round(n * scale);
+    const breakfast = cut(BREAKFAST_KCAL);
+    const lunch = cut(LUNCH_KCAL);
+    const snackAm = cut(200);
+    const snackMid = cut(200);
+    const snackPm = cut(150);
+    const dinner = target ? Math.max(0, target - breakfast - lunch - snackAm - snackMid - snackPm) : cut(DINNER_KCAL, true);
     return {
       done,
-      goal: Math.round(Number(goal) || 0),
+      goal: target,
+      snacks: { "snack-am": snackAm, "snack-mid": snackMid, "snack-pm": snackPm },
       parts: {
-        breakfast: { budget: MORNING_KCAL, eaten: morningEaten, roll: 0 },
-        lunch: { budget: lunchBudget, eaten: lunchEaten, roll: lunchRoll },
-        dinner: { budget: dinnerBudget, eaten: dinnerEaten, roll: dinnerRoll },
+        breakfast: { budget: breakfast, eaten: mealEaten(day, "breakfast"), roll: 0 },
+        lunch: { budget: lunch, eaten: mealEaten(day, "lunch"), roll: 0 },
+        dinner: { budget: target ? dinner : DINNER_KCAL, eaten: mealEaten(day, "dinner"), roll: 0 },
       },
     };
   }
@@ -1788,11 +1789,9 @@
     return "breakfast";
   }
 
-  function partReadout(id, part, done) {
+  function partReadout(id, part) {
     const left = Math.round(part.budget) - Math.round(part.eaten);
-    const closed = done && done.has && done.has(id);
     if (left < 0) return { n: Math.abs(left), word: "over", tone: "over" };
-    if (closed && left > 0) return { n: left, word: "rolled", tone: "roll" };
     return { n: Math.max(0, left), word: "left", tone: "" };
   }
 
