@@ -1697,8 +1697,46 @@
     renderMacros();
   }
 
+  function snackBook() {
+    try {
+      const raw = JSON.parse(localStorage.getItem("lifeos-snack-rows") || "{}");
+      return raw && typeof raw === "object" ? raw : {};
+    } catch (err) {
+      return {};
+    }
+  }
+
+  function snackIds(date, phaseId) {
+    const day = snackBook()[date] || {};
+    const list = phaseId ? (day[phaseId] || []) : Object.values(day).flat();
+    return list.map((id) => String(id));
+  }
+
+  function rememberSnackIds(date, phaseId, ids) {
+    const next = ids.map((id) => String(id)).filter(Boolean);
+    if (!next.length) return;
+    const book = snackBook();
+    const day = book[date] && typeof book[date] === "object" ? book[date] : {};
+    const have = new Set((day[phaseId] || []).map((id) => String(id)));
+    next.forEach((id) => have.add(id));
+    day[phaseId] = [...have];
+    book[date] = day;
+    try { localStorage.setItem("lifeos-snack-rows", JSON.stringify(book)); } catch (err) {}
+  }
+
+  function allDayRows(day) {
+    const meals = (day && day.meals) || {};
+    return Object.values(meals).flat().filter(Boolean);
+  }
+
   function mealRows(day, id) {
-    return (day && day.meals && day.meals[id]) || [];
+    const date = (state.macros && state.macros.date) || state.macroDate || todayISO();
+    if (String(id).indexOf("snack") === 0) {
+      const ids = new Set(snackIds(date, id));
+      return allDayRows(day).filter((row) => ids.has(String(row.id)));
+    }
+    const hidden = new Set(snackIds(date));
+    return ((day && day.meals && day.meals[id]) || []).filter((row) => !hidden.has(String(row.id)));
   }
 
   function mealEaten(day, id) {
@@ -2461,18 +2499,31 @@
       submit.textContent = "Saving…";
     }
     let posted = 0;
+    const host = phase.kind === "snack"
+      ? { "snack-am": "breakfast", "snack-mid": "lunch", "snack-pm": "dinner" }[phase.id]
+      : phase.meal;
+    const known = new Set(allDayRows(state.macros && state.macros.day).map((row) => String(row.id)));
+    const fresh = [];
     try {
       let data = state.macros;
       for (const line of lines) {
         data = await LifeAPI.macroLog({
           item_id: line.item_id,
           qty: Number(line.qty),
-          meal: phase.meal,
+          meal: host,
           date,
+        });
+        allDayRows(data && data.day).forEach((row) => {
+          const id = String(row.id);
+          if (!known.has(id)) {
+            known.add(id);
+            fresh.push(id);
+          }
         });
         posted += 1;
         state.macros = data;
       }
+      if (phase.kind === "snack") rememberSnackIds(date, phase.id, fresh);
       markGate(date, phase.id);
       delete state.gateDrafts[phase.id];
       state.gateBusy = false;
@@ -2484,6 +2535,7 @@
       renderMacros();
     } catch (err) {
       state.gateLines = lines.slice(posted);
+      if (phase.kind === "snack" && fresh.length) rememberSnackIds(date, phase.id, fresh);
       state.gateBusy = false;
       state.gateErr = err.message || "Could not save that log";
       try { state.macros = await LifeAPI.macros(date); } catch (e) {}
