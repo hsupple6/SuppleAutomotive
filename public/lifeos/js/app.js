@@ -1981,12 +1981,6 @@
     markGate(date, id);
   }
 
-  function snackAllowance(phase, goal, day) {
-    const already = mealEaten(day, phase.meal);
-    const room = Math.max(0, Math.round(Number(goal) || 0) - eatenAll(day));
-    return Math.max(0, Math.min((Number(phase.cap) || 0) - already, room));
-  }
-
   function resolveGate(date, day, progress, goal) {
     const today = todayISO();
     const done = new Set(progress.done || []);
@@ -2012,12 +2006,7 @@
         continue;
       }
       if (phase.kind === "snack") {
-        const cap = snackAllowance(phase, goal, day);
-        if (!drafting && cap <= 0) {
-          absorbGate(date, phase.id, done, progress);
-          continue;
-        }
-        ready.push({ ...phase, cap });
+        ready.push({ ...phase, cap: Number(phase.cap) || 0 });
         continue;
       }
       ready.push({ ...phase, cap: 0 });
@@ -2218,11 +2207,12 @@
     const goal = Number(state.macros?.settings?.calories || 0);
     const progress = gateProgress(date, day);
     const plan = macroPlan(goal, day, progress);
-    const hard = !!(phase && phase.kind === "snack");
-    const guide = !phase ? 0 : (hard ? snackAllowance(phase, plan.goal, day) : Math.round(plan.parts[phase.id]?.budget || 0));
-    const over = hard && totals.calories > guide + 0.49;
+    const guide = !phase ? 0 : (phase.kind === "snack"
+      ? (plan.snacks?.[phase.id] ?? (Number(phase.cap) || 0))
+      : Math.round(plan.parts[phase.id]?.budget || 0));
+    const over = guide > 0 && totals.calories > guide + 0.49;
     const empty = !lines.some((line) => Number(line.qty) > 0);
-    return { phase, totals, guide, hard, over, empty };
+    return { phase, totals, guide, over, empty };
   }
 
   function composerRing(kcal, guide) {
@@ -2257,7 +2247,7 @@
     const phase = fig.phase;
     const name = phase ? phase.name : "Log";
     const ring = composerRing(fig.totals.calories, fig.guide);
-    const snack = fig.hard;
+    const snack = phase && phase.kind === "snack";
     return `
       <div class="stack macros-page comp-page is-enter">
         ${paneSwitch("macros")}
@@ -2265,7 +2255,7 @@
           <div class="comp-top">
             <button type="button" class="comp-back" id="gateBack" aria-label="Back">‹</button>
             <div>
-              <p class="home-kicker">${snack ? "Firm cap" : "One submit"}</p>
+              <p class="home-kicker">One submit</p>
               <h2>${esc(name)}</h2>
             </div>
           </div>
@@ -2287,7 +2277,7 @@
           </label>
           <div class="comp-hits" id="gateHits"></div>
           <button type="button" class="comp-new" id="gateNew">New food</button>
-          <button type="button" class="comp-submit" id="gateSubmit"${(fig.empty || fig.over || state.gateBusy) ? " disabled" : ""}>${state.gateBusy ? "Saving…" : `Submit ${esc(name.toLowerCase())}`}</button>
+          <button type="button" class="comp-submit" id="gateSubmit"${(fig.empty || state.gateBusy) ? " disabled" : ""}>${state.gateBusy ? "Saving…" : `Submit ${esc(name.toLowerCase())}`}</button>
           <button type="button" class="gate-skip" id="skipGate">${snack ? "No snack" : `Skip ${esc(name.toLowerCase())}`}</button>
         </section>
       </div>`;
@@ -2313,7 +2303,7 @@
     if (err) err.textContent = state.gateErr || "";
     const submit = $("gateSubmit");
     if (submit) {
-      submit.disabled = fig.empty || fig.over || state.gateBusy;
+      submit.disabled = fig.empty || state.gateBusy;
       if (!state.gateBusy) submit.textContent = `Submit ${(fig.phase?.name || "log").toLowerCase()}`;
     }
   }
@@ -2490,14 +2480,8 @@
     const date = state.macroDate || todayISO();
     if (!phase || date !== todayISO()) return;
     const lines = (state.gateLines || []).filter((line) => line.item_id && Number(line.qty) > 0);
-    const fig = composerFigures();
     if (!lines.length) {
       state.gateErr = "Add at least one food.";
-      paintComposerMeter();
-      return;
-    }
-    if (fig.hard && fig.totals.calories > fig.guide + 0.49) {
-      state.gateErr = `Cap is ${num(fig.guide, 0)} kcal.`;
       paintComposerMeter();
       return;
     }
