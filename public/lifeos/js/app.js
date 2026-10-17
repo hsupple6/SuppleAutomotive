@@ -96,6 +96,7 @@
     lockLinesLoading: false,
     lockTaunt: "",
     lockTauntPhase: "",
+    freeLog: false,
   };
 
   const CAT_COLOR = {
@@ -136,6 +137,12 @@
     const m = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
     return `${d.getFullYear()}-${m}-${day}`;
+  }
+
+  function isWeekend(iso) {
+    const d = new Date(`${iso}T12:00:00`);
+    const day = d.getDay();
+    return day === 0 || day === 6;
   }
 
   function shiftDate(iso, days) {
@@ -278,7 +285,7 @@
             <p class="day-kicker">kcal ${esc(readout.word)}</p>
             <p class="day-num">${num(readout.n, 0)}</p>
             <p class="day-sub">${esc(partMeta.name)}</p>
-            <p class="day-when">${esc(partMeta.when)}</p>
+            ${partMeta.when ? `<p class="day-when">${esc(partMeta.when)}</p>` : ""}
           </div>
         </div>
         <div class="day-legs">
@@ -2199,9 +2206,17 @@
   }
 
   function composerFigures() {
-    const phase = PHASES.find((item) => item.id === state.gatePhaseId) || null;
     const lines = state.gateLines || [];
     const totals = mealTotals(lines);
+    const empty = !lines.some((line) => Number(line.qty) > 0);
+    if (state.freeLog) {
+      const day = state.macros?.day || {};
+      const goal = Number(state.macros?.settings?.calories || 0);
+      const left = Math.max(0, goal - eatenAll(day));
+      const over = goal > 0 && eatenAll(day) + totals.calories > goal + 0.49;
+      return { phase: { name: "Log", kind: "day" }, totals, guide: left, over, empty };
+    }
+    const phase = PHASES.find((item) => item.id === state.gatePhaseId) || null;
     const day = state.macros?.day || {};
     const date = state.macroDate || todayISO();
     const goal = Number(state.macros?.settings?.calories || 0);
@@ -2211,7 +2226,6 @@
       ? (plan.snacks?.[phase.id] ?? (Number(phase.cap) || 0))
       : Math.round(plan.parts[phase.id]?.budget || 0));
     const over = guide > 0 && totals.calories > guide + 0.49;
-    const empty = !lines.some((line) => Number(line.qty) > 0);
     return { phase, totals, guide, over, empty };
   }
 
@@ -2247,6 +2261,7 @@
     const phase = fig.phase;
     const name = phase ? phase.name : "Log";
     const ring = composerRing(fig.totals.calories, fig.guide);
+    const free = state.freeLog;
     const snack = phase && phase.kind === "snack";
     return `
       <div class="stack macros-page comp-page is-enter">
@@ -2255,7 +2270,7 @@
           <div class="comp-top">
             <button type="button" class="comp-back" id="gateBack" aria-label="Back">‹</button>
             <div>
-              <p class="home-kicker">One submit</p>
+              <p class="home-kicker">${free ? "Add food" : "One submit"}</p>
               <h2>${esc(name)}</h2>
             </div>
           </div>
@@ -2266,7 +2281,7 @@
             </svg>
             <div class="comp-read">
               <b data-comp-kcal>${num(fig.totals.calories, 0)}</b>
-              <span data-comp-cap>of ${num(fig.guide, 0)}</span>
+              <span data-comp-cap>${free ? `${num(fig.guide, 0)} left` : `of ${num(fig.guide, 0)}`}</span>
             </div>
           </div>
           <p class="comp-split" data-comp-split>P${num(fig.totals.protein_g, 0)} · C${num(fig.totals.carb_g, 0)} · F${num(fig.totals.fat_g, 0)}</p>
@@ -2277,8 +2292,8 @@
           </label>
           <div class="comp-hits" id="gateHits"></div>
           <button type="button" class="comp-new" id="gateNew">New food</button>
-          <button type="button" class="comp-submit" id="gateSubmit"${(fig.empty || state.gateBusy) ? " disabled" : ""}>${state.gateBusy ? "Saving…" : `Submit ${esc(name.toLowerCase())}`}</button>
-          <button type="button" class="gate-skip" id="skipGate">${snack ? "No snack" : `Skip ${esc(name.toLowerCase())}`}</button>
+          <button type="button" class="comp-submit" id="gateSubmit"${(fig.empty || state.gateBusy) ? " disabled" : ""}>${state.gateBusy ? "Saving…" : (free ? "Log" : `Submit ${esc(name.toLowerCase())}`)}</button>
+          ${free ? "" : `<button type="button" class="gate-skip" id="skipGate">${snack ? "No snack" : `Skip ${esc(name.toLowerCase())}`}</button>`}
         </section>
       </div>`;
   }
@@ -2291,7 +2306,7 @@
     const cap = document.querySelector("[data-comp-cap]");
     const split = document.querySelector("[data-comp-split]");
     if (kcal) kcal.textContent = num(fig.totals.calories, 0);
-    if (cap) cap.textContent = `of ${num(fig.guide, 0)}`;
+    if (cap) cap.textContent = state.freeLog ? `${num(fig.guide, 0)} left` : `of ${num(fig.guide, 0)}`;
     if (split) split.textContent = `P${num(fig.totals.protein_g, 0)} · C${num(fig.totals.carb_g, 0)} · F${num(fig.totals.fat_g, 0)}`;
     const ring = document.querySelector(".comp-ring-fill");
     if (ring) {
@@ -2304,7 +2319,7 @@
     const submit = $("gateSubmit");
     if (submit) {
       submit.disabled = fig.empty || state.gateBusy;
-      if (!state.gateBusy) submit.textContent = `Submit ${(fig.phase?.name || "log").toLowerCase()}`;
+      if (!state.gateBusy) submit.textContent = state.freeLog ? "Log" : `Submit ${(fig.phase?.name || "log").toLowerCase()}`;
     }
   }
 
@@ -2399,7 +2414,8 @@
     const back = $("gateBack");
     if (back) back.onclick = () => {
       vibrate();
-      rememberDraft();
+      if (!state.freeLog) rememberDraft();
+      state.freeLog = false;
       state.gateComposer = false;
       state.gateErr = "";
       renderMacros();
@@ -2427,6 +2443,17 @@
       lines: (state.gateLines || []).slice(),
       query: state.gateQuery || "",
     };
+  }
+
+  function openFreeLog() {
+    vibrate();
+    state.freeLog = true;
+    state.gateComposer = false;
+    state.gatePhaseId = "";
+    state.gateLines = [];
+    state.gateQuery = "";
+    state.gateErr = "";
+    renderMacros();
   }
 
   function openComposer(id) {
@@ -2476,9 +2503,12 @@
 
   async function submitGate() {
     if (state.gateBusy) return;
-    const phase = PHASES.find((item) => item.id === state.gatePhaseId);
+    const free = state.freeLog;
+    const phase = free
+      ? { id: "day", kind: "day", meal: "breakfast" }
+      : PHASES.find((item) => item.id === state.gatePhaseId);
     const date = state.macroDate || todayISO();
-    if (!phase || date !== todayISO()) return;
+    if (!phase || (!free && date !== todayISO())) return;
     const lines = (state.gateLines || []).filter((line) => line.item_id && Number(line.qty) > 0);
     if (!lines.length) {
       state.gateErr = "Add at least one food.";
@@ -2494,9 +2524,11 @@
       submit.textContent = "Saving…";
     }
     let posted = 0;
-    const host = phase.kind === "snack"
-      ? { "snack-am": "breakfast", "snack-mid": "lunch", "snack-pm": "dinner" }[phase.id]
-      : phase.meal;
+    const host = free
+      ? "breakfast"
+      : (phase.kind === "snack"
+        ? { "snack-am": "breakfast", "snack-mid": "lunch", "snack-pm": "dinner" }[phase.id]
+        : phase.meal);
     const known = new Set(allDayRows(state.macros && state.macros.day).map((row) => String(row.id)));
     const fresh = [];
     try {
@@ -2518,10 +2550,13 @@
         posted += 1;
         state.macros = data;
       }
-      if (phase.kind === "snack") rememberSnackIds(date, phase.id, fresh);
-      markGate(date, phase.id);
-      delete state.gateDrafts[phase.id];
+      if (!free) {
+        if (phase.kind === "snack") rememberSnackIds(date, phase.id, fresh);
+        markGate(date, phase.id);
+        delete state.gateDrafts[phase.id];
+      }
       state.gateBusy = false;
+      state.freeLog = false;
       state.gateComposer = false;
       state.gatePhaseId = "";
       state.gateLines = [];
@@ -2530,7 +2565,7 @@
       renderMacros();
     } catch (err) {
       state.gateLines = lines.slice(posted);
-      if (phase.kind === "snack" && fresh.length) rememberSnackIds(date, phase.id, fresh);
+      if (!free && phase.kind === "snack" && fresh.length) rememberSnackIds(date, phase.id, fresh);
       state.gateBusy = false;
       state.gateErr = err.message || "Could not save that log";
       try { state.macros = await LifeAPI.macros(date); } catch (e) {}
@@ -2575,6 +2610,25 @@
     }, 1000);
   }
 
+  function weekendLogHTML(day) {
+    const rows = allDayRows(day).slice().sort((a, b) => String(a.created_at || "").localeCompare(String(b.created_at || "")));
+    const foods = rows.map((row) => `
+      <div class="wk-row">
+        <div>
+          <strong>${esc(row.item_name)}</strong>
+          <span>${esc(qtyLabel(row.qty, row.unit))}</span>
+        </div>
+        <b>${num(row.calories, 0)}</b>
+        <button type="button" class="kill" data-del="${esc(row.id)}" aria-label="Remove ${esc(row.item_name)}">×</button>
+      </div>`).join("");
+    return `
+      <section class="wk-log">
+        <div class="q-head"><p class="home-kicker">Log</p><b>${rows.length}</b></div>
+        ${foods || `<p class="comp-empty">Nothing logged yet.</p>`}
+        <button type="button" class="gate-go" id="openFreeLog">Add food</button>
+      </section>`;
+  }
+
   function renderMacros() {
     const data = state.macros;
     const date = state.macroDate || todayISO();
@@ -2599,19 +2653,31 @@
       state.gateQuery = "";
       state.gateErr = "";
       state.gateDrafts = {};
+      state.freeLog = false;
       state.gateDate = date;
     }
+    const weekend = isWeekend(date);
+    if (weekend) state.gateComposer = false;
+    else state.freeLog = false;
     const ctx = macroContext(data, date);
     const day = ctx.day;
     const plan = ctx.plan;
     const gate = ctx.gate;
-    if (state.gateComposer && !(gate.ready || []).some((item) => item.id === state.gatePhaseId)) {
+    if (!weekend && state.gateComposer && !(gate.ready || []).some((item) => item.id === state.gatePhaseId)) {
       state.gateComposer = false;
     }
-    loadLockLines();
+    if (!weekend) loadLockLines();
     const focusId = focusedPart(date, gate);
-    const focusMeta = DAY_PARTS.find((part) => part.id === focusId) || DAY_PARTS[0];
-    const focusRead = partReadout(focusId, plan.parts[focusId], plan.done);
+    const focusMeta = weekend
+      ? { name: "Day", when: "" }
+      : (DAY_PARTS.find((part) => part.id === focusId) || DAY_PARTS[0]);
+    const usedNow = eatenAll(day);
+    const dayLeft = plan.goal - usedNow;
+    const focusRead = weekend
+      ? (dayLeft < 0
+        ? { n: Math.abs(Math.round(dayLeft)), word: "over", tone: "over" }
+        : { n: Math.max(0, Math.round(dayLeft)), word: "left", tone: "" })
+      : partReadout(focusId, plan.parts[focusId], plan.done);
     const weights = weightPoints();
     const trend = weightTrend(weights);
     const copy = weightCopy(weights, trend);
@@ -2658,10 +2724,10 @@
           </div>
           ${macroRingHTML(day, settings, focusRead, focusMeta)}
         </section>
-        <div class="gate-board">
+        ${weekend ? weekendLogHTML(day) : `<div class="gate-board">
           ${gateSideHTML(gate, plan, day, enterPage)}
           ${gateTimeline(day, plan, gate, focusId)}
-        </div>
+        </div>`}
       </div>`;
     const weightHTML = `
       <div class="stack macros-page weight-page${enterPage ? " is-enter" : ""}">
@@ -2700,7 +2766,7 @@
             </div>`).join("")}</div>` : ""}
         </section>
       </div>`;
-    const showComposer = pane !== "weight" && state.gateComposer;
+    const showComposer = pane !== "weight" && (state.freeLog || (!weekend && state.gateComposer));
     $("screen").innerHTML = pane === "weight" ? weightHTML : (showComposer ? composerHTML() : macroHTML);
     bindPaneSwitch();
     if (pane === "weight") {
@@ -2730,6 +2796,11 @@
       });
       const targets = $("targetsBtn");
       if (targets) targets.onclick = () => openTargetsSheet();
+      const free = $("openFreeLog");
+      if (free) free.onclick = () => openFreeLog();
+      $("screen").querySelectorAll("[data-del]").forEach((btn) => {
+        btn.onclick = () => deleteMacroLog(btn.dataset.del);
+      });
       $("screen").querySelectorAll("[data-queue]").forEach((btn) => {
         btn.onclick = () => openComposer(btn.dataset.queue);
       });
@@ -3033,13 +3104,13 @@
       </div>
       <div class="sheet-foot log-actions">
         <button class="primary" id="saveNewItem" type="button"${state.macroBusy ? " disabled" : ""}>Save item</button>
-        <button class="ghost" id="saveNew" type="button"${state.macroBusy ? " disabled" : ""}>${state.gateComposer ? "Add to log" : (state.macroPickedRecipe ? "Add to this log" : `Log ${esc(mealLabel)}`)}</button>
+        <button class="ghost" id="saveNew" type="button"${state.macroBusy ? " disabled" : ""}>${(state.gateComposer || state.freeLog) ? "Add to log" : (state.macroPickedRecipe ? "Add to this log" : `Log ${esc(mealLabel)}`)}</button>
       </div>`;
     $("phone").appendChild(el);
     $("sheetBack").onclick = () => {
       state.macroMode = "pick";
       state.macroErr = "";
-      if (state.gateComposer) {
+      if (state.gateComposer || state.freeLog) {
         document.getElementById("sheet")?.remove();
         state.macroSheet = "";
         renderMacros();
@@ -3365,7 +3436,7 @@
     state.macroMode = "pick";
     state.macroNew = null;
     state.macroErr = "";
-    if (state.gateComposer) {
+    if (state.gateComposer || state.freeLog) {
       document.getElementById("sheet")?.remove();
       state.macroSheet = "";
       renderMacros();
@@ -3418,7 +3489,7 @@
     try {
       const { food, data, qty } = await persistNewItem();
       if (!food?.id) throw new Error("Could not save item");
-      if (state.gateComposer) {
+      if (state.gateComposer || state.freeLog) {
         state.gateLines = state.gateLines || [];
         state.gateLines.push({ item_id: food.id, qty });
         closeNewItemSheet(food, qty);

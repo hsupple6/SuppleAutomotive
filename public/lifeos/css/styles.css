@@ -4736,6 +4736,44 @@ input[type="search"].field {
 
 .gate-go:active { transform: scale(0.98); }
 
+.wk-log {
+  border-radius: 32px;
+  padding: 18px 16px 16px;
+  background: linear-gradient(180deg, #161616, #090909 72%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.wk-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.wk-row strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 680;
+  letter-spacing: -0.03em;
+}
+
+.wk-row span {
+  display: block;
+  margin-top: 2px;
+  color: rgba(245, 245, 247, 0.42);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.wk-row b {
+  font-size: 15px;
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
 .gate-skip {
   width: 100%;
   margin-top: 8px;
