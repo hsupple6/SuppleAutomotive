@@ -217,15 +217,14 @@
   ];
   const PHASES = [
     { id: "breakfast", meal: "breakfast", name: "Breakfast", kind: "meal", opens: 4 * 60, opensLabel: "4:00 AM" },
-    { id: "snack-am", meal: "snack-am", name: "Snack", kind: "snack", cap: 200 },
     { id: "lunch", meal: "lunch", name: "Lunch", kind: "meal", opens: 11 * 60, opensLabel: "11:00 AM" },
-    { id: "snack-mid", meal: "snack-mid", name: "Snack", kind: "snack", cap: 200 },
     { id: "dinner", meal: "dinner", name: "Dinner", kind: "meal", opens: 18 * 60 + 30, opensLabel: "6:30 PM" },
-    { id: "snack-pm", meal: "snack-pm", name: "Snack", kind: "snack", cap: 150, usesRemaining: true },
   ];
-  const BREAKFAST_KCAL = 250;
+  const SNACK = { id: "snack", meal: "snack", name: "Snack", kind: "snack", opens: 4 * 60, opensLabel: "4:00 AM" };
+  const BREAKFAST_KCAL = 200;
   const LUNCH_KCAL = 550;
   const DINNER_KCAL = 550;
+  const SNACK_KCAL = 600;
   const GATE_CUTS = [4 * 60, 11 * 60, 18 * 60 + 30];
 
   function macroRingHTML(day, settings, readout, partMeta) {
@@ -1717,8 +1716,10 @@
 
   function snackIds(date, phaseId) {
     const day = snackBook()[date] || {};
-    const list = phaseId ? (day[phaseId] || []) : Object.values(day).flat();
-    return list.map((id) => String(id));
+    const keys = !phaseId
+      ? Object.keys(day)
+      : (phaseId === "snack" ? ["snack", "snack-am", "snack-mid", "snack-pm"] : [phaseId]);
+    return keys.flatMap((key) => day[key] || []).map((id) => String(id));
   }
 
   function rememberSnackIds(date, phaseId, ids) {
@@ -1757,7 +1758,7 @@
   }
 
   function eatenAll(day) {
-    return PHASES.reduce((sum, phase) => sum + mealEaten(day, phase.meal), 0);
+    return PHASES.reduce((sum, phase) => sum + mealEaten(day, phase.meal), 0) + mealEaten(day, "snack");
   }
 
   function macroPlan(goal, day, progress) {
@@ -1767,15 +1768,14 @@
     const cut = (n) => Math.round(n * scale);
     const breakfast = cut(BREAKFAST_KCAL);
     const lunchBase = cut(LUNCH_KCAL);
-    const snackAm = cut(200);
-    const snackMid = cut(200);
-    const snackPm = cut(150);
+    const snackBudget = cut(SNACK_KCAL);
     const dinnerBase = target
-      ? Math.max(0, target - breakfast - lunchBase - snackAm - snackMid - snackPm)
+      ? Math.max(0, target - breakfast - lunchBase - snackBudget)
       : cut(DINNER_KCAL);
     const breakfastEaten = mealEaten(day, "breakfast");
     const lunchEaten = mealEaten(day, "lunch");
     const dinnerEaten = mealEaten(day, "dinner");
+    const snackEaten = mealEaten(day, "snack");
     const breakfastLeft = breakfast - breakfastEaten;
     const lunchRoll = done.has("breakfast") ? breakfastLeft : 0;
     const lunchBudget = lunchBase + lunchRoll;
@@ -1784,24 +1784,28 @@
     return {
       done,
       goal: target,
-      snacks: { "snack-am": snackAm, "snack-mid": snackMid, "snack-pm": snackPm },
+      snacks: { snack: snackBudget },
       parts: {
         breakfast: { budget: breakfast, eaten: breakfastEaten, roll: 0 },
         lunch: { budget: lunchBudget, eaten: lunchEaten, roll: lunchRoll },
         dinner: { budget: dinnerBudget, eaten: dinnerEaten, roll: dinnerRoll },
+        snack: { budget: snackBudget, eaten: snackEaten, roll: 0 },
       },
     };
   }
 
+  function partMeta(id) {
+    if (id === "snack") return { name: "Snack", when: "From 4:00 AM" };
+    return DAY_PARTS.find((part) => part.id === id) || DAY_PARTS[0];
+  }
+
   function focusedPart(date, gate) {
-    if (DAY_PARTS.some((part) => part.id === state.macroFocus)) return state.macroFocus;
-    const readyMeal = (gate?.ready || []).find((item) => DAY_PARTS.some((part) => part.id === item.id));
+    if (state.macroFocus === "snack" || DAY_PARTS.some((part) => part.id === state.macroFocus)) return state.macroFocus;
+    const readyMeal = (gate?.ready || []).find((item) => item.kind === "meal");
     if (readyMeal) return readyMeal.id;
-    const phaseId = (gate?.locked && gate.locked.id) || (gate?.phase && gate.phase.id) || "";
-    if (phaseId === "snack-am") return "breakfast";
-    if (phaseId === "snack-mid") return "lunch";
-    if (phaseId === "snack-pm") return "dinner";
+    const phaseId = (gate?.locked && gate.locked.id) || "";
     if (DAY_PARTS.some((part) => part.id === phaseId)) return phaseId;
+    if ((gate?.ready || []).some((item) => item.id === "snack")) return "snack";
     if (date < todayISO()) return "dinner";
     return "breakfast";
   }
@@ -1846,7 +1850,7 @@
     if (!data || data.date !== date) return null;
     const ctx = macroContext(data, date);
     const id = focusedPart(date, ctx.gate);
-    const meta = DAY_PARTS.find((part) => part.id === id) || DAY_PARTS[0];
+    const meta = partMeta(id);
     return { plan: ctx.plan, id, meta, readout: partReadout(id, ctx.plan.parts[id], ctx.plan.done), date, data };
   }
 
@@ -1957,8 +1961,8 @@
     const breakfast = mealEaten(day, "breakfast");
     const lunch = mealEaten(day, "lunch");
     const done = [];
-    if (breakfast > 0 && (now >= 11 * 60 || lunch > 0)) done.push("breakfast", "snack-am");
-    if (lunch > 0 && done.includes("snack-am")) done.push("lunch");
+    if (breakfast > 0 && (now >= 11 * 60 || lunch > 0)) done.push("breakfast");
+    if (lunch > 0 && done.includes("breakfast")) done.push("lunch");
     return done;
   }
 
@@ -1967,7 +1971,7 @@
     if (date > today) return { done: [] };
     const store = gateStore();
     if (store[date] && Array.isArray(store[date].done)) return { done: store[date].done.slice() };
-    const done = date < today ? PHASES.map((phase) => phase.id) : seedToday(day);
+    const done = date < today ? PHASES.map((phase) => phase.id).concat("snack") : seedToday(day);
     store[date] = { done };
     saveGates(store);
     return { done: done.slice() };
@@ -2019,6 +2023,7 @@
       ready.push({ ...phase, cap: 0 });
       break;
     }
+    if (now >= SNACK.opens && !done.has(SNACK.id)) ready.push({ ...SNACK, cap: 0 });
     let mode = "complete";
     if (ready.length && locked) mode = "mixed";
     else if (ready.length) mode = "open";
@@ -2067,10 +2072,15 @@
   }
 
   function phaseHint(phase) {
-    if (phase.id === "snack-am") return "After breakfast";
-    if (phase.id === "snack-mid") return "After lunch";
-    if (phase.id === "snack-pm") return "After dinner";
+    if (phase.kind === "snack") return "From 4:00 AM";
     return phase.opensLabel || "";
+  }
+
+  function dayPhases() {
+    const breakfast = PHASES.find((phase) => phase.id === "breakfast");
+    const lunch = PHASES.find((phase) => phase.id === "lunch");
+    const dinner = PHASES.find((phase) => phase.id === "dinner");
+    return [breakfast, SNACK, lunch, dinner];
   }
 
   function loadLockLines() {
@@ -2116,17 +2126,19 @@
       </div>`;
   }
 
-  function queueCardHTML(item, plan) {
+  function queueCardHTML(item, plan, day) {
     const snack = item.kind === "snack";
-    const budget = snack ? item.cap : Math.round(plan.parts[item.id]?.budget || 0);
-    const hint = snack ? `${phaseHint(item)} · holds all day` : "One submit";
+    const budget = snack ? Math.round(plan.snacks?.snack || 0) : Math.round(plan.parts[item.id]?.budget || 0);
+    const eaten = snack ? mealEaten(day, "snack") : 0;
+    const hint = snack ? "From 4:00 · add anytime" : "One submit";
+    const figure = snack ? `${num(eaten, 0)} / ${num(budget, 0)}` : num(budget, 0);
     return `
       <article class="q-card${snack ? " is-snack" : ""}">
         <button type="button" class="q-main" data-queue="${esc(item.id)}">
           <span class="q-kicker">${snack ? "Snack" : "Meal"}</span>
           <strong>${esc(item.name)}</strong>
           <em>${esc(hint)}</em>
-          <b class="q-kcal">${num(budget, 0)}<small>kcal</small></b>
+          <b class="q-kcal">${figure}<small>kcal</small></b>
         </button>
         <button type="button" class="q-skip" data-skip="${esc(item.id)}">${snack ? "Drop" : "Skip"}</button>
       </article>`;
@@ -2144,7 +2156,7 @@
       const closed = left <= 0;
       return `<section class="gate-stage is-done"><p class="home-kicker">Finished</p><h2>${closed ? "Out of calories" : `${num(Math.max(0, left), 0)} still on the table`}</h2><p>${closed ? "The day is closed." : "Dinner is in. The day is closed."}</p></section>`;
     }
-    const cards = (gate.ready || []).map((item) => queueCardHTML(item, plan)).join("");
+    const cards = (gate.ready || []).map((item) => queueCardHTML(item, plan, day)).join("");
     const locked = gate.locked;
     const taunt = locked ? lockTaunt(locked.id, fresh) : "";
     const slim = (gate.ready || []).length > 0;
@@ -2165,32 +2177,28 @@
 
   function gateTimeline(day, plan, gate, focusId) {
     const readyIds = new Set((gate.ready || []).map((item) => item.id));
-    return `<ol class="gate-rail">${PHASES.map((phase) => {
-      const status = gate.done.has(phase.id)
+    return `<ol class="gate-rail">${dayPhases().map((phase) => {
+      let status = gate.mode === "review" || gate.done.has(phase.id)
         ? "done"
         : (readyIds.has(phase.id) ? "open" : (gate.locked && gate.locked.id === phase.id ? "locked" : "wait"));
+      if (phase.kind === "snack" && status === "wait" && gate.locked && gate.locked.id === "breakfast") status = "locked";
       const rows = mealRows(day, phase.meal);
       const eaten = mealEaten(day, phase.meal);
       const hint = phaseHint(phase);
-      const queued = (gate.ready || []).find((item) => item.id === phase.id);
       let meta = "";
       if (phase.kind === "meal") {
         const slot = plan.parts[phase.id];
         meta = `${num(eaten, 0)} / ${num(Math.round(slot?.budget || 0), 0)}`;
-      } else if (status === "done") {
-        meta = eaten ? `${num(eaten, 0)} kcal` : "Skipped";
-      } else if (queued) {
-        meta = `up to ${num(queued.cap, 0)}`;
+      } else if (status === "done" && !eaten) {
+        meta = "Skipped";
       } else {
-        meta = `up to ${num(phase.cap, 0)}`;
+        meta = `${num(eaten, 0)} / ${num(Math.round(plan.snacks?.snack || 0), 0)}`;
       }
       const note = phase.kind === "meal" ? slotNote(phase.id, plan) : "";
-      const name = phase.kind === "meal"
-        ? `<button type="button" class="gate-name" data-focus="${phase.id}">${esc(phase.name)}</button>`
-        : `<strong class="gate-name">${esc(phase.name)}</strong>`;
+      const name = `<button type="button" class="gate-name" data-focus="${phase.id}">${esc(phase.name)}</button>`;
       const foods = rows.map((row) => `<li><span>${esc(row.item_name)}</span><b>${num(row.calories, 0)}</b></li>`).join("");
       const badge = status === "open"
-        ? `<em class="slot-now"><i></i>${phase.kind === "snack" ? "Queued" : "Now"}</em>`
+        ? `<em class="slot-now"><i></i>${phase.kind === "snack" ? "Open" : "Now"}</em>`
         : "";
       return `
         <li class="gate-step is-${status}${focusId === phase.id ? " is-on" : ""}">
@@ -2216,17 +2224,36 @@
       const over = goal > 0 && eatenAll(day) + totals.calories > goal + 0.49;
       return { phase: { name: "Log", kind: "day" }, totals, guide: left, over, empty };
     }
-    const phase = PHASES.find((item) => item.id === state.gatePhaseId) || null;
+    const phase = PHASES.find((item) => item.id === state.gatePhaseId) || (state.gatePhaseId === "snack" ? SNACK : null);
     const day = state.macros?.day || {};
     const date = state.macroDate || todayISO();
     const goal = Number(state.macros?.settings?.calories || 0);
     const progress = gateProgress(date, day);
     const plan = macroPlan(goal, day, progress);
-    const guide = !phase ? 0 : (phase.kind === "snack"
-      ? (plan.snacks?.[phase.id] ?? (Number(phase.cap) || 0))
+    const snack = phase && phase.kind === "snack";
+    const shown = snack ? snackRunning(day, lines) : totals;
+    const guide = !phase ? 0 : (snack
+      ? Math.round(plan.snacks?.snack || 0)
       : Math.round(plan.parts[phase.id]?.budget || 0));
-    const over = guide > 0 && totals.calories > guide + 0.49;
-    return { phase, totals, guide, over, empty };
+    const over = guide > 0 && shown.calories > guide + 0.49;
+    return { phase, totals: shown, guide, over, empty };
+  }
+
+  function snackRunning(day, lines) {
+    const base = mealRows(day, "snack").reduce((sum, row) => {
+      sum.calories += Number(row.calories || 0);
+      sum.protein_g += Number(row.protein_g || 0);
+      sum.carb_g += Number(row.carb_g || 0);
+      sum.fat_g += Number(row.fat_g || 0);
+      return sum;
+    }, { calories: 0, protein_g: 0, carb_g: 0, fat_g: 0 });
+    const add = mealTotals(lines || []);
+    return {
+      calories: base.calories + add.calories,
+      protein_g: base.protein_g + add.protein_g,
+      carb_g: base.carb_g + add.carb_g,
+      fat_g: base.fat_g + add.fat_g,
+    };
   }
 
   function composerRing(kcal, guide) {
@@ -2263,6 +2290,8 @@
     const ring = composerRing(fig.totals.calories, fig.guide);
     const free = state.freeLog;
     const snack = phase && phase.kind === "snack";
+    const kicker = free ? "Add food" : (snack ? "Add to snack" : "One submit");
+    const action = state.gateBusy ? "Saving…" : (free ? "Log" : (snack ? "Add" : `Submit ${esc(name.toLowerCase())}`));
     return `
       <div class="stack macros-page comp-page is-enter">
         ${paneSwitch("macros")}
@@ -2270,7 +2299,7 @@
           <div class="comp-top">
             <button type="button" class="comp-back" id="gateBack" aria-label="Back">‹</button>
             <div>
-              <p class="home-kicker">${free ? "Add food" : "One submit"}</p>
+              <p class="home-kicker">${kicker}</p>
               <h2>${esc(name)}</h2>
             </div>
           </div>
@@ -2292,8 +2321,8 @@
           </label>
           <div class="comp-hits" id="gateHits"></div>
           <button type="button" class="comp-new" id="gateNew">New food</button>
-          <button type="button" class="comp-submit" id="gateSubmit"${(fig.empty || state.gateBusy) ? " disabled" : ""}>${state.gateBusy ? "Saving…" : (free ? "Log" : `Submit ${esc(name.toLowerCase())}`)}</button>
-          ${free ? "" : `<button type="button" class="gate-skip" id="skipGate">${snack ? "No snack" : `Skip ${esc(name.toLowerCase())}`}</button>`}
+          <button type="button" class="comp-submit" id="gateSubmit"${(fig.empty || state.gateBusy) ? " disabled" : ""}>${action}</button>
+          ${free || snack ? "" : `<button type="button" class="gate-skip" id="skipGate">Skip ${esc(name.toLowerCase())}</button>`}
         </section>
       </div>`;
   }
@@ -2319,7 +2348,10 @@
     const submit = $("gateSubmit");
     if (submit) {
       submit.disabled = fig.empty || state.gateBusy;
-      if (!state.gateBusy) submit.textContent = state.freeLog ? "Log" : `Submit ${(fig.phase?.name || "log").toLowerCase()}`;
+      if (!state.gateBusy) {
+        const snack = fig.phase?.kind === "snack";
+        submit.textContent = state.freeLog ? "Log" : (snack ? "Add" : `Submit ${(fig.phase?.name || "log").toLowerCase()}`);
+      }
     }
   }
 
@@ -2476,7 +2508,7 @@
   function openGateNew() {
     const phase = PHASES.find((item) => item.id === state.gatePhaseId);
     state.macroSheet = "log";
-    state.macroMeal = phase ? phase.meal : "breakfast";
+    state.macroMeal = phase && phase.kind !== "snack" ? phase.meal : "breakfast";
     state.macroQuery = state.gateQuery || "";
     openNewItem();
   }
@@ -2506,7 +2538,7 @@
     const free = state.freeLog;
     const phase = free
       ? { id: "day", kind: "day", meal: "breakfast" }
-      : PHASES.find((item) => item.id === state.gatePhaseId);
+      : (PHASES.find((item) => item.id === state.gatePhaseId) || (state.gatePhaseId === "snack" ? SNACK : null));
     const date = state.macroDate || todayISO();
     if (!phase || (!free && date !== todayISO())) return;
     const lines = (state.gateLines || []).filter((line) => line.item_id && Number(line.qty) > 0);
@@ -2524,11 +2556,7 @@
       submit.textContent = "Saving…";
     }
     let posted = 0;
-    const host = free
-      ? "breakfast"
-      : (phase.kind === "snack"
-        ? { "snack-am": "breakfast", "snack-mid": "lunch", "snack-pm": "dinner" }[phase.id]
-        : phase.meal);
+    const host = free || phase.kind === "snack" ? "breakfast" : phase.meal;
     const known = new Set(allDayRows(state.macros && state.macros.day).map((row) => String(row.id)));
     const fresh = [];
     try {
@@ -2550,8 +2578,8 @@
         posted += 1;
         state.macros = data;
       }
-      if (!free) {
-        if (phase.kind === "snack") rememberSnackIds(date, phase.id, fresh);
+      if (!free && phase.kind === "snack") rememberSnackIds(date, phase.id, fresh);
+      if (!free && phase.kind !== "snack") {
         markGate(date, phase.id);
         delete state.gateDrafts[phase.id];
       }
@@ -2670,7 +2698,7 @@
     const focusId = focusedPart(date, gate);
     const focusMeta = weekend
       ? { name: "Day", when: "" }
-      : (DAY_PARTS.find((part) => part.id === focusId) || DAY_PARTS[0]);
+      : partMeta(focusId);
     const usedNow = eatenAll(day);
     const dayLeft = plan.goal - usedNow;
     const focusRead = weekend
@@ -2968,7 +2996,7 @@
 
   function drawLogSheet() {
     document.getElementById("sheet")?.remove();
-    const mealLabel = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", "snack-am": "Snack", "snack-mid": "Snack", "snack-pm": "Snack" }[state.macroMeal] || "Meal";
+    const mealLabel = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack" }[state.macroMeal] || "Meal";
     const el = document.createElement("div");
     el.id = "sheet";
     if (state.macroMode === "new") {
