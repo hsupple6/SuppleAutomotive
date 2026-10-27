@@ -1970,7 +1970,15 @@
     const today = todayISO();
     if (date > today) return { done: [] };
     const store = gateStore();
-    if (store[date] && Array.isArray(store[date].done)) return { done: store[date].done.slice() };
+    if (store[date] && Array.isArray(store[date].done)) {
+      let saved = store[date].done.slice();
+      if (date === today && saved.includes("snack")) {
+        saved = saved.filter((id) => id !== "snack");
+        store[date] = { done: saved };
+        saveGates(store);
+      }
+      return { done: saved };
+    }
     const done = date < today ? PHASES.map((phase) => phase.id).concat("snack") : seedToday(day);
     store[date] = { done };
     saveGates(store);
@@ -2023,7 +2031,7 @@
       ready.push({ ...phase, cap: 0 });
       break;
     }
-    if (now >= SNACK.opens && !done.has(SNACK.id)) ready.push({ ...SNACK, cap: 0 });
+    if (now >= SNACK.opens) ready.push({ ...SNACK, cap: 0 });
     let mode = "complete";
     if (ready.length && locked) mode = "mixed";
     else if (ready.length) mode = "open";
@@ -2140,7 +2148,7 @@
           <em>${esc(hint)}</em>
           <b class="q-kcal">${figure}<small>kcal</small></b>
         </button>
-        <button type="button" class="q-skip" data-skip="${esc(item.id)}">${snack ? "Drop" : "Skip"}</button>
+        ${snack ? "" : `<button type="button" class="q-skip" data-skip="${esc(item.id)}">Skip</button>`}
       </article>`;
   }
 
@@ -2178,7 +2186,8 @@
   function gateTimeline(day, plan, gate, focusId) {
     const readyIds = new Set((gate.ready || []).map((item) => item.id));
     return `<ol class="gate-rail">${dayPhases().map((phase) => {
-      let status = gate.mode === "review" || gate.done.has(phase.id)
+      const closed = gate.mode === "review" || (phase.kind !== "snack" && gate.done.has(phase.id));
+      let status = closed
         ? "done"
         : (readyIds.has(phase.id) ? "open" : (gate.locked && gate.locked.id === phase.id ? "locked" : "wait"));
       if (phase.kind === "snack" && status === "wait" && gate.locked && gate.locked.id === "breakfast") status = "locked";
@@ -2517,6 +2526,7 @@
     const date = state.macroDate || todayISO();
     if (!state.macros || date !== todayISO() || state.gateBusy) return;
     const target = id || state.gatePhaseId;
+    if (target === "snack") return;
     const ctx = macroContext(state.macros, date);
     const hit = (ctx.gate.ready || []).find((item) => item.id === target);
     if (!hit) return;
