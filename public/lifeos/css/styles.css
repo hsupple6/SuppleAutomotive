@@ -5350,11 +5350,19 @@ input[type="search"].field {
 .meal-board {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+
+.meal-board-live,
+.meal-board-done {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
 @media (min-width: 900px) {
-  .meal-board {
+  .meal-board-live,
+  .meal-board-done {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
@@ -5389,10 +5397,21 @@ input[type="search"].field {
 }
 
 .meal-card-top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.meal-fold {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(245, 245, 247, 0.7);
+  font-size: 14px;
+  line-height: 1;
 }
 
 .meal-card-name {
@@ -5412,6 +5431,40 @@ input[type="search"].field {
   font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.meal-edit {
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(245, 245, 247, 0.82);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.meal-edit.is-done {
+  background: rgba(200, 255, 0, 0.16);
+  color: #c8ff00;
+}
+
+.meal-card.is-folded .meal-card-body {
+  display: none;
+}
+
+.meal-card.is-folded {
+  padding-bottom: 14px;
+}
+
+.meal-card.is-done {
+  opacity: 0.92;
+}
+
+.meal-card-body {
+  margin-top: 4px;
 }
 
 .meal-card-note {

@@ -97,6 +97,8 @@
     lockTaunt: "",
     lockTauntPhase: "",
     freeLog: false,
+    mealOpen: {},
+    mealEdit: {},
   };
 
   const CAT_COLOR = {
@@ -1766,8 +1768,8 @@
 
   function devianceLabel(amount, mealName) {
     if (!amount) return "";
-    if (amount > 0) return `+${num(amount, 0)}`;
-    return `−${num(Math.abs(amount), 0)}`;
+    if (amount > 0) return `+${num(amount, 0)} ${mealName} under`;
+    return `−${num(Math.abs(amount), 0)} ${mealName} over`;
   }
 
   function macroPlan(goal, day) {
@@ -1949,6 +1951,23 @@
   function armMacroClock() {
     window.clearTimeout(state.macroClock);
     state.macroClock = 0;
+    const date = state.macroDate || todayISO();
+    if (hashRoute().route !== "macros" || date !== todayISO()) return;
+    const now = new Date();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    const next = [9 * 60 + 30, 15 * 60 + 30].find((cut) => cut > mins);
+    if (next == null) return;
+    const target = new Date(now);
+    target.setHours(0, 0, 0, 0);
+    target.setMinutes(next);
+    target.setSeconds(1);
+    state.macroClock = window.setTimeout(() => {
+      state.macroClock = 0;
+      if (hashRoute().route !== "macros") return;
+      if (state.macroSheet || state.macroPane === "weight") state.macroClockDirty = true;
+      else renderMacros();
+      armMacroClock();
+    }, Math.max(1000, target.getTime() - now.getTime()));
   }
 
   function dayBalance(plan, day) {
@@ -1982,12 +2001,10 @@
   }
 
   function seedToday(day) {
-    const now = clockMins();
-    const breakfast = mealEaten(day, "breakfast");
-    const lunch = mealEaten(day, "lunch");
     const done = [];
-    if (breakfast > 0 && (now >= 11 * 60 || lunch > 0)) done.push("breakfast");
-    if (lunch > 0 && done.includes("breakfast")) done.push("lunch");
+    if (mealEaten(day, "breakfast") > 0) done.push("breakfast");
+    if (mealEaten(day, "lunch") > 0) done.push("lunch");
+    if (mealEaten(day, "dinner") > 0) done.push("dinner");
     return done;
   }
 
@@ -2017,6 +2034,64 @@
     store[date] = { done };
     saveGates(store);
     return done;
+  }
+
+  function unmarkGate(date, id) {
+    const store = gateStore();
+    const done = Array.isArray(store[date]?.done) ? store[date].done.filter((item) => item !== id) : [];
+    store[date] = { done };
+    saveGates(store);
+    return done;
+  }
+
+  function mealCommitted(date, id, day) {
+    if (id === "snack") return false;
+    const progress = gateProgress(date, day);
+    if ((progress.done || []).includes(id)) return true;
+    if (mealEaten(day, id) > 0) {
+      markGate(date, id);
+      return true;
+    }
+    return false;
+  }
+
+  function mealAppears(id, date) {
+    if (date !== todayISO()) return true;
+    const mins = clockMins();
+    if (id === "lunch") return mins >= 9 * 60 + 30;
+    if (id === "dinner") return mins >= 15 * 60 + 30;
+    return true;
+  }
+
+  function mealExpanded(id) {
+    return Boolean(state.mealOpen?.[id]);
+  }
+
+  function mealEditing(id) {
+    return Boolean(state.mealEdit?.[id]);
+  }
+
+  function toggleMealOpen(id) {
+    vibrate();
+    state.mealOpen = state.mealOpen || {};
+    state.mealOpen[id] = !state.mealOpen[id];
+    renderMacros();
+  }
+
+  function startMealEdit(id) {
+    vibrate();
+    state.mealEdit = state.mealEdit || {};
+    state.mealOpen = state.mealOpen || {};
+    state.mealEdit[id] = true;
+    state.mealOpen[id] = true;
+    renderMacros();
+  }
+
+  function finishMealEdit(id) {
+    vibrate();
+    if (state.mealEdit) state.mealEdit[id] = false;
+    if (state.mealOpen) state.mealOpen[id] = false;
+    renderMacros();
   }
 
   function absorbGate(date, id, done, progress) {
@@ -2178,17 +2253,29 @@
       </div>`;
   }
 
-  function mealBoardHTML(day, plan, gate, focusId, canLog) {
+  function mealBoardHTML(day, plan, gate, focusId, canLog, date) {
     if (gate.mode === "future") {
       return `<section class="meal-board is-empty"><p class="home-kicker">Ahead</p><h2>This day is still closed.</h2></section>`;
     }
-    return `<div class="meal-board">${dayPhases().map((phase) => {
+    const phases = dayPhases().filter((phase) => mealAppears(phase.id, date));
+    const active = [];
+    const done = [];
+    phases.forEach((phase) => {
+      if (phase.kind === "snack") active.push(phase);
+      else if (mealCommitted(date, phase.id, day)) done.push(phase);
+      else active.push(phase);
+    });
+    const card = (phase) => {
       const slot = plan.parts[phase.id] || {};
       const eaten = Math.round(slot.eaten || 0);
       const budget = Math.round(slot.budget || 0);
       const rows = mealRows(day, phase.meal);
       const note = slotNote(phase.id, plan);
       const noteTone = slotNoteTone(phase.id, plan);
+      const committed = phase.kind !== "snack" && mealCommitted(date, phase.id, day);
+      const editing = mealEditing(phase.id);
+      const open = mealExpanded(phase.id);
+      const canChange = canLog && (!committed || editing);
       const foods = rows.map((row) => `
         <div class="meal-row">
           <div>
@@ -2196,19 +2283,36 @@
             <span>${esc(qtyLabel(row.qty, row.unit))}</span>
           </div>
           <b>${num(row.calories, 0)}</b>
-          ${canLog ? `<button type="button" class="kill" data-del="${esc(row.id)}" aria-label="Remove ${esc(row.item_name)}">×</button>` : ""}
+          ${canChange ? `<button type="button" class="kill" data-del="${esc(row.id)}" aria-label="Remove ${esc(row.item_name)}">×</button>` : ""}
         </div>`).join("");
+      const actions = canLog
+        ? (committed && !editing
+          ? `<button type="button" class="meal-edit" data-edit="${esc(phase.id)}">Edit</button>`
+          : (committed && editing
+            ? `<button type="button" class="meal-edit is-done" data-edit-done="${esc(phase.id)}">Done</button>`
+            : ""))
+        : "";
       return `
-        <section class="meal-card${focusId === phase.id ? " is-on" : ""}${phase.kind === "snack" ? " is-snack" : ""}">
+        <section class="meal-card${focusId === phase.id ? " is-on" : ""}${phase.kind === "snack" ? " is-snack" : ""}${committed ? " is-done" : ""}${open ? " is-open" : " is-folded"}">
           <div class="meal-card-top">
+            <button type="button" class="meal-fold" data-fold="${esc(phase.id)}" aria-expanded="${open ? "true" : "false"}" aria-label="${open ? "Fold" : "Unfold"} ${esc(phase.name)}">${open ? "▾" : "▸"}</button>
             <button type="button" class="meal-card-name" data-focus="${esc(phase.id)}">${esc(phase.name)}</button>
             <em>${num(eaten, 0)} / ${num(budget, 0)}</em>
+            ${actions}
           </div>
           ${note ? `<p class="meal-card-note ${esc(noteTone)}">${esc(note)}</p>` : ""}
-          ${foods || `<p class="comp-empty">Nothing yet.</p>`}
-          ${canLog ? `<button type="button" class="meal-add" data-queue="${esc(phase.id)}">Add</button>` : ""}
+          <div class="meal-card-body">
+            ${foods || `<p class="comp-empty">${committed ? "Logged." : "Nothing yet."}</p>`}
+            ${canChange ? `<button type="button" class="meal-add" data-queue="${esc(phase.id)}">${phase.kind === "snack" ? "Add" : (committed ? "Add more" : "Log")}</button>` : ""}
+          </div>
         </section>`;
-    }).join("")}</div>`;
+    };
+
+    return `
+      <div class="meal-board">
+        ${active.length ? `<div class="meal-board-live">${active.map(card).join("")}</div>` : ""}
+        ${done.length ? `<div class="meal-board-done">${done.map(card).join("")}</div>` : ""}
+      </div>`;
   }
 
   function composerFigures() {
@@ -2479,6 +2583,10 @@
     if (date !== todayISO()) return;
     const phase = dayPhases().find((item) => item.id === id);
     if (!phase) return;
+    const day = state.macros?.day || {};
+    const committed = mealCommitted(date, id, day);
+    if (committed && !mealEditing(id) && phase.kind !== "snack") return;
+    if (!mealAppears(id, date)) return;
     vibrate();
     if (state.gateComposer && state.gatePhaseId && state.gatePhaseId !== id) rememberDraft();
     const saved = state.gateDrafts[id];
@@ -2541,6 +2649,13 @@
     const label = phase.name || "Food";
     const known = new Set(allDayRows(state.macros && state.macros.day).map((row) => String(row.id)));
     if (phaseId) delete state.gateDrafts[phaseId];
+    if (phaseKind !== "snack" && phaseId && phaseId !== "day") {
+      markGate(date, phaseId);
+      state.mealOpen = state.mealOpen || {};
+      state.mealEdit = state.mealEdit || {};
+      state.mealOpen[phaseId] = false;
+      state.mealEdit[phaseId] = false;
+    }
     state.gateBusy = false;
     state.freeLog = false;
     state.gateComposer = false;
@@ -2575,6 +2690,7 @@
         showMacroToast(`${label} logged`, "ok");
       } catch (err) {
         if (phaseKind === "snack" && fresh.length) rememberSnackIds(date, phaseId, fresh);
+        if (phaseKind !== "snack" && phaseId && phaseId !== "day") unmarkGate(date, phaseId);
         try { state.macros = await LifeAPI.macros(date); } catch (e) {}
         if (hashRoute().route === "macros") renderMacros();
         showMacroToast(err.message || "Could not save that log", "err");
@@ -2614,6 +2730,8 @@
       state.gateErr = "";
       state.gateDrafts = {};
       state.freeLog = false;
+      state.mealOpen = {};
+      state.mealEdit = {};
       state.gateDate = date;
     }
     if (state.freeLog) state.gateComposer = false;
@@ -2674,7 +2792,7 @@
           </div>
           ${macroRingHTML(day, settings, focusRead, focusMeta)}
         </section>
-        ${mealBoardHTML(day, plan, gate, focusId, canLog)}
+        ${mealBoardHTML(day, plan, gate, focusId, canLog, date)}
       </div>`;
     const weightHTML = `
       <div class="stack macros-page weight-page${enterPage ? " is-enter" : ""}">
@@ -2749,8 +2867,18 @@
       $("screen").querySelectorAll("[data-queue]").forEach((btn) => {
         btn.onclick = () => openComposer(btn.dataset.queue);
       });
+      $("screen").querySelectorAll("[data-fold]").forEach((btn) => {
+        btn.onclick = () => toggleMealOpen(btn.dataset.fold);
+      });
+      $("screen").querySelectorAll("[data-edit]").forEach((btn) => {
+        btn.onclick = () => startMealEdit(btn.dataset.edit);
+      });
+      $("screen").querySelectorAll("[data-edit-done]").forEach((btn) => {
+        btn.onclick = () => finishMealEdit(btn.dataset.editDone);
+      });
       playDayMotion();
     }
+    armMacroClock();
     if (state.macroSheet === "log") drawLogSheet();
     if (state.macroSheet === "targets") drawTargetsSheet();
   }
@@ -3484,10 +3612,11 @@
 
   async function deleteMacroLog(id) {
     vibrate();
+    const date = state.macroDate || todayISO();
     try {
-      state.macros = await LifeAPI.macroDelete({
-        id,
-        date: state.macroDate || todayISO(),
+      state.macros = await LifeAPI.macroDelete({ id, date });
+      ["breakfast", "lunch", "dinner"].forEach((meal) => {
+        if (mealEaten(state.macros?.day || {}, meal) <= 0) unmarkGate(date, meal);
       });
       renderMacros();
     } catch (err) {
