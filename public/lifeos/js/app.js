@@ -229,9 +229,9 @@
 
   function macroRingHTML(day, settings, readout, partMeta) {
     const shares = [
-      { key: "p", name: "Protein", band: day.protein, share: Number(settings.protein_pct || 0), color: "#c8ff00" },
-      { key: "c", name: "Carbs", band: day.carb, share: Number(settings.carb_pct || 0), color: "#64d2ff" },
-      { key: "f", name: "Fat", band: day.fat, share: Number(settings.fat_pct || 0), color: "#ff9f0a" },
+      { key: "p", name: "Protein", band: day.protein, share: Number(settings.protein_pct || 0), color: "#c9d5b5" },
+      { key: "c", name: "Carbs", band: day.carb, share: Number(settings.carb_pct || 0), color: "#8fb7c9" },
+      { key: "f", name: "Fat", band: day.fat, share: Number(settings.fat_pct || 0), color: "#d2a98a" },
     ];
     const totalShare = shares.reduce((sum, row) => sum + Math.max(0, row.share), 0) || 100;
     const gap = 18;
@@ -1792,11 +1792,7 @@
     const lunchDev = mealDeviance(lunch, eaten.lunch);
     const dinnerDev = mealDeviance(dinner, eaten.dinner);
     const snackBudget = Math.max(0, snackBase + breakfastDev + lunchDev + dinnerDev);
-    const snackBits = [
-      breakfastDev ? devianceLabel(breakfastDev, "breakfast") : "",
-      lunchDev ? devianceLabel(lunchDev, "lunch") : "",
-      dinnerDev ? devianceLabel(dinnerDev, "dinner") : "",
-    ].filter(Boolean);
+    const snackRoll = breakfastDev + lunchDev + dinnerDev;
 
     return {
       done: new Set(),
@@ -1807,23 +1803,23 @@
         snack: {
           budget: snackBudget,
           eaten: eaten.snack,
-          roll: breakfastDev + lunchDev + dinnerDev,
-          note: snackBits.join(" · "),
-          noteTone: snackBudget < snackBase ? "is-soft-over" : (snackBits.length ? "is-soft-under" : ""),
+          roll: snackRoll,
+          note: "",
+          noteTone: "",
         },
         lunch: {
           budget: lunch,
           eaten: eaten.lunch,
           roll: breakfastDev,
-          note: devianceLabel(breakfastDev, "breakfast"),
-          noteTone: breakfastDev > 0 ? "is-soft-under" : (breakfastDev < 0 ? "is-soft-over" : ""),
+          note: "",
+          noteTone: "",
         },
         dinner: {
           budget: dinner,
           eaten: eaten.dinner,
           roll: lunchDev,
-          note: devianceLabel(lunchDev, "lunch"),
-          noteTone: lunchDev > 0 ? "is-soft-under" : (lunchDev < 0 ? "is-soft-over" : ""),
+          note: "",
+          noteTone: "",
         },
       },
     };
@@ -2253,6 +2249,24 @@
       </div>`;
   }
 
+  function activeMealPhases(day, date, canLog) {
+    if (!canLog) return [];
+    return dayPhases().filter((phase) => {
+      if (!mealAppears(phase.id, date)) return false;
+      if (phase.kind === "snack") return true;
+      return !mealCommitted(date, phase.id, day);
+    });
+  }
+
+  function mealAddsHTML(day, date, canLog) {
+    const active = activeMealPhases(day, date, canLog);
+    if (!active.length) return "";
+    return `<div class="day-adds" data-count="${active.length}">${active.map((phase) => {
+      const label = phase.kind === "snack" ? `Add ${phase.name}` : `Log ${phase.name}`;
+      return `<button type="button" class="day-add" data-queue="${esc(phase.id)}">${esc(label)}</button>`;
+    }).join("")}</div>`;
+  }
+
   function mealBoardHTML(day, plan, gate, focusId, canLog, date) {
     if (gate.mode === "future") {
       return `<section class="meal-board is-empty"><p class="home-kicker">Ahead</p><h2>This day is still closed.</h2></section>`;
@@ -2269,13 +2283,15 @@
       const slot = plan.parts[phase.id] || {};
       const eaten = Math.round(slot.eaten || 0);
       const budget = Math.round(slot.budget || 0);
+      const roll = Math.round(slot.roll || 0);
       const rows = mealRows(day, phase.meal);
-      const note = slotNote(phase.id, plan);
-      const noteTone = slotNoteTone(phase.id, plan);
       const committed = phase.kind !== "snack" && mealCommitted(date, phase.id, day);
       const editing = mealEditing(phase.id);
       const open = mealExpanded(phase.id);
       const canChange = canLog && (!committed || editing);
+      const rollHTML = phase.kind === "snack" && roll
+        ? `<span class="meal-roll${roll < 0 ? " is-down" : ""}">${roll > 0 ? "+" : "−"}${num(Math.abs(roll), 0)}</span>`
+        : "";
       const foods = rows.map((row) => `
         <div class="meal-row">
           <div>
@@ -2295,15 +2311,21 @@
       return `
         <section class="meal-card${focusId === phase.id ? " is-on" : ""}${phase.kind === "snack" ? " is-snack" : ""}${committed ? " is-done" : ""}${open ? " is-open" : " is-folded"}">
           <div class="meal-card-top">
-            <button type="button" class="meal-fold" data-fold="${esc(phase.id)}" aria-expanded="${open ? "true" : "false"}" aria-label="${open ? "Fold" : "Unfold"} ${esc(phase.name)}">${open ? "▾" : "▸"}</button>
-            <button type="button" class="meal-card-name" data-focus="${esc(phase.id)}">${esc(phase.name)}</button>
-            <em>${num(eaten, 0)} / ${num(budget, 0)}</em>
+            <button type="button" class="meal-fold" data-fold="${esc(phase.id)}" aria-expanded="${open ? "true" : "false"}" aria-label="${open ? "Fold" : "Unfold"} ${esc(phase.name)}">
+              <span class="meal-chev${open ? " is-open" : ""}"></span>
+            </button>
+            <div class="meal-card-title">
+              <button type="button" class="meal-card-name" data-focus="${esc(phase.id)}">${esc(phase.name)}</button>
+              <div class="meal-kcal">
+                <em>${num(eaten, 0)} <i>/ ${num(budget, 0)}</i></em>
+                ${rollHTML ? `<div>${rollHTML}</div>` : ""}
+              </div>
+            </div>
             ${actions}
           </div>
-          ${note ? `<p class="meal-card-note ${esc(noteTone)}">${esc(note)}</p>` : ""}
           <div class="meal-card-body">
             ${foods || `<p class="comp-empty">${committed ? "Logged." : "Nothing yet."}</p>`}
-            ${canChange ? `<button type="button" class="meal-add" data-queue="${esc(phase.id)}">${phase.kind === "snack" ? "Add" : (committed ? "Add more" : "Log")}</button>` : ""}
+            ${canChange && committed ? `<button type="button" class="meal-add" data-queue="${esc(phase.id)}">Add more</button>` : ""}
           </div>
         </section>`;
     };
@@ -2791,6 +2813,7 @@
             </div>
           </div>
           ${macroRingHTML(day, settings, focusRead, focusMeta)}
+          ${mealAddsHTML(day, date, canLog)}
         </section>
         ${mealBoardHTML(day, plan, gate, focusId, canLog, date)}
       </div>`;
