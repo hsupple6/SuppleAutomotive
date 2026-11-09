@@ -5510,6 +5510,7 @@
     $("app").classList.remove("locked");
     $("app").classList.toggle("is-home", route === "home");
     $("app").classList.toggle("is-chat", route === "chat");
+    $("app").classList.toggle("is-macros", route === "macros");
     syncChatAscii(route === "chat");
 
     if (route !== "chat") stopOllamaWatch();

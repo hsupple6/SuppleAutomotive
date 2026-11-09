@@ -4254,12 +4254,51 @@ input[type="search"].field {
   --m-card: #162744;
   --m-card-2: #1a2f4f;
   color: var(--m-white);
+  background: transparent;
+  padding-bottom: 24px;
+}
+
+#app.is-macros {
   background:
-    radial-gradient(900px 420px at 50% -10%, rgba(69, 123, 157, 0.22), transparent 55%),
+    radial-gradient(900px 420px at 50% -8%, rgba(69, 123, 157, 0.22), transparent 55%),
     linear-gradient(180deg, #101b2c 0%, #0b1422 100%);
-  border-radius: 0;
-  margin: 0 -4px;
-  padding: 0 4px 24px;
+}
+
+#app.is-macros .top {
+  background: transparent;
+  color: #fff;
+}
+
+#app.is-macros .eyebrow {
+  color: rgba(168, 218, 220, 0.62);
+}
+
+#app.is-macros .icon-btn {
+  background: rgba(69, 123, 157, 0.28);
+  color: #fff;
+}
+
+#app.is-macros #screen {
+  background: transparent;
+}
+
+#app.is-macros .viz-week {
+  background: transparent;
+}
+
+#app.is-macros .dow-shift {
+  background: #fff;
+  color: #101b2c;
+}
+
+#app.is-macros .tabbar {
+  background: rgba(16, 27, 44, 0.94);
+  border-color: rgba(168, 218, 220, 0.12);
+}
+
+#app.is-macros .tab.on {
+  background: rgba(69, 123, 157, 0.22);
+  color: #A8DADC;
 }
 
 .macros-page .home-kicker,
