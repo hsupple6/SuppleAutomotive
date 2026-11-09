@@ -229,9 +229,9 @@
 
   function macroRingHTML(day, settings, readout, partMeta) {
     const shares = [
-      { key: "p", name: "Protein", band: day.protein, share: Number(settings.protein_pct || 0), color: "#c9d5b5" },
-      { key: "c", name: "Carbs", band: day.carb, share: Number(settings.carb_pct || 0), color: "#8fb7c9" },
-      { key: "f", name: "Fat", band: day.fat, share: Number(settings.fat_pct || 0), color: "#d2a98a" },
+      { key: "p", name: "Protein", band: day.protein, share: Number(settings.protein_pct || 0), color: "#A8DADC" },
+      { key: "c", name: "Carbs", band: day.carb, share: Number(settings.carb_pct || 0), color: "#457B9D" },
+      { key: "f", name: "Fat", band: day.fat, share: Number(settings.fat_pct || 0), color: "#DC2836" },
     ];
     const totalShare = shares.reduce((sum, row) => sum + Math.max(0, row.share), 0) || 100;
     const gap = 18;
@@ -272,8 +272,8 @@
           <svg viewBox="0 0 220 220" role="img" aria-label="Daily macros, ${esc(summary)}">
             <defs>
               <radialGradient id="dayDisc" cx="50%" cy="38%" r="68%">
-                <stop offset="0" stop-color="#1c1c1c"/>
-                <stop offset="1" stop-color="#070707"/>
+                <stop offset="0" stop-color="#27476b"/>
+                <stop offset="1" stop-color="#15243a"/>
               </radialGradient>
             </defs>
             ${track}
