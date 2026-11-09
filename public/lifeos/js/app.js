@@ -1766,8 +1766,8 @@
 
   function devianceLabel(amount, mealName) {
     if (!amount) return "";
-    if (amount > 0) return `+${num(amount, 0)} ${mealName} under`;
-    return `−${num(Math.abs(amount), 0)} ${mealName} over`;
+    if (amount > 0) return `+${num(amount, 0)}`;
+    return `−${num(Math.abs(amount), 0)}`;
   }
 
   function macroPlan(goal, day) {
