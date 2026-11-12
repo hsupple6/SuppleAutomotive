@@ -76,6 +76,10 @@
     macroLogTab: "meals",
     weightBusy: false,
     weightErr: "",
+    weightDockOpen: false,
+    weightDraftLbs: "",
+    weightDraftDate: "",
+    weightAway: null,
     macrosEntered: false,
     weightDrawKey: "",
     macroPane: "macros",
@@ -1439,12 +1443,16 @@
     const trend = weightTrend(points);
     const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const animate = Boolean(draw) && !reduced && points.length > 0;
-    const W = 720;
-    const H = 228;
-    const plotL = 18;
-    const plotR = 702;
-    const plotT = 18;
-    const plotB = 184;
+    const narrow = Boolean(window.matchMedia && window.matchMedia("(max-width: 899px)").matches);
+    const boxW = Math.round(host.clientWidth || 0);
+    const boxH = Math.round(host.clientHeight || 0);
+    const W = narrow ? Math.max(280, boxW || 360) : 720;
+    const H = narrow ? Math.max(280, boxH || Math.round(window.innerHeight * 0.62)) : 228;
+    const plotL = narrow ? 4 : 18;
+    const plotR = W - (narrow ? 4 : 18);
+    const plotT = narrow ? 20 : 18;
+    const plotB = narrow ? H - 32 : 184;
+    const labelY = plotB + (narrow ? 20 : 28);
     const grids = [0.28, 0.52, 0.76].map((p) => {
       const y = plotT + (plotB - plotT) * p;
       return `<line class="wt-grid" x1="${plotL}" y1="${y.toFixed(1)}" x2="${plotR}" y2="${y.toFixed(1)}" />`;
@@ -1472,7 +1480,7 @@
         hi = Math.max(hi, y0, y1);
         trendEnds = [y0, y1];
       }
-      const pad = Math.max(0.6, (hi - lo) * 0.22);
+      const pad = Math.max(narrow ? 0.28 : 0.6, (hi - lo) * (narrow ? 0.07 : 0.22));
       lo -= pad;
       hi += pad;
       if (hi - lo < 1) {
@@ -1492,7 +1500,7 @@
         : "";
       const withYear = points[points.length - 1].date.slice(0, 4) !== points[0].date.slice(0, 4);
       const labelAt = (p, anchor) => (
-        `<text class="wt-xlab" x="${p.x.toFixed(1)}" y="212" text-anchor="${anchor}">${esc(weightDateLabel(p.date, withYear))}</text>`
+        `<text class="wt-xlab" x="${p.x.toFixed(1)}" y="${labelY}" text-anchor="${anchor}">${esc(weightDateLabel(p.date, withYear))}</text>`
       );
       const labels = [labelAt(plotted[0], plotted.length === 1 ? "middle" : "start")];
       if (plotted.length > 2 && (t1 - t0) / 86400000 > 20) {
@@ -1525,8 +1533,8 @@
         const last = i === plotted.length - 1;
         return `<g class="wt-dot${last ? " last" : ""}">
           <circle class="wt-hit" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="16"><title>${esc(weightDateLabel(p.date, true))} · ${esc(num(p.lbs, 1))} lb</title></circle>
-          ${last ? `<circle class="wt-ring" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="10" />` : ""}
-          <circle class="wt-mark" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${last ? 4.6 : 3.3}" />
+          ${last ? `<circle class="wt-ring" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${narrow ? 13 : 10}" />` : ""}
+          <circle class="wt-mark" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${last ? (narrow ? 6.4 : 4.6) : (narrow ? 5 : 3.3)}" />
         </g>`;
       }).join("");
       body = `
@@ -1535,24 +1543,21 @@
         ${area ? `<path class="wt-area" fill="url(#wtFill)" d="${area}" />` : ""}
         ${trendLine}
         ${d ? `<path class="wt-glow" d="${d}" />` : ""}
-        ${d ? `<path class="wt-line" stroke="url(#wtStroke)" d="${d}" />` : ""}
+        ${d ? `<path class="wt-line" d="${d}" />` : ""}
         ${dots}
-        ${d ? `<g class="wt-comet" opacity="0"><circle r="12" fill="#c8ff00" opacity="0.22"/><circle r="3.2" fill="#ffffff"/></g>` : ""}
+        ${d ? `<g class="wt-comet" opacity="0"><circle r="${narrow ? 16 : 12}" fill="#457B9D" opacity="0.35"/><circle r="${narrow ? 4 : 3.2}" fill="#ffffff"/></g>` : ""}
         ${labels.join("")}`;
     }
 
     host.classList.toggle("is-pending", animate);
+    host.classList.toggle("is-tall", narrow);
     host.innerHTML = `
-      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weight over time">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Weight over time">
         <defs>
-          <linearGradient id="wtStroke" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stop-color="#f4ff9a"/>
-            <stop offset="0.48" stop-color="#c8ff00"/>
-            <stop offset="1" stop-color="#7dffb3"/>
-          </linearGradient>
           <linearGradient id="wtFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="#c8ff00" stop-opacity="0.34"/>
-            <stop offset="1" stop-color="#c8ff00" stop-opacity="0"/>
+            <stop offset="0" stop-color="#ffffff" stop-opacity="0.2"/>
+            <stop offset="0.55" stop-color="#457B9D" stop-opacity="0.16"/>
+            <stop offset="1" stop-color="#457B9D" stop-opacity="0"/>
           </linearGradient>
           <clipPath id="wtTrendClip">
             <rect id="wtTrendRect" x="0" y="0" width="${animate ? 0 : W}" height="${H}"></rect>
@@ -1658,16 +1663,21 @@
   async function saveWeight(event) {
     event.preventDefault();
     if (state.weightBusy) return;
-    const lbs = Number(String($("wtLbs")?.value || "").trim());
-    const day = ($("wtDate")?.value || state.macroDate || todayISO()).slice(0, 10);
+    const lbsInput = $("wtLbs");
+    const dateInput = $("wtDate");
+    state.weightDraftLbs = String(lbsInput?.value || "").trim();
+    state.weightDraftDate = String(dateInput?.value || "").slice(0, 10);
+    const lbs = Number(state.weightDraftLbs);
+    const day = (state.weightDraftDate || state.macroDate || todayISO()).slice(0, 10);
     if (!Number.isFinite(lbs) || lbs <= 0) {
       state.weightErr = "Enter a weight.";
+      state.weightDockOpen = true;
       renderMacros();
       return;
     }
     state.weightBusy = true;
     state.weightErr = "";
-    const btn = $("wtSave");
+    const btn = $("wtFab");
     if (btn) btn.disabled = true;
     try {
       const data = await LifeAPI.weightLog({
@@ -1676,13 +1686,131 @@
         view: state.macroDate || todayISO(),
       });
       applyWeightPayload(data);
+      state.weightDraftLbs = "";
+      state.weightDraftDate = "";
+      state.weightDockOpen = false;
     } catch (err) {
+      state.weightDockOpen = true;
       state.weightErr = err.status === 404
         ? "Restart LifeOS on the PC, then log again."
         : (err.message || "Could not save that weigh-in.");
     }
     state.weightBusy = false;
     renderMacros();
+  }
+
+  function releaseWeightDock() {
+    if (state.weightAway) {
+      document.removeEventListener("pointerdown", state.weightAway, true);
+      state.weightAway = null;
+    }
+  }
+
+  function closeWeightDock() {
+    const dock = $("wtDock");
+    const fab = $("wtFab");
+    const main = dock?.querySelector(".wt-tray-main");
+    state.weightDockOpen = false;
+    if (!dock) return;
+    dock.classList.remove("is-open");
+    if (main) main.setAttribute("aria-hidden", "true");
+    if (fab) {
+      fab.type = "button";
+      fab.setAttribute("aria-expanded", "false");
+      fab.setAttribute("aria-label", "Add weight");
+    }
+  }
+
+  function bindWeightDock() {
+    releaseWeightDock();
+    const dock = $("wtDock");
+    const fab = $("wtFab");
+    const form = $("wtForm");
+    const lbs = $("wtLbs");
+    const day = $("wtDate");
+    const main = dock?.querySelector(".wt-tray-main");
+    if (!dock || !fab || !form) return;
+    const remember = () => {
+      if (lbs) state.weightDraftLbs = lbs.value;
+      if (day) state.weightDraftDate = day.value;
+    };
+    if (lbs) lbs.oninput = remember;
+    if (day) day.onchange = remember;
+    fab.onclick = (event) => {
+      if (dock.classList.contains("is-open")) return;
+      event.preventDefault();
+      vibrate();
+      remember();
+      state.weightDockOpen = true;
+      dock.classList.add("is-open");
+      if (main) main.removeAttribute("aria-hidden");
+      fab.type = "submit";
+      fab.setAttribute("aria-expanded", "true");
+      fab.setAttribute("aria-label", "Log weight");
+      window.setTimeout(() => {
+        if (dock.classList.contains("is-open")) lbs?.focus({ preventScroll: true });
+      }, 420);
+    };
+    form.onsubmit = saveWeight;
+    dock.onkeydown = (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeWeightDock();
+    };
+    state.weightAway = (event) => {
+      const node = $("wtDock");
+      if (!node || !node.classList.contains("is-open")) return;
+      if (node.contains(event.target)) return;
+      closeWeightDock();
+    };
+    document.addEventListener("pointerdown", state.weightAway, true);
+  }
+
+  function fitWeightStage(host) {
+    if (!host) return;
+    const narrow = window.matchMedia && window.matchMedia("(max-width: 899px)").matches;
+    if (!narrow) {
+      if (host.style.height) host.style.height = "";
+      return;
+    }
+    const screen = $("screen");
+    if (!screen) return;
+    const screenStyle = getComputedStyle(screen);
+    const screenPad = parseFloat(screenStyle.paddingBottom) || 0;
+    const screenBottom = screen.getBoundingClientRect().bottom;
+    const top = host.getBoundingClientRect().top;
+    if (top < 24) return;
+    const card = host.closest(".wt-card");
+    const key = card?.querySelector(".wt-key");
+    const hist = card?.querySelector(".wt-history");
+    const keyH = key && !key.hidden ? key.offsetHeight : 0;
+    const histH = hist ? Math.min(hist.offsetHeight, 48) : 0;
+    const padBottom = card ? (parseFloat(getComputedStyle(card).paddingBottom) || 0) : 0;
+    const below = keyH + histH + padBottom + screenPad + 18;
+    const height = Math.max(260, Math.round(screenBottom - top - below));
+    host.style.height = `${height}px`;
+  }
+
+  function mountWeightChart(draw) {
+    const host = $("wtStage");
+    if (!host) return;
+    fitWeightStage(host);
+    paintWeightChart(draw);
+    if (host._ro) host._ro.disconnect();
+    if (!window.ResizeObserver || !window.matchMedia("(max-width: 899px)").matches) return;
+    host._fitW = host.clientWidth;
+    host._ro = new ResizeObserver(() => {
+      if (!host.isConnected || $("wtStage") !== host) {
+        host._ro.disconnect();
+        return;
+      }
+      const w = host.clientWidth;
+      if (Math.abs(w - host._fitW) < 4) return;
+      host._fitW = w;
+      fitWeightStage(host);
+      paintWeightChart(false);
+    });
+    host._ro.observe(host);
   }
 
   async function deleteWeight(id) {
@@ -2817,6 +2945,8 @@
         </section>
         ${mealBoardHTML(day, plan, gate, focusId, canLog, date)}
       </div>`;
+    const dockOpen = state.weightDockOpen;
+    const draftDate = state.weightDraftDate || date;
     const weightHTML = `
       <div class="stack macros-page weight-page${enterPage ? " is-enter" : ""}">
         ${paneSwitch("weight")}
@@ -2834,18 +2964,6 @@
             <span><i class="solid"></i>Weigh-ins</span>
             <span><i class="dotted"></i>Avg slope</span>
           </div>
-          ${state.weightErr ? `<p class="err">${esc(state.weightErr)}</p>` : ""}
-          <form class="wt-log" id="wtForm">
-            <label class="wt-field">
-              <span>Date</span>
-              <input class="field" id="wtDate" type="date" value="${esc(date)}" required aria-label="Weigh-in date">
-            </label>
-            <label class="wt-field">
-              <span>Pounds</span>
-              <input class="field" id="wtLbs" inputmode="decimal" placeholder="0.0" autocomplete="off" aria-label="Weight in pounds" ${state.weightBusy ? "disabled" : ""}>
-            </label>
-            <button class="wt-save" id="wtSave" type="submit" ${state.weightBusy ? "disabled" : ""}>Log</button>
-          </form>
           ${chips.length ? `<div class="wt-history">${chips.map((row) => `
             <div class="wt-row">
               <span>${esc(weightDateLabel(row.date, false))}</span>
@@ -2853,17 +2971,32 @@
               <button type="button" data-wdel="${esc(row.id)}" aria-label="Remove ${esc(weightDateLabel(row.date, true))}">×</button>
             </div>`).join("")}</div>` : ""}
         </section>
+        <div class="wt-dock${dockOpen ? " is-open" : ""}" id="wtDock">
+          ${state.weightErr ? `<p class="wt-dock-err">${esc(state.weightErr)}</p>` : ""}
+          <form class="wt-tray" id="wtForm">
+            <div class="wt-tray-main"${dockOpen ? "" : " aria-hidden=\"true\""}>
+              <label class="wt-date">
+                <span>Date</span>
+                <input id="wtDate" type="date" value="${esc(draftDate)}" required aria-label="Date" ${state.weightBusy ? "disabled" : ""}>
+              </label>
+              <input class="wt-lbs" id="wtLbs" inputmode="decimal" enterkeyhint="done" placeholder="lb" autocomplete="off" aria-label="Pounds" value="${esc(state.weightDraftLbs || "")}" ${state.weightBusy ? "disabled" : ""}>
+            </div>
+            <button class="wt-fab" id="wtFab" type="${dockOpen ? "submit" : "button"}" aria-expanded="${dockOpen ? "true" : "false"}" aria-label="${dockOpen ? "Log weight" : "Add weight"}" ${state.weightBusy ? "disabled" : ""}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.25" stroke-linecap="round"/></svg>
+            </button>
+          </form>
+        </div>
       </div>`;
     const showComposer = pane !== "weight" && (state.freeLog || state.gateComposer);
     $("screen").innerHTML = pane === "weight" ? weightHTML : (showComposer ? composerHTML() : macroHTML);
     bindPaneSwitch();
+    if (pane !== "weight") releaseWeightDock();
     if (pane === "weight") {
-      const wtForm = $("wtForm");
-      if (wtForm) wtForm.onsubmit = saveWeight;
+      bindWeightDock();
       $("screen").querySelectorAll("[data-wdel]").forEach((btn) => {
         btn.onclick = () => deleteWeight(btn.dataset.wdel);
       });
-      paintWeightChart(drawLine);
+      requestAnimationFrame(() => mountWeightChart(drawLine));
     } else if (showComposer) {
       bindComposer();
     } else {
@@ -5480,6 +5613,7 @@
     if (route === "food" && tab) state.foodTab = tab === "meals" ? "pantry" : tab;
     if (route !== "macros") {
       closeSheet();
+      releaseWeightDock();
       state.macrosEntered = false;
       state.weightDrawKey = "";
       state.macroPaneDrawn = "";
