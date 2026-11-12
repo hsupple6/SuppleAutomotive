@@ -80,6 +80,7 @@
     weightDraftLbs: "",
     weightDraftDate: "",
     weightAway: null,
+    weightLogsOpen: false,
     macrosEntered: false,
     weightDrawKey: "",
     macroPane: "macros",
@@ -1448,14 +1449,22 @@
     const boxH = Math.round(host.clientHeight || 0);
     const W = narrow ? Math.max(280, boxW || 360) : 720;
     const H = narrow ? Math.max(280, boxH || Math.round(window.innerHeight * 0.62)) : 228;
-    const plotL = narrow ? 4 : 18;
-    const plotR = W - (narrow ? 4 : 18);
-    const plotT = narrow ? 20 : 18;
-    const plotB = narrow ? H - 32 : 184;
-    const labelY = plotB + (narrow ? 20 : 28);
-    const grids = [0.28, 0.52, 0.76].map((p) => {
+    const plotL = narrow ? 8 : 18;
+    const plotR = W - (narrow ? 8 : 18);
+    let plotT = narrow ? 28 : 18;
+    let plotB = narrow ? Math.max(160, H - 108) : 184;
+    const labelY = () => Math.min(H - 8, plotB + (narrow ? 16 : 28));
+    if (narrow && H > 0) {
+      const stageTop = host.getBoundingClientRect().top;
+      const head = document.querySelector(".weight-page .wt-head");
+      const headBottom = head ? head.getBoundingClientRect().bottom : stageTop + 88;
+      plotT = Math.max(12, Math.round(headBottom - stageTop) + 2);
+      plotB = Math.max(plotT + 180, H - 98);
+    }
+    const grids = [0.22, 0.42, 0.62, 0.82].map((p, i) => {
       const y = plotT + (plotB - plotT) * p;
-      return `<line class="wt-grid" x1="${plotL}" y1="${y.toFixed(1)}" x2="${plotR}" y2="${y.toFixed(1)}" />`;
+      const delay = animate ? ` style="animation-delay:${i * 32}ms"` : "";
+      return `<line class="wt-grid" x1="${plotL}" y1="${y.toFixed(1)}" x2="${plotR}" y2="${y.toFixed(1)}"${delay} />`;
     }).join("");
 
     let body = "";
@@ -1480,9 +1489,11 @@
         hi = Math.max(hi, y0, y1);
         trendEnds = [y0, y1];
       }
-      const pad = Math.max(narrow ? 0.28 : 0.6, (hi - lo) * (narrow ? 0.07 : 0.22));
-      lo -= pad;
-      hi += pad;
+      const spanLbs = Math.max(0, hi - lo);
+      const padTop = Math.max(narrow ? 0.2 : 0.6, spanLbs * (narrow ? 0.05 : 0.18));
+      const padBot = Math.max(narrow ? 1.35 : 0.8, spanLbs * (narrow ? 0.22 : 0.22));
+      lo -= padBot;
+      hi += padTop;
       if (hi - lo < 1) {
         lo -= 0.5;
         hi += 0.5;
@@ -1500,7 +1511,7 @@
         : "";
       const withYear = points[points.length - 1].date.slice(0, 4) !== points[0].date.slice(0, 4);
       const labelAt = (p, anchor) => (
-        `<text class="wt-xlab" x="${p.x.toFixed(1)}" y="${labelY}" text-anchor="${anchor}">${esc(weightDateLabel(p.date, withYear))}</text>`
+        `<text class="wt-xlab" x="${p.x.toFixed(1)}" y="${labelY()}" text-anchor="${anchor}">${esc(weightDateLabel(p.date, withYear))}</text>`
       );
       const labels = [labelAt(plotted[0], plotted.length === 1 ? "middle" : "start")];
       if (plotted.length > 2 && (t1 - t0) / 86400000 > 20) {
@@ -1508,12 +1519,13 @@
         labels.push(labelAt(mid, "middle"));
       }
       if (plotted.length > 1) labels.push(labelAt(plotted[plotted.length - 1], "end"));
-      const hiY = yOf(Math.max(...ys));
-      const loY = yOf(Math.min(...ys));
-      const ylabs = Math.abs(hiY - loY) > 36
-        ? `<text class="wt-ylab" x="${plotL}" y="${(hiY - 8).toFixed(1)}">${esc(num(Math.max(...ys), 1))}</text>
-           <text class="wt-ylab" x="${plotL}" y="${(loY + 14).toFixed(1)}">${esc(num(Math.min(...ys), 1))}</text>`
-        : "";
+      const loggedMax = Math.max(...ys);
+      const loggedMin = Math.min(...ys);
+      const hiY = yOf(loggedMax);
+      const loY = yOf(loggedMin);
+      const ylabs = `
+        <text class="wt-ylab" x="${plotL}" y="${(loY + 4).toFixed(1)}">${esc(num(loggedMin, 1))}</text>
+        ${loggedMax !== loggedMin ? `<text class="wt-ylab" x="${plotL}" y="${(hiY - 8).toFixed(1)}">${esc(num(loggedMax, 1))}</text>` : ""}`;
       let trendLine = "";
       if (trendEnds) {
         const x1 = xOf(points[0].date);
@@ -1533,8 +1545,8 @@
         const last = i === plotted.length - 1;
         return `<g class="wt-dot${last ? " last" : ""}">
           <circle class="wt-hit" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="16"><title>${esc(weightDateLabel(p.date, true))} · ${esc(num(p.lbs, 1))} lb</title></circle>
-          ${last ? `<circle class="wt-ring" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${narrow ? 13 : 10}" />` : ""}
-          <circle class="wt-mark" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${last ? (narrow ? 6.4 : 4.6) : (narrow ? 5 : 3.3)}" />
+          ${last ? `<circle class="wt-ring" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${narrow ? 6 : 7}" />` : ""}
+          <circle class="wt-mark" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${last ? 2.7 : 2.1}" />
         </g>`;
       }).join("");
       body = `
@@ -1545,7 +1557,7 @@
         ${d ? `<path class="wt-glow" d="${d}" />` : ""}
         ${d ? `<path class="wt-line" d="${d}" />` : ""}
         ${dots}
-        ${d ? `<g class="wt-comet" opacity="0"><circle r="${narrow ? 16 : 12}" fill="#457B9D" opacity="0.35"/><circle r="${narrow ? 4 : 3.2}" fill="#ffffff"/></g>` : ""}
+        ${d ? `<g class="wt-comet" opacity="0"><circle r="7" fill="#457B9D" opacity="0.28"/><circle r="1.7" fill="#ffffff"/></g>` : ""}
         ${labels.join("")}`;
     }
 
@@ -1572,8 +1584,8 @@
     const comet = host.querySelector(".wt-comet");
     const rect = host.querySelector("#wtTrendRect");
     const len = line ? line.getTotalLength() : 0;
-    const delay = 280;
-    const dur = 1150;
+    const delay = 36;
+    const dur = 380;
     if (line && len) {
       line.style.strokeDasharray = `${len}`;
       line.style.strokeDashoffset = `${len}`;
@@ -1591,7 +1603,7 @@
           glow.style.strokeDashoffset = "0";
         }
         if (area) {
-          area.style.transition = "opacity 0.9s ease 0.12s";
+          area.style.transition = "opacity 0.32s ease 0.04s";
           area.style.opacity = "1";
         }
       }, delay);
@@ -1609,7 +1621,7 @@
       window.setTimeout(() => {
         bits.forEach((el) => {
           if (!el.isConnected) return;
-          el.style.transition = "transform 0.48s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease";
+          el.style.transition = "transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.16s ease";
           el.style.transform = "scale(1)";
           el.style.opacity = "1";
         });
@@ -1632,7 +1644,7 @@
       const start = performance.now();
       const grow = (now) => {
         if (!rect.isConnected) return;
-        const t = Math.min(1, Math.max(0, (now - start - 520) / 880));
+        const t = Math.min(1, Math.max(0, (now - start - 70) / 340));
         const ease = 1 - Math.pow(1 - t, 3);
         rect.setAttribute("width", String(W * ease));
         if (t < 1) host._rafTrend = requestAnimationFrame(grow);
@@ -1706,6 +1718,18 @@
     }
   }
 
+  function bindWeightLogs() {
+    const btn = $("wtLogs");
+    const menu = $("wtLogMenu");
+    if (btn) {
+      btn.onclick = () => {
+        state.weightLogsOpen = !state.weightLogsOpen;
+        if (menu) menu.hidden = !state.weightLogsOpen;
+        btn.setAttribute("aria-expanded", state.weightLogsOpen ? "true" : "false");
+      };
+    }
+  }
+
   function closeWeightDock() {
     const dock = $("wtDock");
     const fab = $("wtFab");
@@ -1759,9 +1783,14 @@
     };
     state.weightAway = (event) => {
       const node = $("wtDock");
-      if (!node || !node.classList.contains("is-open")) return;
-      if (node.contains(event.target)) return;
-      closeWeightDock();
+      if (node && node.classList.contains("is-open") && !node.contains(event.target)) closeWeightDock();
+      const menu = $("wtLogMenu");
+      const logsBtn = $("wtLogs");
+      if (!state.weightLogsOpen || !menu) return;
+      if (menu.contains(event.target) || (logsBtn && logsBtn.contains(event.target))) return;
+      state.weightLogsOpen = false;
+      menu.hidden = true;
+      if (logsBtn) logsBtn.setAttribute("aria-expanded", "false");
     };
     document.addEventListener("pointerdown", state.weightAway, true);
   }
@@ -1770,25 +1799,26 @@
     if (!host) return;
     const narrow = window.matchMedia && window.matchMedia("(max-width: 899px)").matches;
     if (!narrow) {
-      if (host.style.height) host.style.height = "";
+      host.style.position = "";
+      host.style.left = "";
+      host.style.right = "";
+      host.style.top = "";
+      host.style.bottom = "";
+      host.style.height = "";
+      host.style.zIndex = "";
       return;
     }
-    const screen = $("screen");
-    if (!screen) return;
-    const screenStyle = getComputedStyle(screen);
-    const screenPad = parseFloat(screenStyle.paddingBottom) || 0;
-    const screenBottom = screen.getBoundingClientRect().bottom;
-    const top = host.getBoundingClientRect().top;
-    if (top < 24) return;
-    const card = host.closest(".wt-card");
-    const key = card?.querySelector(".wt-key");
-    const hist = card?.querySelector(".wt-history");
-    const keyH = key && !key.hidden ? key.offsetHeight : 0;
-    const histH = hist ? Math.min(hist.offsetHeight, 48) : 0;
-    const padBottom = card ? (parseFloat(getComputedStyle(card).paddingBottom) || 0) : 0;
-    const below = keyH + histH + padBottom + screenPad + 18;
-    const height = Math.max(260, Math.round(screenBottom - top - below));
+    const top = Math.round(($("topbar")?.getBoundingClientRect().bottom) || 0);
+    const height = Math.max(320, Math.round(window.innerHeight - top));
+    host.style.position = "fixed";
+    host.style.left = "0";
+    host.style.right = "0";
+    host.style.top = `${Math.max(0, top)}px`;
+    host.style.bottom = "auto";
+    host.style.width = "100%";
     host.style.height = `${height}px`;
+    host.style.margin = "0";
+    host.style.zIndex = "1";
   }
 
   function mountWeightChart(draw) {
@@ -2952,24 +2982,20 @@
         ${paneSwitch("weight")}
         <section class="wt-card">
           <div class="wt-head">
-            <div>
+            <div class="wt-figure-wrap">
               <p class="home-kicker">Weight</p>
-              <p class="wt-figure">${esc(copy.figure)}${copy.figure === "—" ? "" : "<small>lb</small>"}</p>
+              ${chips.length ? `<button type="button" class="wt-figure" id="wtLogs" aria-expanded="${state.weightLogsOpen ? "true" : "false"}" aria-haspopup="true">${esc(copy.figure)}<small>lb</small></button>` : `<p class="wt-figure">${esc(copy.figure)}</p>`}
               <p class="wt-meta">${esc(copy.meta)}</p>
+              ${chips.length ? `<div class="wt-logmenu" id="wtLogMenu"${state.weightLogsOpen ? "" : " hidden"}>${chips.map((row) => `
+                <div class="wt-row">
+                  <span>${esc(weightDateLabel(row.date, false))}</span>
+                  <b>${esc(num(row.lbs, 1))}<small>lb</small></b>
+                  <button type="button" data-wdel="${esc(row.id)}" aria-label="Remove ${esc(weightDateLabel(row.date, true))}">×</button>
+                </div>`).join("")}</div>` : ""}
             </div>
             ${copy.slope ? `<div class="wt-slope ${copy.slopeClass}"><span>Avg slope</span><b>${esc(copy.slope)}</b></div>` : ""}
           </div>
           <div class="wt-stage" id="wtStage"></div>
-          <div class="wt-key" ${weights.length < 2 ? "hidden" : ""}>
-            <span><i class="solid"></i>Weigh-ins</span>
-            <span><i class="dotted"></i>Avg slope</span>
-          </div>
-          ${chips.length ? `<div class="wt-history">${chips.map((row) => `
-            <div class="wt-row">
-              <span>${esc(weightDateLabel(row.date, false))}</span>
-              <b>${esc(num(row.lbs, 1))}<small>lb</small></b>
-              <button type="button" data-wdel="${esc(row.id)}" aria-label="Remove ${esc(weightDateLabel(row.date, true))}">×</button>
-            </div>`).join("")}</div>` : ""}
         </section>
         <div class="wt-dock${dockOpen ? " is-open" : ""}" id="wtDock">
           ${state.weightErr ? `<p class="wt-dock-err">${esc(state.weightErr)}</p>` : ""}
@@ -2993,10 +3019,11 @@
     if (pane !== "weight") releaseWeightDock();
     if (pane === "weight") {
       bindWeightDock();
+      bindWeightLogs();
       $("screen").querySelectorAll("[data-wdel]").forEach((btn) => {
         btn.onclick = () => deleteWeight(btn.dataset.wdel);
       });
-      requestAnimationFrame(() => mountWeightChart(drawLine));
+      mountWeightChart(drawLine);
     } else if (showComposer) {
       bindComposer();
     } else {
