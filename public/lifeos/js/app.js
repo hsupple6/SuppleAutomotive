@@ -3327,6 +3327,8 @@
           pushMealLine(state.macroLogLines, food.id);
           state.macroQuery = "";
           drawLogSheet();
+          const search = $("foodSearch");
+          if (search) search.focus();
           return;
         }
         state.macroPicked = food;
@@ -3429,7 +3431,7 @@
     document.getElementById("recipeSheet")?.remove();
     const el = document.createElement("div");
     el.id = "recipeSheet";
-    el.className = "sheet sheet-log sheet-recipe-edit";
+    el.className = "sheet sheet-log sheet-recipe-edit is-building";
     if (edit.view === "item") {
       drawRecipeItem(el, edit);
       return;
@@ -3446,14 +3448,15 @@
         ${edit.err ? `<p class="err">${esc(edit.err)}</p>` : ""}
         <p class="section-label">Name</p>
         <input class="field" id="recName" placeholder="Meal name" value="${esc(edit.name || "")}" autocomplete="off">
+        <p class="section-label">Add food</p>
+        <input class="field search-field" id="recSearch" type="search" placeholder="Search foods" value="${esc(edit.query || "")}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+        <div class="group log-hits" id="recHits"></div>
         <p class="section-label">Ingredients</p>
         <div class="meal-lines" id="recLines">${mealIngHTML(lines)}</div>
         <div class="meal-totals">
           <p id="mealTotalLine">${num(totals.calories, 0)} kcal · P${num(totals.protein_g, 0)} C${num(totals.carb_g, 0)} F${num(totals.fat_g, 0)}</p>
           <span id="mealCountLine">${lines.length} item${lines.length === 1 ? "" : "s"}</span>
         </div>
-        <input class="field search-field" id="recSearch" type="search" placeholder="Search foods" value="${esc(edit.query || "")}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
-        <div class="group log-hits" id="recHits"></div>
         <p class="log-hint">${edit.fromComposer ? "Save the meal, or add these ingredients to this log." : "Saves the meal. Nothing is logged."}</p>
       </div>
       <div class="sheet-foot log-actions">
@@ -3524,6 +3527,8 @@
         edit.query = "";
         edit.err = "";
         drawRecipeEdit();
+        const search = $("recSearch");
+        if (search) search.focus();
       };
     });
   }
@@ -3795,7 +3800,7 @@
     const qty = state.macroQty === "" && picked ? picked.usual_qty : state.macroQty;
     const live = picked ? scaledFood(picked, qty) : null;
     const logTot = logLines ? mealTotals(logLines) : null;
-    el.className = "sheet sheet-log";
+    el.className = `sheet sheet-log${recipe ? " is-building" : ""}`;
     el.innerHTML = `
       <div class="sheet-top">
         <h2>Log ${esc(mealLabel)}</h2>
@@ -3803,12 +3808,15 @@
       </div>
       <div class="sheet-body">
         ${state.macroErr ? `<p class="err">${esc(state.macroErr)}</p>` : ""}
-        <input class="field search-field" id="foodSearch" type="search" placeholder="${recipe ? "Search to add an ingredient" : "Search foods or meals"}" value="${esc(state.macroQuery)}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
         ${recipe ? `
           <div class="preview">
             <input class="field" id="logMealName" placeholder="meal name" value="${esc(recipe.name || "")}" autocomplete="off">
             <p class="log-hint">This log only, unless you save the recipe.</p>
           </div>
+        ` : ""}
+        <input class="field search-field" id="foodSearch" type="search" placeholder="${recipe ? "Search to add an ingredient" : "Search foods or meals"}" value="${esc(state.macroQuery)}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+        ${recipe ? `<div class="group log-hits" id="logHits"></div>` : ""}
+        ${recipe ? `
           <div class="meal-lines" id="logLines">${mealIngHTML(logLines)}</div>
           <div class="meal-totals">
             <p id="mealTotalLine">${num(logTot?.calories || 0, 0)} kcal · P${num(logTot?.protein_g || 0, 0)} C${num(logTot?.carb_g || 0, 0)} F${num(logTot?.fat_g || 0, 0)}</p>
@@ -3826,7 +3834,7 @@
           </div>
           <p class="hero-sub">${num(live?.calories || 0, 0)} kcal · P${num(live?.protein_g || 0, 0)} C${num(live?.carb_g || 0, 0)} F${num(live?.fat_g || 0, 0)}</p>
         ` : ""}
-        <div class="group log-hits" id="logHits"></div>
+        ${recipe ? "" : `<div class="group log-hits" id="logHits"></div>`}
       </div>
       <div class="sheet-foot log-actions">
         <button type="button" class="ghost" id="newItemBtn">New item</button>

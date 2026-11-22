@@ -2162,6 +2162,23 @@ button {
   overflow: auto;
 }
 
+.sheet.is-building .sheet-body {
+  display: block;
+  overflow: auto;
+}
+
+.sheet.is-building .sheet-body > * + * {
+  margin-top: 12px;
+}
+
+.sheet.is-building .log-hits {
+  flex: none;
+  min-height: 180px;
+  max-height: 280px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .sheet-log .sheet-foot.log-actions,
 .sheet-new .sheet-foot.log-actions {
   display: flex;
@@ -2194,19 +2211,11 @@ button {
   height: auto;
 }
 
-.sheet-log.sheet-recipe .sheet-body {
-  overflow: auto;
-}
-
-.sheet-log.sheet-recipe .food-list,
-.sheet-log.sheet-recipe .recipe-list {
-  flex: 0 0 auto;
-  max-height: 200px;
-}
-
-.sheet-log.sheet-recipe .meal-lines,
-.sheet-log.sheet-recipe .meal-totals,
-.sheet-log.sheet-recipe .preview {
+.sheet.is-building .meal-lines,
+.sheet.is-building .meal-totals,
+.sheet.is-building .preview,
+.sheet.is-building .search-field,
+.sheet.is-building .log-hint {
   flex-shrink: 0;
 }
 
