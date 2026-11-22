@@ -73,6 +73,7 @@
     macroMode: "pick",
     macroNew: null,
     macroPickedRecipe: null,
+    recipeEdit: null,
     macroLogTab: "meals",
     weightBusy: false,
     weightErr: "",
@@ -104,6 +105,7 @@
     freeLog: false,
     mealOpen: {},
     mealEdit: {},
+    macroFab: false,
   };
 
   const CAT_COLOR = {
@@ -2089,6 +2091,20 @@
         path.style.strokeDasharray = `${len} ${len}`;
       }, 90 + i * 80);
     });
+    document.querySelectorAll("#screen .week-meter-fill").forEach((el) => {
+      const target = (el.style.getPropertyValue("--week-pct") || "0%").trim();
+      if (reduce) {
+        el.style.width = target;
+        return;
+      }
+      el.style.transition = "none";
+      el.style.width = "0%";
+      window.setTimeout(() => {
+        if (!el.isConnected) return;
+        el.style.transition = "width 1.05s cubic-bezier(0.16, 1, 0.3, 1)";
+        el.style.width = target;
+      }, 80);
+    });
     if (reduce) return;
     document.querySelectorAll("#screen .slot-fill").forEach((el, i) => {
       const target = el.style.width || "0%";
@@ -2122,6 +2138,28 @@
       else renderMacros();
       armMacroClock();
     }, Math.max(1000, target.getTime() - now.getTime()));
+  }
+
+  function weekMeterHTML(days, date, day, goal) {
+    const budget = Number(goal) * 7;
+    if (!(budget > 0) || !days.length) return "";
+    const used = days.reduce((sum, d) => {
+      const kcal = d.date === date ? eatenAll(day) : Number(d.totals?.calories || 0);
+      return sum + (Number.isFinite(kcal) ? kcal : 0);
+    }, 0);
+    const raw = (used / budget) * 100;
+    const rounded = Math.round(raw);
+    const label = used > 0 && rounded === 0 ? "<1" : String(rounded);
+    const fill = Math.max(0, Math.min(100, raw));
+    const over = raw > 100.49;
+    return `
+      <div class="week-meter${over ? " is-over" : ""}" role="img" aria-label="Week ${esc(label)} percent of ${num(budget, 0)} calories">
+        <span>Week</span>
+        <div class="week-meter-track">
+          <i class="week-meter-fill" style="--week-pct:${fill.toFixed(2)}%"></i>
+        </div>
+        <b>${esc(label)}%</b>
+      </div>`;
   }
 
   function dayBalance(plan, day) {
@@ -2676,7 +2714,11 @@
     const rows = [
       ...mealHits.map((meal) => {
         const tot = mealTotalsOf(meal);
-        return `<button type="button" class="comp-hit" data-gate-recipe="${esc(meal.id)}"><strong>${esc(meal.name)}</strong><span>${(meal.lines || []).length} items · ${num(tot.calories, 0)} kcal</span></button>`;
+        return `
+          <div class="comp-hit-row">
+            <button type="button" class="comp-hit" data-gate-recipe="${esc(meal.id)}"><strong>${esc(meal.name)}</strong><span>${(meal.lines || []).length} items · ${num(tot.calories, 0)} kcal</span></button>
+            <button type="button" class="recipe-edit" data-edit-recipe="${esc(meal.id)}" aria-label="Edit ${esc(meal.name)}">Edit</button>
+          </div>`;
       }),
       ...foodHits.map((food) => `<button type="button" class="comp-hit" data-gate-food="${esc(food.id)}"><strong>${esc(food.name)}</strong><span>usual ${esc(qtyLabel(food.usual_qty, food.unit))} · ${num(food.calories, 0)} kcal</span></button>`),
     ].join("");
@@ -2712,6 +2754,7 @@
         if (search) search.focus();
       };
     });
+    bindRecipeEdits(box);
   }
 
   function bindComposer() {
@@ -2758,7 +2801,51 @@
     renderMacros();
   }
 
+  function macroFabHTML(phases, enter) {
+    if (!phases.length) return "";
+    const open = Boolean(state.macroFab) && phases.length > 1;
+    const menu = phases.map((phase, i) => {
+      const label = phase.kind === "snack" ? `Add ${phase.name}` : `Log ${phase.name}`;
+      return `<button type="button" role="menuitem" data-fab="${esc(phase.id)}" style="animation-delay:${40 + i * 45}ms">${esc(label)}</button>`;
+    }).join("");
+    return `
+      ${open ? `<button type="button" class="macro-fab-scrim" id="macroFabScrim" aria-label="Close log menu"></button>` : ""}
+      <div class="macro-fab${open ? " is-open" : ""}${enter ? " is-in" : ""}">
+        ${open ? `<div class="macro-fab-menu" role="menu">${menu}</div>` : ""}
+        <button type="button" class="macro-fab-btn" id="macroFabBtn" aria-label="${open ? "Close" : "Log food"}" aria-expanded="${open ? "true" : "false"}">
+          <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.15" stroke-linecap="round"/></svg>
+        </button>
+      </div>`;
+  }
+
+  function bindMacroFab(phases) {
+    const btn = $("macroFabBtn");
+    if (!btn) return;
+    btn.onclick = () => {
+      if (phases.length === 1) {
+        state.macroFab = false;
+        openComposer(phases[0].id);
+        return;
+      }
+      vibrate();
+      state.macroFab = !state.macroFab;
+      renderMacros();
+    };
+    const scrim = $("macroFabScrim");
+    if (scrim) scrim.onclick = () => {
+      state.macroFab = false;
+      renderMacros();
+    };
+    $("screen").querySelectorAll("[data-fab]").forEach((el) => {
+      el.onclick = () => {
+        state.macroFab = false;
+        openComposer(el.dataset.fab);
+      };
+    });
+  }
+
   function openComposer(id) {
+    state.macroFab = false;
     const date = state.macroDate || todayISO();
     if (date !== todayISO()) return;
     const phase = dayPhases().find((item) => item.id === id);
@@ -2912,6 +2999,7 @@
       state.freeLog = false;
       state.mealOpen = {};
       state.mealEdit = {};
+      state.macroFab = false;
       state.gateDate = date;
     }
     if (state.freeLog) state.gateComposer = false;
@@ -2970,9 +3058,10 @@
               <button type="button" class="viz-chip" id="targetsBtn">${num(settings.protein_pct || 0, 0)} / ${num(settings.carb_pct || 0, 0)} / ${num(settings.fat_pct || 0, 0)}</button>
             </div>
           </div>
+          ${weekMeterHTML(days, date, day, plan.goal)}
           ${macroRingHTML(day, settings, focusRead, focusMeta)}
-          ${mealAddsHTML(day, date, canLog)}
         </section>
+        ${mealAddsHTML(day, date, canLog)}
         ${mealBoardHTML(day, plan, gate, focusId, canLog, date)}
       </div>`;
     const dockOpen = state.weightDockOpen;
@@ -3014,7 +3103,8 @@
         </div>
       </div>`;
     const showComposer = pane !== "weight" && (state.freeLog || state.gateComposer);
-    $("screen").innerHTML = pane === "weight" ? weightHTML : (showComposer ? composerHTML() : macroHTML);
+    const logPhases = showComposer || pane === "weight" ? [] : activeMealPhases(day, date, canLog);
+    $("screen").innerHTML = pane === "weight" ? weightHTML : (showComposer ? composerHTML() : macroHTML + macroFabHTML(logPhases, enterPage));
     bindPaneSwitch();
     if (pane !== "weight") releaseWeightDock();
     if (pane === "weight") {
@@ -3044,6 +3134,7 @@
       });
       const targets = $("targetsBtn");
       if (targets) targets.onclick = () => openTargetsSheet();
+      bindMacroFab(logPhases);
       $("screen").querySelectorAll("[data-del]").forEach((btn) => {
         btn.onclick = () => deleteMacroLog(btn.dataset.del);
       });
@@ -3079,6 +3170,8 @@
     state.macroNew = null;
     state.macroPickedRecipe = null;
     state.macroLogLines = null;
+    document.getElementById("recipeSheet")?.remove();
+    state.recipeEdit = null;
     const refresh = state.macroClockDirty && hashRoute().route === "macros";
     state.macroClockDirty = false;
     if (refresh) renderMacros();
@@ -3156,10 +3249,12 @@
       ...mealHits.map((m) => {
         const tot = mealTotalsOf(m);
         return `
-          <button type="button" class="row" data-recipe="${esc(m.id)}" style="width:100%;text-align:left">
-            <div class="name"><strong>${esc(m.name)}</strong><span>${(m.lines || []).length} items · ${num(tot.calories, 0)} kcal</span></div>
-            <div class="amt">Meal</div>
-          </button>`;
+          <div class="row recipe-hit">
+            <button type="button" class="recipe-hit-main" data-recipe="${esc(m.id)}">
+              <div class="name"><strong>${esc(m.name)}</strong><span>${(m.lines || []).length} items · ${num(tot.calories, 0)} kcal</span></div>
+            </button>
+            <button type="button" class="recipe-edit" data-edit-recipe="${esc(m.id)}" aria-label="Edit ${esc(m.name)}">Edit</button>
+          </div>`;
       }),
       ...foodHits.map((f) => `
         <button type="button" class="row" data-food="${esc(f.id)}" style="width:100%;text-align:left">
@@ -3215,6 +3310,304 @@
         drawLogSheet();
       };
     });
+    bindRecipeEdits(box);
+  }
+
+  function bindRecipeEdits(root) {
+    if (!root) return;
+    root.querySelectorAll("[data-edit-recipe]").forEach((btn) => {
+      btn.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const meal = savedMeals().find((item) => item.id === btn.dataset.editRecipe);
+        if (!meal) return;
+        openRecipeEdit(meal);
+      };
+    });
+  }
+
+  function openRecipeEdit(meal) {
+    vibrate();
+    state.recipeEdit = {
+      id: meal.id || "",
+      name: meal.name || "",
+      lines: cloneMealLines(meal),
+      query: "",
+      err: "",
+      busy: false,
+      view: "edit",
+      item: null,
+    };
+    drawRecipeEdit();
+  }
+
+  function closeRecipeEdit() {
+    document.getElementById("recipeSheet")?.remove();
+    state.recipeEdit = null;
+  }
+
+  function applySavedMeals(data, meal) {
+    const meals = Array.isArray(data?.meals) ? data.meals : null;
+    for (const holder of [state.macros, state.meals, state.food]) {
+      if (!holder) continue;
+      if (meals) holder.meals = meals;
+      else if (meal?.id && Array.isArray(holder.meals)) {
+        const i = holder.meals.findIndex((row) => row.id === meal.id);
+        if (i >= 0) holder.meals[i] = meal;
+      }
+    }
+    if (meals) {
+      if (!state.meals) state.meals = { meals, foods: mealFoods() };
+      else state.meals.meals = meals;
+    }
+    if (data?.foods && state.macros) state.macros.foods = data.foods;
+  }
+
+  function drawRecipeEdit() {
+    const edit = state.recipeEdit;
+    if (!edit) return;
+    document.getElementById("recipeSheet")?.remove();
+    const el = document.createElement("div");
+    el.id = "recipeSheet";
+    el.className = "sheet sheet-log sheet-recipe-edit";
+    if (edit.view === "item") {
+      drawRecipeItem(el, edit);
+      return;
+    }
+    const lines = edit.lines || [];
+    const totals = mealTotals(lines);
+    el.innerHTML = `
+      <div class="sheet-top">
+        <h2>Edit recipe</h2>
+        <button type="button" class="ghost" id="recClose">Close</button>
+      </div>
+      <div class="sheet-body">
+        ${edit.err ? `<p class="err">${esc(edit.err)}</p>` : ""}
+        <input class="field" id="recName" placeholder="recipe name" value="${esc(edit.name || "")}" autocomplete="off">
+        <p class="log-hint">Saves the recipe for next time. Nothing is logged.</p>
+        <div class="meal-lines" id="recLines">${mealIngHTML(lines)}</div>
+        <div class="meal-totals">
+          <p id="mealTotalLine">${num(totals.calories, 0)} kcal · P${num(totals.protein_g, 0)} C${num(totals.carb_g, 0)} F${num(totals.fat_g, 0)}</p>
+          <span id="mealCountLine">${lines.length} item${lines.length === 1 ? "" : "s"}</span>
+        </div>
+        <input class="field search-field" id="recSearch" type="search" placeholder="Add an ingredient" value="${esc(edit.query || "")}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+        <div class="group log-hits" id="recHits"></div>
+      </div>
+      <div class="sheet-foot">
+        <button type="button" class="primary" id="recSave"${edit.busy ? " disabled" : ""}>Save recipe</button>
+      </div>`;
+    $("phone").appendChild(el);
+    $("recClose").onclick = () => closeRecipeEdit();
+    const nameEl = $("recName");
+    if (nameEl) nameEl.oninput = () => { edit.name = nameEl.value; };
+    const search = $("recSearch");
+    if (search) {
+      search.oninput = () => {
+        edit.query = search.value;
+        paintRecipeFoodHits();
+      };
+    }
+    paintRecipeFoodHits();
+    wireIngEditors(el, lines, () => drawRecipeEdit());
+    const save = $("recSave");
+    if (save) save.onclick = () => saveRecipeEdit();
+  }
+
+  function paintRecipeFoodHits() {
+    const box = $("recHits");
+    const edit = state.recipeEdit;
+    if (!box || !edit) return;
+    const q = (edit.query || "").trim().toLowerCase();
+    const foods = state.macros?.foods || mealFoods();
+    const newer = `<button type="button" class="text-link" id="recNewItem">New item</button>`;
+    if (!q) {
+      box.innerHTML = `<div class="empty">Search to add an ingredient. ${newer}</div>`;
+    } else {
+      const hits = foods.filter((food) => (food.name || "").toLowerCase().includes(q)).slice(0, 12);
+      box.innerHTML = hits.map((food) => `
+        <button type="button" class="row" data-rec-food="${esc(food.id)}" style="width:100%;text-align:left">
+          <div class="name"><strong>${esc(food.name)}</strong><span>usual ${esc(qtyLabel(food.usual_qty, food.unit))} · ${num(food.calories, 0)} kcal</span></div>
+          <div class="amt">Add</div>
+        </button>`).join("") || `<div class="empty">No match. ${newer}</div>`;
+    }
+    const addNew = $("recNewItem");
+    if (addNew) {
+      addNew.onclick = () => {
+        vibrate();
+        edit.view = "item";
+        edit.item = blankNewItem((edit.query || "").trim());
+        edit.err = "";
+        drawRecipeEdit();
+      };
+    }
+    box.querySelectorAll("[data-rec-food]").forEach((btn) => {
+      btn.onclick = () => {
+        if (!pushMealLine(edit.lines, btn.dataset.recFood)) return;
+        vibrate();
+        edit.query = "";
+        edit.err = "";
+        drawRecipeEdit();
+      };
+    });
+  }
+
+  function drawRecipeItem(el, edit) {
+    const d = edit.item || blankNewItem();
+    const unit = d.unit === "ea" ? "ea" : "g";
+    el.innerHTML = `
+      <div class="sheet-top">
+        <h2>New item</h2>
+        <button type="button" class="ghost" id="recItemBack">Back</button>
+      </div>
+      <div class="sheet-body">
+        ${edit.err ? `<p class="err">${esc(edit.err)}</p>` : ""}
+        <p class="section-label">Name</p>
+        <input class="field" id="riName" placeholder="Food name" value="${esc(d.name || "")}">
+        <p class="section-label">Serving</p>
+        <div class="unit-toggle">
+          <button type="button" class="${unit === "g" ? "on" : ""}" data-ri-unit="g">Grams</button>
+          <button type="button" class="${unit === "ea" ? "on" : ""}" data-ri-unit="ea">Each</button>
+        </div>
+        <div class="qty-row">
+          <input class="field" id="riBasis" inputmode="decimal" value="${esc(d.basis)}" aria-label="Serving size">
+          <span class="unit-pill">${unit === "ea" ? "ea" : "g"}</span>
+        </div>
+        <p class="section-label">Per serving</p>
+        <div class="grid-4">
+          <input class="field" id="riKcal" inputmode="decimal" value="${esc(d.calories)}" placeholder="kcal">
+          <input class="field" id="riP" inputmode="decimal" value="${esc(d.protein_g)}" placeholder="P">
+          <input class="field" id="riC" inputmode="decimal" value="${esc(d.carb_g)}" placeholder="C">
+          <input class="field" id="riF" inputmode="decimal" value="${esc(d.fat_g)}" placeholder="F">
+        </div>
+        <p class="section-label">Amount in this recipe</p>
+        <div class="qty-row">
+          <input class="field" id="riUsual" inputmode="decimal" value="${esc(d.usual_qty)}" aria-label="Amount in this recipe">
+          <span class="unit-pill">${unit}</span>
+        </div>
+        <p class="log-hint">The item is saved to your foods. The recipe updates when you tap Save recipe.</p>
+      </div>
+      <div class="sheet-foot">
+        <button type="button" class="primary" id="recItemSave"${edit.busy ? " disabled" : ""}>Add to recipe</button>
+      </div>`;
+    $("phone").appendChild(el);
+    $("recItemBack").onclick = () => {
+      edit.view = "edit";
+      edit.item = null;
+      edit.err = "";
+      drawRecipeEdit();
+    };
+    const bind = (id, key) => {
+      const input = $(id);
+      if (!input) return;
+      input.oninput = () => { edit.item[key] = input.value; };
+    };
+    bind("riName", "name");
+    bind("riBasis", "basis");
+    bind("riKcal", "calories");
+    bind("riP", "protein_g");
+    bind("riC", "carb_g");
+    bind("riF", "fat_g");
+    bind("riUsual", "usual_qty");
+    el.querySelectorAll("[data-ri-unit]").forEach((btn) => {
+      btn.onclick = () => {
+        const next = btn.dataset.riUnit;
+        edit.item.unit = next;
+        if (next === "ea") {
+          edit.item.basis = "1";
+          if (!edit.item.usual_qty || Number(edit.item.usual_qty) === 100) edit.item.usual_qty = "1";
+        } else {
+          edit.item.basis = edit.item.basis === "1" ? "100" : (edit.item.basis || "100");
+          if (!edit.item.usual_qty || Number(edit.item.usual_qty) === 1) edit.item.usual_qty = edit.item.basis || "100";
+        }
+        drawRecipeEdit();
+      };
+    });
+    $("recItemSave").onclick = () => saveRecipeItem();
+  }
+
+  async function saveRecipeItem() {
+    const edit = state.recipeEdit;
+    if (!edit || edit.busy) return;
+    const item = edit.item || blankNewItem();
+    const name = String(item.name || "").trim();
+    if (!name) {
+      edit.err = "Name the item first.";
+      drawRecipeEdit();
+      return;
+    }
+    const unit = item.unit === "ea" ? "ea" : "g";
+    const basis = Number(item.basis) || (unit === "ea" ? 1 : 100);
+    const usual = Number(item.usual_qty) || basis;
+    edit.busy = true;
+    edit.err = "";
+    drawRecipeEdit();
+    try {
+      const data = await LifeAPI.mealItem({
+        name,
+        unit,
+        basis,
+        calories: Number(item.calories) || 0,
+        protein_g: Number(item.protein_g) || 0,
+        carb_g: Number(item.carb_g) || 0,
+        fat_g: Number(item.fat_g) || 0,
+        usual_qty: usual,
+      });
+      const food = data.food;
+      rememberFood(food, data);
+      if (!food?.id) throw new Error("Could not save item");
+      edit.lines = edit.lines || [];
+      edit.lines.push({ item_id: food.id, qty: usual });
+      edit.view = "edit";
+      edit.item = null;
+      edit.query = "";
+      edit.busy = false;
+      edit.err = "";
+      drawRecipeEdit();
+    } catch (err) {
+      edit.busy = false;
+      edit.err = err.message || "Could not add item";
+      drawRecipeEdit();
+    }
+  }
+
+  async function saveRecipeEdit() {
+    const edit = state.recipeEdit;
+    if (!edit || edit.busy) return;
+    const name = String(edit.name || "").trim();
+    const lines = mealLinesPayload(edit.lines);
+    if (!name) {
+      edit.err = "Name the recipe first.";
+      drawRecipeEdit();
+      return;
+    }
+    if (!lines.length) {
+      edit.err = "Add at least one ingredient.";
+      drawRecipeEdit();
+      return;
+    }
+    edit.busy = true;
+    edit.err = "";
+    const saveBtn = $("recSave");
+    if (saveBtn) saveBtn.disabled = true;
+    try {
+      const data = await LifeAPI.mealSave({
+        id: edit.id || "",
+        name,
+        lines,
+      });
+      const meal = data.meal || { id: edit.id, name, lines };
+      applySavedMeals(data, meal);
+      adoptMeals(data, state.macros, state.food);
+      edit.busy = false;
+      closeRecipeEdit();
+      if ($("logHits")) paintLogHits();
+      if ($("gateHits")) paintGateHits();
+      showMacroToast(`Saved ${name}`);
+    } catch (err) {
+      edit.busy = false;
+      edit.err = err.message || "Could not save recipe";
+      drawRecipeEdit();
+    }
   }
 
   function drawLogSheet() {
