@@ -5778,6 +5778,7 @@ button.wt-figure:focus {
 .comp-hit-row {
   display: flex;
   align-items: stretch;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -5787,6 +5788,12 @@ button.wt-figure:focus {
   width: auto;
 }
 
+.comp-creates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+
 .comp-new {
   margin-top: 8px;
   border: 0;
@@ -5794,6 +5801,16 @@ button.wt-figure:focus {
   color: rgba(245, 245, 247, 0.55);
   font-weight: 680;
   font-size: 14px;
+}
+
+.comp-creates .comp-new {
+  margin-top: 8px;
+}
+
+.recipe-sure,
+.sheet-log .log-actions .ghost.recipe-sure {
+  background: #ff453a;
+  color: #fff;
 }
 
 .comp-submit {

@@ -74,6 +74,7 @@
     macroNew: null,
     macroPickedRecipe: null,
     recipeEdit: null,
+    mealDeleteId: "",
     macroLogTab: "meals",
     weightBusy: false,
     weightErr: "",
@@ -2634,7 +2635,10 @@
             <input id="gateSearch" placeholder="Search foods or meals" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(state.gateQuery || "")}" aria-label="Search foods">
           </label>
           <div class="comp-hits" id="gateHits"></div>
-          <button type="button" class="comp-new" id="gateNew">New food</button>
+          <div class="comp-creates">
+            <button type="button" class="comp-new" id="gateNew">New food</button>
+            <button type="button" class="comp-new" id="gateNewMeal">New meal</button>
+          </div>
           <button type="button" class="comp-submit" id="gateSubmit"${(fig.empty || state.gateBusy) ? " disabled" : ""}>${action}</button>
         </section>
       </div>`;
@@ -2718,6 +2722,7 @@
           <div class="comp-hit-row">
             <button type="button" class="comp-hit" data-gate-recipe="${esc(meal.id)}"><strong>${esc(meal.name)}</strong><span>${(meal.lines || []).length} items · ${num(tot.calories, 0)} kcal</span></button>
             <button type="button" class="recipe-edit" data-edit-recipe="${esc(meal.id)}" aria-label="Edit ${esc(meal.name)}">Edit</button>
+            ${mealDeleteButtons(meal.id)}
           </div>`;
       }),
       ...foodHits.map((food) => `<button type="button" class="comp-hit" data-gate-food="${esc(food.id)}"><strong>${esc(food.name)}</strong><span>usual ${esc(qtyLabel(food.usual_qty, food.unit))} · ${num(food.calories, 0)} kcal</span></button>`),
@@ -2755,6 +2760,7 @@
       };
     });
     bindRecipeEdits(box);
+    bindMealDeletes(box);
   }
 
   function bindComposer() {
@@ -2776,6 +2782,8 @@
     }
     const newer = $("gateNew");
     if (newer) newer.onclick = () => openGateNew();
+    const newerMeal = $("gateNewMeal");
+    if (newerMeal) newerMeal.onclick = () => openNewMeal();
     const submit = $("gateSubmit");
     if (submit) submit.onclick = () => submitGate();
     bindGateLines();
@@ -2873,6 +2881,24 @@
     state.macroMeal = phase && phase.kind !== "snack" ? phase.meal : "breakfast";
     state.macroQuery = state.gateQuery || "";
     openNewItem();
+  }
+
+  function openNewMeal() {
+    vibrate();
+    state.mealDeleteId = "";
+    state.recipeEdit = {
+      id: "",
+      name: (state.gateQuery || "").trim(),
+      lines: [],
+      query: "",
+      err: "",
+      busy: false,
+      view: "edit",
+      item: null,
+      confirmDelete: false,
+      fromComposer: true,
+    };
+    drawRecipeEdit();
   }
 
   function skipPhase(id) {
@@ -3254,6 +3280,7 @@
               <div class="name"><strong>${esc(m.name)}</strong><span>${(m.lines || []).length} items · ${num(tot.calories, 0)} kcal</span></div>
             </button>
             <button type="button" class="recipe-edit" data-edit-recipe="${esc(m.id)}" aria-label="Edit ${esc(m.name)}">Edit</button>
+            ${mealDeleteButtons(m.id)}
           </div>`;
       }),
       ...foodHits.map((f) => `
@@ -3311,6 +3338,36 @@
       };
     });
     bindRecipeEdits(box);
+    bindMealDeletes(box);
+  }
+
+  function mealDeleteButtons(id) {
+    const armed = state.mealDeleteId === id;
+    return `
+      <button type="button" class="recipe-edit" data-arm-delete="${esc(id)}">Delete</button>
+      ${armed ? `<button type="button" class="recipe-edit recipe-sure" data-confirm-delete="${esc(id)}">Are you sure?</button>` : ""}`;
+  }
+
+  function bindMealDeletes(root) {
+    if (!root) return;
+    root.querySelectorAll("[data-arm-delete]").forEach((btn) => {
+      btn.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        vibrate();
+        state.mealDeleteId = btn.dataset.armDelete;
+        if ($("gateHits")) paintGateHits();
+        if ($("logHits")) paintLogHits();
+      };
+    });
+    root.querySelectorAll("[data-confirm-delete]").forEach((btn) => {
+      btn.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        vibrate();
+        deleteSavedMeal(btn.dataset.confirmDelete);
+      };
+    });
   }
 
   function bindRecipeEdits(root) {
@@ -3328,6 +3385,7 @@
 
   function openRecipeEdit(meal) {
     vibrate();
+    state.mealDeleteId = "";
     state.recipeEdit = {
       id: meal.id || "",
       name: meal.name || "",
@@ -3337,6 +3395,8 @@
       busy: false,
       view: "edit",
       item: null,
+      confirmDelete: false,
+      fromComposer: Boolean(state.gateComposer || state.freeLog),
     };
     drawRecipeEdit();
   }
@@ -3376,28 +3436,45 @@
     }
     const lines = edit.lines || [];
     const totals = mealTotals(lines);
+    const creating = !edit.id;
     el.innerHTML = `
       <div class="sheet-top">
-        <h2>Edit recipe</h2>
-        <button type="button" class="ghost" id="recClose">Close</button>
+        <h2>${creating ? "New meal" : "Edit meal"}</h2>
+        <button type="button" class="ghost" id="recClose">${creating ? "Back" : "Close"}</button>
       </div>
       <div class="sheet-body">
         ${edit.err ? `<p class="err">${esc(edit.err)}</p>` : ""}
-        <input class="field" id="recName" placeholder="recipe name" value="${esc(edit.name || "")}" autocomplete="off">
-        <p class="log-hint">Saves the recipe for next time. Nothing is logged.</p>
+        <p class="section-label">Name</p>
+        <input class="field" id="recName" placeholder="Meal name" value="${esc(edit.name || "")}" autocomplete="off">
+        <p class="section-label">Ingredients</p>
         <div class="meal-lines" id="recLines">${mealIngHTML(lines)}</div>
         <div class="meal-totals">
           <p id="mealTotalLine">${num(totals.calories, 0)} kcal · P${num(totals.protein_g, 0)} C${num(totals.carb_g, 0)} F${num(totals.fat_g, 0)}</p>
           <span id="mealCountLine">${lines.length} item${lines.length === 1 ? "" : "s"}</span>
         </div>
-        <input class="field search-field" id="recSearch" type="search" placeholder="Add an ingredient" value="${esc(edit.query || "")}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+        <input class="field search-field" id="recSearch" type="search" placeholder="Search foods" value="${esc(edit.query || "")}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
         <div class="group log-hits" id="recHits"></div>
+        <p class="log-hint">${edit.fromComposer ? "Save the meal, or add these ingredients to this log." : "Saves the meal. Nothing is logged."}</p>
       </div>
-      <div class="sheet-foot">
-        <button type="button" class="primary" id="recSave"${edit.busy ? " disabled" : ""}>Save recipe</button>
+      <div class="sheet-foot log-actions">
+        ${edit.id ? `<button type="button" class="ghost" id="recDelete"${edit.busy ? " disabled" : ""}>Delete</button>` : ""}
+        ${edit.confirmDelete ? `<button type="button" class="ghost recipe-sure" id="recDeleteYes"${edit.busy ? " disabled" : ""}>Are you sure?</button>` : ""}
+        ${edit.fromComposer ? `<button type="button" class="ghost" id="recAddLog"${edit.busy ? " disabled" : ""}>Add to log</button>` : ""}
+        <button type="button" class="primary" id="recSave"${edit.busy ? " disabled" : ""}>Save meal</button>
       </div>`;
     $("phone").appendChild(el);
     $("recClose").onclick = () => closeRecipeEdit();
+    const drop = $("recDelete");
+    if (drop) {
+      drop.onclick = () => {
+        edit.confirmDelete = true;
+        drawRecipeEdit();
+      };
+    }
+    const yes = $("recDeleteYes");
+    if (yes) yes.onclick = () => deleteRecipeEdit();
+    const addLog = $("recAddLog");
+    if (addLog) addLog.onclick = () => addRecipeToLog();
     const nameEl = $("recName");
     if (nameEl) nameEl.oninput = () => { edit.name = nameEl.value; };
     const search = $("recSearch");
@@ -3484,7 +3561,7 @@
           <input class="field" id="riUsual" inputmode="decimal" value="${esc(d.usual_qty)}" aria-label="Amount in this recipe">
           <span class="unit-pill">${unit}</span>
         </div>
-        <p class="log-hint">The item is saved to your foods. The recipe updates when you tap Save recipe.</p>
+        <p class="log-hint">The item is saved to your foods. The meal updates when you tap Save meal.</p>
       </div>
       <div class="sheet-foot">
         <button type="button" class="primary" id="recItemSave"${edit.busy ? " disabled" : ""}>Add to recipe</button>
@@ -3576,7 +3653,7 @@
     const name = String(edit.name || "").trim();
     const lines = mealLinesPayload(edit.lines);
     if (!name) {
-      edit.err = "Name the recipe first.";
+      edit.err = "Name the meal first.";
       drawRecipeEdit();
       return;
     }
@@ -3605,7 +3682,99 @@
       showMacroToast(`Saved ${name}`);
     } catch (err) {
       edit.busy = false;
-      edit.err = err.message || "Could not save recipe";
+      edit.err = err.message || "Could not save meal";
+      drawRecipeEdit();
+    }
+  }
+
+  function forgetMeal(id, data) {
+    if (Array.isArray(data?.meals)) {
+      applySavedMeals(data);
+      return;
+    }
+    for (const holder of [state.macros, state.meals, state.food]) {
+      if (Array.isArray(holder?.meals)) holder.meals = holder.meals.filter((row) => row.id !== id);
+    }
+  }
+
+  async function deleteSavedMeal(id) {
+    if (!id || state.mealDeleteBusy) return;
+    state.mealDeleteBusy = true;
+    try {
+      const data = await LifeAPI.mealDelete({ id });
+      forgetMeal(id, data);
+      if (state.recipeEdit?.id === id) closeRecipeEdit();
+      state.mealDeleteId = "";
+      if ($("gateHits")) paintGateHits();
+      if ($("logHits")) paintLogHits();
+      showMacroToast("Meal deleted");
+    } catch (err) {
+      state.mealDeleteId = "";
+      if ($("gateHits")) paintGateHits();
+      if ($("logHits")) paintLogHits();
+      showMacroToast(err.message || "Could not delete meal", "err");
+    } finally {
+      state.mealDeleteBusy = false;
+    }
+  }
+
+  async function deleteRecipeEdit() {
+    const edit = state.recipeEdit;
+    if (!edit?.id || edit.busy || !edit.confirmDelete) return;
+    edit.busy = true;
+    edit.err = "";
+    drawRecipeEdit();
+    try {
+      const data = await LifeAPI.mealDelete({ id: edit.id });
+      forgetMeal(edit.id, data);
+      closeRecipeEdit();
+      if ($("gateHits")) paintGateHits();
+      if ($("logHits")) paintLogHits();
+      showMacroToast("Meal deleted");
+    } catch (err) {
+      edit.busy = false;
+      edit.confirmDelete = false;
+      edit.err = err.message || "Could not delete meal";
+      drawRecipeEdit();
+    }
+  }
+
+  async function addRecipeToLog() {
+    const edit = state.recipeEdit;
+    if (!edit || edit.busy) return;
+    const name = String(edit.name || "").trim();
+    const lines = mealLinesPayload(edit.lines);
+    if (!name) {
+      edit.err = "Name the meal first.";
+      drawRecipeEdit();
+      return;
+    }
+    if (!lines.length) {
+      edit.err = "Add at least one ingredient.";
+      drawRecipeEdit();
+      return;
+    }
+    edit.busy = true;
+    edit.err = "";
+    const saveBtn = $("recAddLog");
+    if (saveBtn) saveBtn.disabled = true;
+    try {
+      const data = await LifeAPI.mealSave({
+        id: edit.id || "",
+        name,
+        lines,
+      });
+      const meal = data.meal || { id: edit.id, name, lines };
+      applySavedMeals(data, meal);
+      adoptMeals(data, state.macros, state.food);
+      const savedLines = meal.lines && meal.lines.length ? meal : { lines };
+      state.gateLines = (state.gateLines || []).concat(cloneMealLines(savedLines));
+      closeRecipeEdit();
+      renderMacros();
+      showMacroToast(`Added ${name}`);
+    } catch (err) {
+      edit.busy = false;
+      edit.err = err.message || "Could not add meal";
       drawRecipeEdit();
     }
   }
